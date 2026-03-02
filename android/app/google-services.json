@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "181457370400",
+    "project_id": "gestion-api-rest-dam",
+    "storage_bucket": "gestion-api-rest-dam.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:181457370400:android:7c853e591068f7f6f82b45",
+        "android_client_info": {
+          "package_name": "com.example.tfg_2dama_gestion_apirest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKjO_vwfFths5YS_qPIvzgvsfHdvfQxi4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
