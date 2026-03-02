@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(35),
                 decoration: BoxDecoration(
-                  color: Colors.grey,
+                  color: const Color.fromARGB(255, 226, 226, 226),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
