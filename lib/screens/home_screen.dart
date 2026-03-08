@@ -30,7 +30,7 @@ class HomeScreen extends StatelessWidget {
               Text(
                 'Gestion API Rest',
                 textAlign: TextAlign.center,     
-                style: TextStyle(fontSize: 30),           
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),           
               ),
 
               Spacer(),
@@ -40,7 +40,7 @@ class HomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch, //los hijos ocupen todo el ancho del column
                 children: [
                   ElevatedButton(
-                    onPressed: () => {},
+                    onPressed: () => Navigator.pushNamed(context, 'login'),
                     child: Text('INICIAR SESION'),
                   ),
 

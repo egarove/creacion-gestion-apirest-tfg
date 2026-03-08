@@ -56,6 +56,15 @@ class AppTheme {
 
       //ICONOS
       iconTheme: const IconThemeData(color: primaryColor),
+
+      //TEXT BUTTON
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryColor,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
     );
   }
 }

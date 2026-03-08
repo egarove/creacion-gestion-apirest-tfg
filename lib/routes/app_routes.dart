@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:tfg_2dama_gestion_apirest/screens/home_screen.dart';
+import 'package:tfg_2dama_gestion_apirest/screens/screens.dart';
 
 class AppRoutes {
   
@@ -7,5 +7,6 @@ class AppRoutes {
 
   static Map<String, Widget Function(BuildContext)> routes = {
     'home': (BuildContext context) => const HomeScreen(),
+    'login': (BuildContext context) => const LoginScreen(),
   };
 }
