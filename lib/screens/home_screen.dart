@@ -18,14 +18,9 @@ class HomeScreen extends StatelessWidget {
               //LOGO
               Container(
                 padding: EdgeInsets.all(35),
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 226, 226, 226),
-                  shape: BoxShape.circle,
-                ),
                 child: Icon(
                   Icons.add_box,
                   size: 80,
-                  color: Colors.green,
                 ),
               ),
 
@@ -34,11 +29,8 @@ class HomeScreen extends StatelessWidget {
               //NOMBRE APP
               Text(
                 'Gestion API Rest',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.green
-                ),
+                textAlign: TextAlign.center,     
+                style: TextStyle(fontSize: 30),           
               ),
 
               Spacer(),
