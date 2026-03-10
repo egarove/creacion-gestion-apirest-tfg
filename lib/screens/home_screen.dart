@@ -47,7 +47,7 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(height: 15,),
 
                   ElevatedButton(
-                    onPressed: () => {},
+                    onPressed: () => Navigator.pushNamed(context, 'register'),
                     child: Text('REGISTRO'),
                   ),
 
