@@ -12,7 +12,20 @@
           "package_name": "com.example.tfg_2dama_gestion_apirest"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "181457370400-8t1srs5p7i8oa37ahr21pkbihub8j8kl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tfg_2dama_gestion_apirest",
+            "certificate_hash": "e78938d790d168e8248371fe5d8ceaae0f9d337f"
+          }
+        },
+        {
+          "client_id": "181457370400-ea7tgjj61vn64m31lc4405jfjlg65m26.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCKjO_vwfFths5YS_qPIvzgvsfHdvfQxi4"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "181457370400-ea7tgjj61vn64m31lc4405jfjlg65m26.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "181457370400-rj72hn5ppu6p1vi8j2rpa1tuqr4j5rcl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.tfg2damaGestionApirest"
+              }
+            }
+          ]
         }
       }
     }
