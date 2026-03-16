@@ -18,13 +18,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoadingGoogle = false;
   String? _errorTerminos;
 
-  // Map donde guardo los datos del formulario
-  final Map<String, String> formValues = {
-    'nombre': '',
-    'nick': '',
-    'email': '',
-    'password': '',
-  };
+  // datos del formulario
+  final TextEditingController _email = TextEditingController();  
 
   //para que la contraseña no se borre cuando cambie la visibilidad
   final TextEditingController _passwordController = TextEditingController(); 
@@ -73,32 +68,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 key: myFormKey,
                 child: Column(
                   children: [
-                    TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Nombre Completo'
-                      ),
-                      onChanged: (value) => formValues['nombre'] = value,
-                      validator: (value) => (value == null || value.trim().isEmpty) ? 'Introduzca un nombre' : null, //return true = input valido
-                    ),
-
-                    const SizedBox(height: 20),
 
                     TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Usuario'
-                      ),
-                      onChanged: (value) => formValues['nick'] = value,
-                      validator: (value) => (value == null || value.isEmpty) ? 'Introduzca su nick' : null, //return true = input valido
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    TextFormField(
+                      controller: _email,
                       decoration: InputDecoration(
                         labelText: 'Email'
                       ),
                       keyboardType: TextInputType.emailAddress,
-                      onChanged: (value) => formValues['email'] = value,
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Introduzca un email';
                         return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value) ? null : 'Correo incorrecto';
