@@ -1,7 +1,8 @@
-import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; //para icono de google
+import 'package:tfg_2dama_gestion_apirest/services/login_singup_methods.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -17,6 +18,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoadingEmail = false;
   bool _isLoadingGoogle = false;
   String? _errorTerminos;
+  String? _errorGeneral;
+
+  // para usar auth
+  final authService = AuthService();
 
   // datos del formulario
   final TextEditingController _email = TextEditingController();  
@@ -26,6 +31,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   //variable para comprobar los validator
   final myFormKey = GlobalKey<FormState>();
+
+  //para liberar memoria
+  @override
+  void dispose() {
+    _email.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,15 +132,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               Center(
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (_isLoadingGoogle) return;
+
                     if (!_terminos) {
                       setState(() => _errorTerminos = 'Debes aceptar los términos');
                       return;
                     }
-                    //logica de google
+
+                    //limpiamos mensaje de error
+                    setState(() {
+                      setState(() => _isLoadingGoogle = true);
+                      _errorGeneral = null;
+                    });
+
+                    try {
+                      UserCredential? user = await authService.signInWithGoogle();
+
+                      if (user != null) {
+                        // navegar cuando este
+                      }
+                    } catch (e) {
+                      setState(() {
+                        _errorGeneral = 'Error al registrarse con Google';
+                      });
+                    } finally {
+                      setState(() => _isLoadingGoogle = false);
+                    }
                   },
-                  child: FaIcon(FontAwesomeIcons.google),
+                  //añadimos un indicador visual para que el user sepa si esta cargando
+                  child: _isLoadingGoogle
+                  ? const CircularProgressIndicator() : FaIcon(FontAwesomeIcons.google),
                 ),
               ),
 
@@ -139,9 +174,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 onChanged: (value) {
                   setState(() {
                     _terminos = value!;
+                    if (_terminos) _errorTerminos = null;
                   });
                 },
               ),
+
+              const SizedBox(height: 20,),
+
+              //mensajes de error
+              if (_errorTerminos != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    _errorTerminos!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
 
               const SizedBox(height: 20),
 
@@ -152,14 +200,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton(
                         child: Text('REGISTRARME'),
-                        onPressed: ( () {
-                          if (myFormKey.currentState!.validate() && _terminos){
-                            //logica
-                            //NO OLVIDAR METER LA CONTRASEÑA EN EL MAP DESDE EL CONTROLLER!!!!!!!
+                        onPressed: () async {
+                          if (_isLoadingEmail) return;
+
+                          if (!_terminos) {
+                            setState(() => _errorTerminos = 'Debes aceptar los términos');
+                            return;
                           }
-                        })
+
+                          if (myFormKey.currentState!.validate() && _terminos) {
+                            FocusScope.of(context).unfocus(); //cerramos el cuadro de inputtext para mejor UX
+                            setState(() => _isLoadingEmail = true);
+
+                            //limpiamos mensaje de error
+                            setState(() {
+                              _errorGeneral = null;
+                            });
+
+                            try {
+                              UserCredential? user = await authService.registerWithEmail(
+                                _email.text,
+                                _passwordController.text,
+                              );
+
+                              if (user != null) {
+                                // futuro navigate
+                              }
+                            } on FirebaseAuthException catch (e) {
+                              setState(() {
+                                _errorGeneral = e.message;
+                              });
+                            } finally {
+                              setState(() => _isLoadingEmail = false);
+                            }
+                          }
+                        }
                       ),
               ),
+
+              const SizedBox(height: 20,),
+
+              //mensaje de errores generales
+              if (_errorGeneral != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    _errorGeneral!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
 
               const SizedBox(height: 30),
             ],

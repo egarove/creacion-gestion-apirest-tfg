@@ -1,6 +1,7 @@
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; //para icono de google
 import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:tfg_2dama_gestion_apirest/services/login_singup_methods.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
