@@ -193,6 +193,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 20),
 
+              const SizedBox(height: 20,),
+
+              //mensaje de errores generales
+              if (_errorGeneral != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    _errorGeneral!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -237,18 +249,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         }
                       ),
               ),
-
-              const SizedBox(height: 20,),
-
-              //mensaje de errores generales
-              if (_errorGeneral != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    _errorGeneral!,
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
 
               const SizedBox(height: 30),
             ],

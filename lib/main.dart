@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tfg_2dama_gestion_apirest/routes/app_routes.dart';
 import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); 
+  await Firebase.initializeApp(); //inicializamos firebase
   runApp(const MyApp());
 }
 
