@@ -81,4 +81,9 @@ class AuthService {
 
   // Usuario actual
   User? get currentUser => _auth.currentUser;
+
+  //mandar correo para reestablecer contraseña
+  Future<void> sendPasswordResetEmail(String email) async {
+  await _auth.sendPasswordResetEmail(email: email);
+}
 }

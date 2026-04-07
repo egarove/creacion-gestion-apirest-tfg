@@ -154,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       }
                     } catch (e) {
                       setState(() {
-                        _errorGeneral = 'Error al registrarse con Google';
+                        _errorGeneral = e.toString(); //'Error al registrarse con Google'
                       });
                     } finally {
                       setState(() => _isLoadingGoogle = false);
