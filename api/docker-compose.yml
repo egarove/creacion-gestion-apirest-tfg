@@ -1,0 +1,66 @@
+services:
+# Api principal que se encargará de crear las APIs dinámicamente.
+  api:
+    build:
+      context: ./api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/api
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PYTHONPATH=/api
+    depends_on:
+      - postgres
+# Base de datos para las apis:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+  
+  mariadb:
+    image: mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: password
+      MARIADB_DATABASE: mariadb
+      MARIADB_USER: user
+      MARIADB_PASSWORD: password
+    ports:
+      - "5433:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+  
+  mysql:
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mysql
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "5434:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  sqlite:
+    image: nouchka/sqlite3
+    volumes:
+      - ./sqlite_data:/data
+    ports:
+      - "5435:5432"
+
+  # Luego se agregarán las demás bases de datos aquí, siguiendo el ejemplo de PostgreSQL.
+
+# !!IMPORTANTE!!: No eliminar el bloque de volúmenes, es necesario para la persistencia de datos de Postgre base de datos y si se 
+# añaden más bases de datos se tiene que hacer su volumen.
+volumes:
+  postgres_data:
+  mariadb_data:
+  mysql_data:
+  sqlite_data:

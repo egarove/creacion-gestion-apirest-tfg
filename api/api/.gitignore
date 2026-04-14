@@ -1,0 +1,5 @@
+deployments/*
+__pycache__/
+build/
+sqlite_data/
+*.pyc
