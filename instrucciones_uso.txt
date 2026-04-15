@@ -2,5 +2,5 @@
 1. Descargar Docker Desktop
 2. Cambiamos la ip en 'api/.env' a la nuestra
 3. En la terminal de VSC lanzamos 'pip install sqlalchemy'
-4. En la terminal de VSC (estando dentro del directo api/)lanzamos 'docker-compose up -d'
+4. En la terminal de VSC (estando dentro del directo api/) lanzamos 'docker-compose up -d'
  
