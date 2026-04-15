@@ -1,0 +1,6 @@
+--COMO PREPARAR EL ENTORNO PARA EL FUNCIONAMIENTO DE LA APP--
+1. Descargar Docker Desktop
+2. Cambiamos la ip en 'api/.env' a la nuestra
+3. En la terminal de VSC lanzamos 'pip install sqlalchemy'
+4. En la terminal de VSC lanzamos 'docker-compose up -d'
+ 
