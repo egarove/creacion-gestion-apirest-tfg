@@ -84,6 +84,62 @@ class AuthService {
 
   //mandar correo para reestablecer contraseña
   Future<void> sendPasswordResetEmail(String email) async {
-  await _auth.sendPasswordResetEmail(email: email);
-}
+    await _auth.sendPasswordResetEmail(email: email);
+  }
+
+  // Guardar API en Firestore (subcolección del usuario actual)
+  Future<void> guardarApi(Map<String, dynamic> apiData) async {
+    final uid = _auth.currentUser!.uid;
+    final apiName = apiData['api_name'] as String;
+    await _db
+        .collection('usuarios')
+        .doc(uid)
+        .collection('apis')
+        .doc(apiName)
+        .set({
+      'api_name': apiData['api_name'],
+      'port': apiData['port'],
+      'db': apiData['db'],
+      'columns': apiData['columns'],
+      'endpoints': apiData['endpoints'] ?? [],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Añadir un endpoint a la lista de endpoints de una API
+  Future<void> agregarEndpointFirestore(
+    String apiName,
+    Map<String, dynamic> endpoint,
+  ) async {
+    final uid = _auth.currentUser!.uid;
+    await _db
+        .collection('usuarios')
+        .doc(uid)
+        .collection('apis')
+        .doc(apiName)
+        .update({
+      'endpoints': FieldValue.arrayUnion([endpoint]),
+    });
+  }
+
+  // Stream en tiempo real de las APIs del usuario actual
+  Stream<QuerySnapshot> streamApis() {
+    final uid = _auth.currentUser!.uid;
+    return _db
+        .collection('usuarios')
+        .doc(uid)
+        .collection('apis')
+        .snapshots();
+  }
+
+  // Eliminar API de Firestore
+  Future<void> eliminarApiFirestore(String apiName) async {
+    final uid = _auth.currentUser!.uid;
+    await _db
+        .collection('usuarios')
+        .doc(uid)
+        .collection('apis')
+        .doc(apiName)
+        .delete();
+  }
 }

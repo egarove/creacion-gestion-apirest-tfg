@@ -15,7 +15,7 @@ def root():
 def {{ endpoint.function_name }}():
     with engine.connect() as conn:
         {% if endpoint.logic == 'select' %}
-        res = conn.execute(text("SELECT * FROM {{ endpoint.table }}")).fetchall()
+        res = conn.execute(text("SELECT * FROM data_{{ api_name }}")).fetchall()
         return [dict(row) for row in res]
         {% elif endpoint.logic == 'insert' %}
         # Lógica de inserción dinámica...

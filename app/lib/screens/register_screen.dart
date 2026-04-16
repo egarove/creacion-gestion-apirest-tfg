@@ -149,8 +149,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     try {
                       UserCredential? user = await authService.signInWithGoogle();
 
-                      if (user != null) {
-                        // navegar cuando este
+                      if (user != null && mounted) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          'dashboard',
+                          (route) => false,
+                        );
                       }
                     } catch (e) {
                       setState(() {
@@ -235,8 +239,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 _passwordController.text,
                               );
 
-                              if (user != null) {
-                                // futuro navigate
+                              if (user != null && mounted) {
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  'dashboard',
+                                  (route) => false,
+                                );
                               }
                             } on FirebaseAuthException catch (e) {
                               setState(() {

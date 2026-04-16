@@ -8,6 +8,7 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import text
 from events.db import get_db
 from models import ApiModel, DBModel, UpdateApiModel
+from models.endpoint_model import Endpoint
 from sqlalchemy.orm import Session
 from settings import API_IP
 from events.db import engine, Base, get_db
@@ -107,10 +108,64 @@ def update_api(api: str, item: UpdateApiModel):
     }
     
 @app.post("/{api}/create-end-point")
-def update_api(api: str, type: str):
-    return {
-        
-    }
+def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)):
+    """Añade un nuevo endpoint a una API existente."""
+    try:
+        api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not api_data:
+            return Response(status_code=404, content=f"No se encontró la API {api}")
+
+        # Código del nuevo endpoint con indentación correcta
+        if endpoint.logic == "select":
+            logic_body = (
+                f'res = conn.execute(text("SELECT * FROM data_{api}")).fetchall()\n'
+                f'        return [dict(row) for row in res]'
+            )
+        elif endpoint.logic == "insert":
+            logic_body = 'return {"msg": "inserted"}'
+        elif endpoint.logic == "update":
+            logic_body = 'return {"msg": "updated"}'
+        else:
+            logic_body = 'return {"msg": "deleted"}'
+
+        new_code = (
+            f'\n@app.{endpoint.method}("{endpoint.path}")\n'
+            f'def {endpoint.function_name}():\n'
+            f'    with engine.connect() as conn:\n'
+            f'        {logic_body}\n'
+        )
+
+        proyect_path = f"deployments/{api}"
+        with open(f"{proyect_path}/main.py", "a") as f:
+            f.write(new_code)
+
+        # Reconstruir imagen
+        subprocess.run(["docker", "build", "-t", f"api-{api}", proyect_path])
+
+        # Parar y eliminar contenedor viejo
+        subprocess.run(["docker", "rm", "-f", api])
+
+        # Puerto según tipo de BD
+        db_ports = {
+            "postgresql": 5432,
+            "mariadb": 5433,
+            "mysql": 5434,
+        }
+        db_port = db_ports.get(api_data.db, 5432)
+
+        # Relanzar contenedor con los mismos parámetros
+        subprocess.Popen([
+            "docker", "run", "-d",
+            "--name", api,
+            "-e", f"DATABASE_URL={api_data.db}://{api_data.usr}:{api_data.paswd}@{API_IP}:{db_port}/{api}_db",
+            "-p", f"{api_data.port}:8000",
+            f"api-{api}",
+        ])
+
+        return {"mensaje": "Endpoint añadido", "endpoint": endpoint.path}
+    except Exception as e:
+        print(f"DEBUG ERROR CREATE ENDPOINT: {str(e)}", flush=True)
+        return Response(status_code=500, content=str(e))
 
 @app.post("/{api}/delete")
 def delete_api(api: str, db: Session = Depends(get_db)):

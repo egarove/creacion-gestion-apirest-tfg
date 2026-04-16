@@ -170,8 +170,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   _password.text,
                                 );
 
-                                if (user != null) {
-                                  // navegar cuando tenga pantalla
+                                if (user != null && mounted) {
+                                  Navigator.pushNamedAndRemoveUntil(
+                                    context,
+                                    'dashboard',
+                                    (route) => false,
+                                  );
                                 }
                               } on FirebaseAuthException catch (e) {
                                 setState(() {
@@ -215,8 +219,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     try {
                       UserCredential? user = await authService.signInWithGoogle();
 
-                      if (user != null) {
-                        // navegar cuando tenga pantalla
+                      if (user != null && mounted) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          'dashboard',
+                          (route) => false,
+                        );
                       }
                     } catch (e) {
                       setState(() {
