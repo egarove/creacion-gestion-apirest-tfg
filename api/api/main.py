@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import time
 from fastapi import Depends, FastAPI, Response
 import os
 
@@ -12,6 +13,7 @@ from models.endpoint_model import Endpoint
 from sqlalchemy.orm import Session
 from settings import API_IP
 from events.db import engine, Base, get_db
+import docker
 
 # Configuración de eventos para manejar la conexión a la base de datos y la creación de tablas al iniciar el contenedor, y cerrar conexiones al apagarlo.
 @asynccontextmanager
@@ -52,11 +54,27 @@ def crear_nueva_api(proyect: ApiModel, db: Session = Depends(get_db)):
 
         # Construir la imagen Docker
         subprocess.run(["docker", "build", "-t", f"api-{proyect.api_name}", proyect_path])
+        
+        db_configs = {
+            "postgresql": {"port": "5432", "driver": "postgresql"},
+            "mysql":      {"port": "5433", "driver": "mysql+pymysql"},
+            "mariadb":    {"port": "5434", "driver": "mysql+pymysql"},
+        }
+        
+        motor = proyect.db
+        
+        if motor == "sqlite":
+            url = f"sqlite:///{proyect.api_name}.db"
+        elif motor in db_configs:
+            config = db_configs[motor]
+            url = f"{config['driver']}://{proyect.usr}:{proyect.paswd}@{API_IP}:{config['port']}/{proyect.api_name}_db"
+        else:
+            raise Exception("Motor no configurado")
     
         subprocess.Popen([
             "docker", "run", "-d", 
             "--name", f"{proyect.api_name}",
-            "-e", f"DATABASE_URL={proyect.db}://{proyect.usr}:{proyect.paswd}@{API_IP}:5432/{proyect.api_name}_db",
+            "-e", f"DATABASE_URL={url}",
             "-p", f"{proyect.port}:8000", 
             f"api-{proyect.api_name}"
         ])
@@ -106,6 +124,59 @@ def update_api(api: str, item: UpdateApiModel):
     return {
         
     }
+    
+@app.post("/{api}/start")
+def start_api(api: str):
+    """Iniciar una api"""
+    try:
+        client = docker.from_env()
+        container = client.containers.get(api)
+        if container.status == "running":
+            return {
+                "status" : "running"
+            }
+        
+        container.start()
+        time.sleep(2)
+        
+        return {
+            "status" : container.status
+        }
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+@app.post("/{api}/stop")
+def start_api(api: str):
+    """Parar una api"""
+    try:
+        client = docker.from_env()
+        container = client.containers.get(api)
+        if container.status == "exited":
+            return {
+                "status" : container.status
+            }
+        
+        container.stop()
+        time.sleep(2)
+        
+        return {
+            "status" : container.status
+        }
+    except Exception as e:
+        return Response(status_code=500, content=str(e))   
+
+@app.post("/{api}/status")
+def start_api(api: str):
+    """Estado de una api"""
+    try:
+        client = docker.from_env()
+        container = client.containers.get(api)
+        return {
+            "status" : container.status
+        }
+    except Exception as e:
+        return Response(status_code=500, content=str(e)) 
+
     
 @app.post("/{api}/create-end-point")
 def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)):

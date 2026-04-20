@@ -3,6 +3,8 @@ services:
   api:
     build:
       context: ./api
+    env_file:
+      - /api/.env
     ports:
       - "8000:8000"
     volumes:
@@ -27,6 +29,7 @@ services:
   mariadb:
     image: mariadb
     environment:
+      MARIADB_ROOT_USER: root
       MARIADB_ROOT_PASSWORD: password
       MARIADB_DATABASE: mariadb
       MARIADB_USER: user
@@ -52,8 +55,6 @@ services:
     image: nouchka/sqlite3
     volumes:
       - ./sqlite_data:/data
-    ports:
-      - "5435:5432"
 
   # Luego se agregarán las demás bases de datos aquí, siguiendo el ejemplo de PostgreSQL.
 

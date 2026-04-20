@@ -46,11 +46,47 @@ class MainApp extends StatelessWidget {
 
   Future<void> delete() async {
     final response = await http.post(
-      Uri.parse('http://192.168.1.131:8000/pruebas/delete'),
+      Uri.parse('http://192.168.1.132:8000/pruebas/delete'),
       headers: {"Content-Type": "application/json"},
     );
     if (response.statusCode == 200) {
       log("¡API eliminada exitosamente!");
+    } else {
+      log("Error al eliminar la API ${response.statusCode}: ${response.body}");
+    }
+  }
+
+  Future<void> start() async {
+    final response = await http.post(
+      Uri.parse('http://192.168.1.132:8000/contenedor-pruebas/start'),
+      headers: {"Content-Type": "application/json"},
+    );
+    if (response.statusCode == 200) {
+      log(response.body);
+    } else {
+      log("Error al eliminar la API ${response.statusCode}: ${response.body}");
+    }
+  }
+
+  Future<void> stop() async {
+    final response = await http.post(
+      Uri.parse('http://192.168.1.132:8000/contenedor-pruebas/stop'),
+      headers: {"Content-Type": "application/json"},
+    );
+    if (response.statusCode == 200) {
+      log(response.body);
+    } else {
+      log("Error al eliminar la API ${response.statusCode}: ${response.body}");
+    }
+  }
+
+  Future<void> status() async {
+    final response = await http.post(
+      Uri.parse('http://192.168.1.132:8000/contenedor-pruebas/status'),
+      headers: {"Content-Type": "application/json"},
+    );
+    if (response.statusCode == 200) {
+      print(response.body);
     } else {
       log("Error al eliminar la API ${response.statusCode}: ${response.body}");
     }
@@ -65,10 +101,10 @@ class MainApp extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(onPressed: create, child: const Text("Crear API")),
+              ElevatedButton(onPressed: start, child: const Text("Crear API")),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: delete,
+                onPressed: status,
                 child: const Text("Eliminar API"),
               ),
             ],

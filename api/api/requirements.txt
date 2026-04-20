@@ -2,6 +2,8 @@ fastapi
 uvicorn
 pydantic
 starlette
-sqlalchemy 
-psycopg2-binary
 jinja2
+sqlalchemy
+psycopg2-binary  # Para PostgreSQL
+pymysql
+docker
