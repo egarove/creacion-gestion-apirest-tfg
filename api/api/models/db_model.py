@@ -8,6 +8,7 @@ class DBModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     api_name = Column(String, nullable=False)
     port = Column(Integer, nullable=False)
+    backup_port = Column(Integer)
     db = Column(String)
     columns = Column(ARRAY(String))  # campos de la base de datos
     usr = Column(String)

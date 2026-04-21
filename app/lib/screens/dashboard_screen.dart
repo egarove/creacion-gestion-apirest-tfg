@@ -116,9 +116,11 @@ class DashboardScreen extends StatelessWidget {
                     arguments: {
                       'api_name': apiName,
                       'port': port,
+                      'backup_port': data['backup_port'],
                       'db': db,
                       'columns': columns,
                       'endpoints': endpoints,
+                      'ui_url': data['ui_url'],
                     },
                   ),
                   child: Padding(

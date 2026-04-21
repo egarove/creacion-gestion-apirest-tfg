@@ -91,19 +91,26 @@ class AuthService {
   Future<void> guardarApi(Map<String, dynamic> apiData) async {
     final uid = _auth.currentUser!.uid;
     final apiName = apiData['api_name'] as String;
+    final data = <String, dynamic>{
+      'api_name': apiData['api_name'],
+      'port': apiData['port'],
+      'backup_port': apiData['backup_port'] ?? (apiData['port'] as int) + 1,
+      'db': apiData['db'],
+      'usr': apiData['usr'] ?? '',
+      'paswd': apiData['paswd'] ?? '',
+      'columns': apiData['columns'],
+      'endpoints': apiData['endpoints'] ?? [],
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    if (apiData['ui_url'] != null) {
+      data['ui_url'] = apiData['ui_url'];
+    }
     await _db
         .collection('usuarios')
         .doc(uid)
         .collection('apis')
         .doc(apiName)
-        .set({
-      'api_name': apiData['api_name'],
-      'port': apiData['port'],
-      'db': apiData['db'],
-      'columns': apiData['columns'],
-      'endpoints': apiData['endpoints'] ?? [],
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+        .set(data);
   }
 
   // Añadir un endpoint a la lista de endpoints de una API

@@ -51,6 +51,7 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
   final List<_EndpointEntry> _endpoints = [_EndpointEntry()];
 
   bool _isLoading = false;
+  bool _generarUi = false;
   String? _errorMsg;
 
   static const List<String> _colTypes = [
@@ -134,21 +135,31 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
               })
           .toList();
 
+      final port = int.parse(_portCtrl.text.trim());
+
       final body = {
         'api_name': _nameCtrl.text.trim(),
-        'port': int.parse(_portCtrl.text.trim()),
+        'port': port,
         'db': _dbType,
         'usr': _dbUserCtrl.text.trim(),
         'paswd': _dbPassCtrl.text,
         'columns': columns,
         'endpoints': endpoints,
+        'generar_ui': _generarUi,
       };
 
       final apiService = ApiService();
       final authService = AuthService();
 
-      await apiService.crearApi(body);
-      await authService.guardarApi(body);
+      final response = await apiService.crearApi(body);
+
+      final dataToSave = Map<String, dynamic>.from(body);
+      dataToSave['backup_port'] = response['backup_port'] ?? port + 1;
+      if (_generarUi) {
+        dataToSave['ui_url'] = 'http://172.16.50.79:$port/ui';
+      }
+
+      await authService.guardarApi(dataToSave);
 
       if (mounted) {
         Navigator.pop(context);
@@ -444,6 +455,24 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                 ),
 
                 const SizedBox(height: 24),
+
+                // ── PANEL WEB ──
+                SwitchListTile(
+                  title: const Text(
+                    'Generar panel web',
+                    style: TextStyle(color: AppTheme.primaryColor),
+                  ),
+                  subtitle: const Text(
+                    'Interfaz visual accesible desde el navegador',
+                    style: TextStyle(color: AppTheme.secondaryColor, fontSize: 13),
+                  ),
+                  value: _generarUi,
+                  activeColor: AppTheme.primaryColor,
+                  onChanged: (v) => setState(() => _generarUi = v),
+                  contentPadding: EdgeInsets.zero,
+                ),
+
+                const SizedBox(height: 16),
 
                 // ── ERROR ──
                 if (_errorMsg != null)

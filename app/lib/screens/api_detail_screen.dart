@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tfg_2dama_gestion_apirest/services/api_service.dart';
 import 'package:tfg_2dama_gestion_apirest/services/login_singup_methods.dart';
 import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ApiDetailScreen extends StatefulWidget {
   const ApiDetailScreen({super.key});
@@ -14,6 +15,11 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
   late Map<String, dynamic> _apiData;
   late List<Map<String, dynamic>> _endpoints;
   bool _initialized = false;
+
+  String? _mainStatus;
+  String? _backupStatus;
+  bool _statusLoading = true;
+  bool _restoreLoading = false;
 
   static Color _methodColor(String method) {
     switch (method.toLowerCase()) {
@@ -41,7 +47,73 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
               .toList() ??
           [];
       _initialized = true;
+      _loadStatus();
     }
+  }
+
+  Future<void> _loadStatus() async {
+    setState(() => _statusLoading = true);
+    try {
+      final apiName = _apiData['api_name'] as String;
+      final result = await ApiService().getStatus(apiName);
+      if (mounted) {
+        setState(() {
+          _mainStatus = result['status'] as String? ?? 'unknown';
+          _backupStatus = result['backup_status'] as String? ?? 'unknown';
+          _statusLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _mainStatus = 'unknown';
+          _backupStatus = 'unknown';
+          _statusLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _restore() async {
+    setState(() => _restoreLoading = true);
+    try {
+      final apiName = _apiData['api_name'] as String;
+      await ApiService().restoreApi(apiName);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('API restaurada correctamente')),
+        );
+      }
+      await _loadStatus();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _restoreLoading = false);
+    }
+  }
+
+  bool get _someContainerDown {
+    const running = 'running';
+    return _mainStatus != running || _backupStatus != running;
+  }
+
+  Widget _statusDot(String? status) {
+    final isRunning = status == 'running';
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isRunning ? const Color(0xFF4CAF50) : Colors.red,
+      ),
+    );
   }
 
   void _openAddEndpointSheet() {
@@ -76,7 +148,6 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Cabecera
                     Row(
                       children: [
                         const Expanded(
@@ -97,7 +168,6 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Método + Lógica
                     Row(
                       children: [
                         Expanded(
@@ -255,9 +325,11 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
   Widget build(BuildContext context) {
     final apiName = _apiData['api_name'] as String? ?? '';
     final port = _apiData['port'];
+    final backupPort = _apiData['backup_port'];
     final db = _apiData['db'] as String? ?? '';
     final columns =
         (_apiData['columns'] as List<dynamic>?)?.cast<String>() ?? [];
+    final uiUrl = _apiData['ui_url'] as String?;
 
     return Scaffold(
       appBar: AppBar(
@@ -294,7 +366,7 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                     const SizedBox(height: 10),
                     Text(
                       'Columnas',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                         color: AppTheme.primaryColor,
@@ -331,10 +403,159 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                               )
                               .toList(),
                     ),
+
+                    const SizedBox(height: 14),
+
+                    // ── ESTADO CONTENEDORES ──
+                    Text(
+                      'Contenedores',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _statusLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  _statusDot(_mainStatus),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '$apiName  (puerto $port)',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  _statusDot(_backupStatus),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${apiName}_backup  (puerto ${backupPort ?? '—'})',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+
+                    // ── BOTÓN RESTAURAR ──
+                    if (!_statusLoading && _someContainerDown) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _restoreLoading
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            : OutlinedButton.icon(
+                                onPressed: _restore,
+                                icon: const Icon(Icons.restore,
+                                    color: AppTheme.primaryColor),
+                                label: const Text(
+                                  'Restaurar API',
+                                  style:
+                                      TextStyle(color: AppTheme.primaryColor),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                      color: AppTheme.primaryColor),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
+
+            // ── PANEL WEB ──
+            if (uiUrl != null) ...[
+              const SizedBox(height: 24),
+              const _SectionHeader('Panel web'),
+              const SizedBox(height: 8),
+              Card(
+                elevation: 1,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                color: AppTheme.surfaceColor,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'URL de acceso',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SelectableText(
+                        uiUrl,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.secondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(uiUrl);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
+                          } else if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('No se pudo abrir $uiUrl'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.open_in_browser,
+                            color: AppTheme.primaryColor),
+                        label: const Text(
+                          'Abrir en navegador',
+                          style: TextStyle(color: AppTheme.primaryColor),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 24),
 
@@ -383,7 +604,6 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Badge método
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),

@@ -13,3 +13,4 @@ class ApiModel(BaseModel):
     endpoints: list[Endpoint] = []
     usr: str
     paswd: str
+    generar_ui: bool = False

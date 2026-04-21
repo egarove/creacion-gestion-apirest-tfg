@@ -4,7 +4,7 @@ services:
     build:
       context: ./api
     env_file:
-      - /api/.env
+      - ./api/.env
     ports:
       - "8000:8000"
     volumes:
