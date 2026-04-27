@@ -1,0 +1,185 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <microhttpd.h>
+{% if db == 'postgresql' %}
+#include <libpq-fe.h>
+{% elif db in ['mysql', 'mariadb'] %}
+#include <mysql/mysql.h>
+{% endif %}
+
+#define PORT 8000
+
+{% if db == 'postgresql' %}
+static PGconn *db_conn = NULL;
+
+void init_db() {
+    const char *url = getenv("DATABASE_URL");
+    db_conn = PQconnectdb(url);
+    if (PQstatus(db_conn) != CONNECTION_OK) {
+        fprintf(stderr, "Error conexion BD: %s\n", PQerrorMessage(db_conn));
+        exit(1);
+    }
+}
+{% elif db in ['mysql', 'mariadb'] %}
+static MYSQL *db_conn = NULL;
+
+void init_db() {
+    const char *url = getenv("DATABASE_URL");
+    db_conn = mysql_init(NULL);
+    /* Parsear DATABASE_URL simplificado: user:pass@host:port/dbname */
+    char user[64], pass[64], host[128], dbname[64];
+    int port = 3306;
+    sscanf(url, "%*[^/]//%63[^:]:%63[^@]@%127[^:]:%d/%63s", user, pass, host, &port, dbname);
+    if (!mysql_real_connect(db_conn, host, user, pass, dbname, port, NULL, 0)) {
+        fprintf(stderr, "Error conexion BD: %s\n", mysql_error(db_conn));
+        exit(1);
+    }
+}
+{% endif %}
+
+static char *json_root = "{\"status\":\"online\",\"api\":\"{{ api_name }}\"}";
+
+struct PostData {
+    char *data;
+    size_t size;
+};
+
+static enum MHD_Result handle_request(void *cls, struct MHD_Connection *connection,
+    const char *url, const char *method, const char *version,
+    const char *upload_data, size_t *upload_data_size, void **con_cls)
+{
+    struct MHD_Response *response;
+    enum MHD_Result ret;
+
+    /* POST body handling */
+    if (*con_cls == NULL) {
+        struct PostData *pd = calloc(1, sizeof(struct PostData));
+        *con_cls = pd;
+        return MHD_YES;
+    }
+
+    struct PostData *pd = *con_cls;
+    if (*upload_data_size > 0) {
+        pd->data = realloc(pd->data, pd->size + *upload_data_size + 1);
+        memcpy(pd->data + pd->size, upload_data, *upload_data_size);
+        pd->size += *upload_data_size;
+        pd->data[pd->size] = '\0';
+        *upload_data_size = 0;
+        return MHD_YES;
+    }
+
+    char *resp_str = NULL;
+
+    /* Root endpoint */
+    if (strcmp(url, "/") == 0 && strcmp(method, "GET") == 0) {
+        resp_str = strdup(json_root);
+    }
+    {% for endpoint in endpoints %}
+    else if (strcmp(url, "{{ endpoint.path }}") == 0 && strcasecmp(method, "{{ endpoint.method | upper }}") == 0) {
+        {% if endpoint.logic == 'select' %}
+        {% if db == 'postgresql' %}
+        PGresult *res = PQexec(db_conn, "SELECT * FROM data_{{ api_name }}");
+        int nrows = PQntuples(res);
+        int ncols = PQnfields(res);
+        size_t buf_size = 4096;
+        resp_str = malloc(buf_size);
+        strcpy(resp_str, "[");
+        for (int i = 0; i < nrows; i++) {
+            if (i > 0) strcat(resp_str, ",");
+            strcat(resp_str, "{");
+            for (int j = 0; j < ncols; j++) {
+                if (j > 0) strcat(resp_str, ",");
+                char field[512];
+                snprintf(field, sizeof(field), "\"%s\":\"%s\"", PQfname(res, j), PQgetvalue(res, i, j));
+                if (strlen(resp_str) + strlen(field) + 10 > buf_size) {
+                    buf_size *= 2;
+                    resp_str = realloc(resp_str, buf_size);
+                }
+                strcat(resp_str, field);
+            }
+            strcat(resp_str, "}");
+        }
+        strcat(resp_str, "]");
+        PQclear(res);
+        {% elif db in ['mysql', 'mariadb'] %}
+        mysql_query(db_conn, "SELECT * FROM data_{{ api_name }}");
+        MYSQL_RES *res = mysql_store_result(db_conn);
+        int ncols = mysql_num_fields(res);
+        MYSQL_FIELD *fields = mysql_fetch_fields(res);
+        size_t buf_size = 4096;
+        resp_str = malloc(buf_size);
+        strcpy(resp_str, "[");
+        MYSQL_ROW row;
+        int first = 1;
+        while ((row = mysql_fetch_row(res))) {
+            if (!first) strcat(resp_str, ",");
+            first = 0;
+            strcat(resp_str, "{");
+            for (int j = 0; j < ncols; j++) {
+                if (j > 0) strcat(resp_str, ",");
+                char field[512];
+                snprintf(field, sizeof(field), "\"%s\":\"%s\"", fields[j].name, row[j] ? row[j] : "null");
+                if (strlen(resp_str) + strlen(field) + 10 > buf_size) {
+                    buf_size *= 2;
+                    resp_str = realloc(resp_str, buf_size);
+                }
+                strcat(resp_str, field);
+            }
+            strcat(resp_str, "}");
+        }
+        strcat(resp_str, "]");
+        mysql_free_result(res);
+        {% endif %}
+        {% elif endpoint.logic == 'insert' %}
+        resp_str = strdup("{\"msg\":\"inserted\"}");
+        /* TODO: parse JSON body and insert */
+        {% elif endpoint.logic == 'update' %}
+        resp_str = strdup("{\"msg\":\"updated\"}");
+        {% elif endpoint.logic == 'delete' %}
+        resp_str = strdup("{\"msg\":\"deleted\"}");
+        {% endif %}
+    }
+    {% endfor %}
+    else {
+        resp_str = strdup("{\"error\":\"not found\"}");
+    }
+
+    response = MHD_create_response_from_buffer(strlen(resp_str), resp_str, MHD_RESPMEM_MUST_FREE);
+    MHD_add_response_header(response, "Content-Type", "application/json");
+    ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+    MHD_destroy_response(response);
+
+    if (pd->data) free(pd->data);
+    free(pd);
+    *con_cls = NULL;
+
+    return ret;
+}
+
+int main() {
+    init_db();
+
+    struct MHD_Daemon *daemon = MHD_start_daemon(
+        MHD_USE_INTERNAL_POLLING_THREAD, PORT,
+        NULL, NULL,
+        &handle_request, NULL,
+        MHD_OPTION_END);
+
+    if (!daemon) {
+        fprintf(stderr, "Error iniciando servidor\n");
+        return 1;
+    }
+
+    printf("API {{ api_name }} running on port %d\n", PORT);
+    /* Mantener el proceso vivo */
+    pause();
+
+    MHD_stop_daemon(daemon);
+    {% if db == 'postgresql' %}
+    PQfinish(db_conn);
+    {% elif db in ['mysql', 'mariadb'] %}
+    mysql_close(db_conn);
+    {% endif %}
+    return 0;
+}

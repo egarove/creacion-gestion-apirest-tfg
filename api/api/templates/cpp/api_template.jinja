@@ -1,0 +1,108 @@
+#include "crow.h"
+#include <string>
+#include <sstream>
+#include <cstdlib>
+{% if db == 'postgresql' %}
+#include <libpq-fe.h>
+{% elif db in ['mysql', 'mariadb'] %}
+#include <mysql/mysql.h>
+{% endif %}
+
+{% if db == 'postgresql' %}
+PGconn* db_conn = nullptr;
+
+void init_db() {
+    const char* url = std::getenv("DATABASE_URL");
+    db_conn = PQconnectdb(url);
+    if (PQstatus(db_conn) != CONNECTION_OK) {
+        std::cerr << "Error conexion BD: " << PQerrorMessage(db_conn) << std::endl;
+        std::exit(1);
+    }
+}
+{% elif db in ['mysql', 'mariadb'] %}
+MYSQL* db_conn = nullptr;
+
+void init_db() {
+    const char* url = std::getenv("DATABASE_URL");
+    db_conn = mysql_init(nullptr);
+    char user[64], pass[64], host[128], dbname[64];
+    int port = 3306;
+    sscanf(url, "%*[^/]//%63[^:]:%63[^@]@%127[^:]:%d/%63s", user, pass, host, &port, dbname);
+    if (!mysql_real_connect(db_conn, host, user, pass, dbname, port, nullptr, 0)) {
+        std::cerr << "Error conexion BD: " << mysql_error(db_conn) << std::endl;
+        std::exit(1);
+    }
+}
+{% endif %}
+
+int main() {
+    init_db();
+    crow::SimpleApp app;
+
+    CROW_ROUTE(app, "/").methods(crow::HTTPMethod::GET)([]() {
+        crow::json::wvalue res;
+        res["status"] = "online";
+        res["api"] = "{{ api_name }}";
+        return res;
+    });
+
+    {% for endpoint in endpoints %}
+    CROW_ROUTE(app, "{{ endpoint.path }}").methods(crow::HTTPMethod::{{ endpoint.method | upper }})(
+        []({% if endpoint.logic != 'select' %}const crow::request& req{% endif %}) {
+        {% if endpoint.logic == 'select' %}
+        {% if db == 'postgresql' %}
+        PGresult* res = PQexec(db_conn, "SELECT * FROM data_{{ api_name }}");
+        int nrows = PQntuples(res);
+        int ncols = PQnfields(res);
+        crow::json::wvalue::list result;
+        for (int i = 0; i < nrows; i++) {
+            crow::json::wvalue row;
+            for (int j = 0; j < ncols; j++) {
+                row[PQfname(res, j)] = PQgetvalue(res, i, j);
+            }
+            result.push_back(std::move(row));
+        }
+        PQclear(res);
+        return crow::json::wvalue(std::move(result));
+        {% elif db in ['mysql', 'mariadb'] %}
+        mysql_query(db_conn, "SELECT * FROM data_{{ api_name }}");
+        MYSQL_RES* res = mysql_store_result(db_conn);
+        int ncols = mysql_num_fields(res);
+        MYSQL_FIELD* fields = mysql_fetch_fields(res);
+        crow::json::wvalue::list result;
+        MYSQL_ROW row;
+        while ((row = mysql_fetch_row(res))) {
+            crow::json::wvalue r;
+            for (int j = 0; j < ncols; j++) {
+                r[fields[j].name] = row[j] ? row[j] : "null";
+            }
+            result.push_back(std::move(r));
+        }
+        mysql_free_result(res);
+        return crow::json::wvalue(std::move(result));
+        {% endif %}
+        {% elif endpoint.logic == 'insert' %}
+        crow::json::wvalue resp;
+        resp["msg"] = "inserted";
+        return resp;
+        {% elif endpoint.logic == 'update' %}
+        crow::json::wvalue resp;
+        resp["msg"] = "updated";
+        return resp;
+        {% elif endpoint.logic == 'delete' %}
+        crow::json::wvalue resp;
+        resp["msg"] = "deleted";
+        return resp;
+        {% endif %}
+    });
+    {% endfor %}
+
+    app.port(8000).bindaddr("0.0.0.0").multithreaded().run();
+
+    {% if db == 'postgresql' %}
+    PQfinish(db_conn);
+    {% elif db in ['mysql', 'mariadb'] %}
+    mysql_close(db_conn);
+    {% endif %}
+    return 0;
+}

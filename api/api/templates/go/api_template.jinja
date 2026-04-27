@@ -1,0 +1,204 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	{% if db == 'postgresql' %}
+	_ "github.com/lib/pq"
+	{% elif db in ['mysql', 'mariadb'] %}
+	_ "github.com/go-sql-driver/mysql"
+	{% elif db == 'sqlite' %}
+	_ "github.com/mattn/go-sqlite3"
+	{% endif %}
+)
+
+var db *sql.DB
+
+func main() {
+	var err error
+	databaseURL := os.Getenv("DATABASE_URL")
+
+	{% if db == 'postgresql' %}
+	db, err = sql.Open("postgres", databaseURL)
+	{% elif db in ['mysql', 'mariadb'] %}
+	// Convertir URL a formato DSN de Go: user:pass@tcp(host:port)/dbname
+	dsn := convertMySQLURL(databaseURL)
+	db, err = sql.Open("mysql", dsn)
+	{% elif db == 'sqlite' %}
+	dbPath := strings.Replace(databaseURL, "sqlite:///", "", 1)
+	db, err = sql.Open("sqlite3", dbPath)
+	{% endif %}
+
+	if err != nil {
+		log.Fatalf("Error conectando a la BD: %v", err)
+	}
+	defer db.Close()
+
+	if err = db.Ping(); err != nil {
+		log.Fatalf("Error ping a la BD: %v", err)
+	}
+
+	r := gin.Default()
+
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "online", "api": "{{ api_name }}"})
+	})
+
+	{% for endpoint in endpoints %}
+	r.{{ endpoint.method | upper }}("{{ endpoint.path }}", func(c *gin.Context) {
+		{% if endpoint.logic == 'select' %}
+		rows, err := db.Query("SELECT * FROM data_{{ api_name }}")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		columns, _ := rows.Columns()
+		var results []map[string]interface{}
+
+		for rows.Next() {
+			values := make([]interface{}, len(columns))
+			valuePtrs := make([]interface{}, len(columns))
+			for i := range values {
+				valuePtrs[i] = &values[i]
+			}
+			rows.Scan(valuePtrs...)
+			row := make(map[string]interface{})
+			for i, col := range columns {
+				val := values[i]
+				if b, ok := val.([]byte); ok {
+					row[col] = string(b)
+				} else {
+					row[col] = val
+				}
+			}
+			results = append(results, row)
+		}
+		c.JSON(http.StatusOK, results)
+		{% elif endpoint.logic == 'insert' %}
+		var body map[string]interface{}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		keys := make([]string, 0, len(body))
+		values := make([]interface{}, 0, len(body))
+		placeholders := make([]string, 0, len(body))
+		i := 1
+		for k, v := range body {
+			keys = append(keys, k)
+			values = append(values, v)
+			{% if db == 'postgresql' %}
+			placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+			{% else %}
+			placeholders = append(placeholders, "?")
+			{% endif %}
+			i++
+		}
+		query := fmt.Sprintf("INSERT INTO data_{{ api_name }} (%s) VALUES (%s)",
+			strings.Join(keys, ", "), strings.Join(placeholders, ", "))
+		_, err := db.Exec(query, values...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"msg": "inserted"})
+		{% elif endpoint.logic == 'update' %}
+		var body map[string]interface{}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		id := c.Param("id")
+		if id == "" {
+			if v, ok := body["id"]; ok {
+				id = fmt.Sprintf("%v", v)
+				delete(body, "id")
+			}
+		}
+		sets := make([]string, 0)
+		values := make([]interface{}, 0)
+		i := 1
+		for k, v := range body {
+			{% if db == 'postgresql' %}
+			sets = append(sets, fmt.Sprintf("%s = $%d", k, i))
+			{% else %}
+			sets = append(sets, fmt.Sprintf("%s = ?", k))
+			{% endif %}
+			values = append(values, v)
+			i++
+		}
+		{% if db == 'postgresql' %}
+		values = append(values, id)
+		query := fmt.Sprintf("UPDATE data_{{ api_name }} SET %s WHERE id = $%d",
+			strings.Join(sets, ", "), i)
+		{% else %}
+		values = append(values, id)
+		query := fmt.Sprintf("UPDATE data_{{ api_name }} SET %s WHERE id = ?",
+			strings.Join(sets, ", "))
+		{% endif %}
+		_, err := db.Exec(query, values...)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"msg": "updated"})
+		{% elif endpoint.logic == 'delete' %}
+		id := c.Param("id")
+		if id == "" {
+			var body map[string]interface{}
+			c.ShouldBindJSON(&body)
+			if v, ok := body["id"]; ok {
+				id = fmt.Sprintf("%v", v)
+			}
+		}
+		{% if db == 'postgresql' %}
+		_, err := db.Exec("DELETE FROM data_{{ api_name }} WHERE id = $1", id)
+		{% else %}
+		_, err := db.Exec("DELETE FROM data_{{ api_name }} WHERE id = ?", id)
+		{% endif %}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"msg": "deleted"})
+		{% endif %}
+	})
+	{% endfor %}
+
+	r.Run(":8000")
+}
+
+{% if db in ['mysql', 'mariadb'] %}
+// convertMySQLURL convierte una URL tipo mysql+pymysql://user:pass@host:port/db a formato DSN de Go
+func convertMySQLURL(url string) string {
+	// Eliminar prefijo del driver
+	url = strings.Replace(url, "mysql+pymysql://", "", 1)
+	url = strings.Replace(url, "mysql://", "", 1)
+	// Formato: user:pass@host:port/db -> user:pass@tcp(host:port)/db
+	parts := strings.SplitN(url, "@", 2)
+	if len(parts) != 2 {
+		return url
+	}
+	userPass := parts[0]
+	hostDB := parts[1]
+	hpParts := strings.SplitN(hostDB, "/", 2)
+	if len(hpParts) != 2 {
+		return url
+	}
+	host := hpParts[0]
+	dbName := hpParts[1]
+	return fmt.Sprintf("%s@tcp(%s)/%s", userPass, host, dbName)
+}
+{% endif %}
+
+// Evitar warning de imports no usados
+var _ = json.Marshal

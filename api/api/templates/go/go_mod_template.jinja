@@ -1,0 +1,14 @@
+module api-{{ api_name }}
+
+go 1.22
+
+require (
+	github.com/gin-gonic/gin v1.9.1
+	{% if db == 'postgresql' %}
+	github.com/lib/pq v1.10.9
+	{% elif db in ['mysql', 'mariadb'] %}
+	github.com/go-sql-driver/mysql v1.7.1
+	{% elif db == 'sqlite' %}
+	github.com/mattn/go-sqlite3 v1.14.22
+	{% endif %}
+)

@@ -1,0 +1,15 @@
+{
+  "name": "api-{{ api_name }}",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.18.2"
+    {% if db == 'postgresql' %}
+    ,"pg": "^8.11.3"
+    {% elif db in ['mysql', 'mariadb'] %}
+    ,"mysql2": "^3.6.5"
+    {% elif db == 'sqlite' %}
+    ,"better-sqlite3": "^9.4.3"
+    {% endif %}
+  }
+}

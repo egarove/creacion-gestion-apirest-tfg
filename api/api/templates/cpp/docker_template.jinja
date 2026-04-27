@@ -1,0 +1,27 @@
+FROM debian:bookworm-slim AS builder
+RUN apt-get update && apt-get install -y \
+    g++ cmake git pkg-config \
+    libboost-all-dev libasio-dev \
+    {% if db == 'postgresql' %}
+    libpq-dev \
+    {% elif db in ['mysql', 'mariadb'] %}
+    default-libmysqlclient-dev \
+    {% endif %}
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY CMakeLists.txt main.cpp ./
+RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y \
+    {% if db == 'postgresql' %}
+    libpq5 \
+    {% elif db in ['mysql', 'mariadb'] %}
+    default-mysql-client \
+    {% endif %}
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /api
+COPY --from=builder /app/build/server .
+EXPOSE 8000
+CMD ["./server"]

@@ -44,6 +44,9 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
   final _dbPassCtrl = TextEditingController();
   bool _viewPass = true;
 
+  // Lenguaje de la API
+  String _language = 'python';
+
   // Columnas
   final List<_ColumnEntry> _columns = [_ColumnEntry()];
 
@@ -68,6 +71,16 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
     'mariadb': 'MariaDB',
     'mysql': 'MySQL',
     'sqlite': 'SQLite',
+  };
+
+  static const Map<String, String> _languageOptions = {
+    'python': 'Python',
+    'typescript': 'TypeScript',
+    'go': 'Go',
+    'rust': 'Rust',
+    'java': 'Java',
+    'c': 'C',
+    'cpp': 'C++',
   };
 
   static const List<String> _methods = ['get', 'post', 'put', 'delete'];
@@ -140,6 +153,7 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
       final body = {
         'api_name': _nameCtrl.text.trim(),
         'port': port,
+        'language': _language,
         'db': _dbType,
         'usr': _dbUserCtrl.text.trim(),
         'paswd': _dbPassCtrl.text,
@@ -156,7 +170,7 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
       final dataToSave = Map<String, dynamic>.from(body);
       dataToSave['backup_port'] = response['backup_port'] ?? port + 1;
       if (_generarUi) {
-        dataToSave['ui_url'] = 'http://172.16.50.79:$port/ui';
+        dataToSave['ui_url'] = 'http://192.168.1.78:$port/ui';
       }
 
       await authService.guardarApi(dataToSave);
@@ -229,6 +243,24 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                     if (port < 1024 || port > 65535) return 'Puerto entre 1024 y 65535';
                     return null;
                   },
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── LENGUAJE ──
+                _SectionTitle('Lenguaje de la API'),
+                const SizedBox(height: 12),
+
+                DropdownButtonFormField<String>(
+                  value: _language,
+                  decoration: const InputDecoration(labelText: 'Lenguaje'),
+                  items: _languageOptions.entries
+                      .map((e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _language = v!),
                 ),
 
                 const SizedBox(height: 24),

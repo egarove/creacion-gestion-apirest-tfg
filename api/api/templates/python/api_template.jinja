@@ -1,0 +1,129 @@
+# deployments/templates/api_base.py
+from fastapi import FastAPI
+from sqlalchemy import create_engine, text
+import os
+
+app = FastAPI()
+engine = create_engine(os.getenv("DATABASE_URL"))
+
+@app.get("/")
+def root():
+    return {"status": "online", "api": "{{ api_name }}"}
+
+{% for endpoint in endpoints %}
+@app.{{ endpoint.method | lower }}("{{ endpoint.path }}")
+def {{ endpoint.function_name }}():
+    with engine.connect() as conn:
+        {% if endpoint.logic == 'select' %}
+        res = conn.execute(text("SELECT * FROM data_{{ api_name }}")).fetchall()
+        return [dict(row) for row in res]
+        {% elif endpoint.logic == 'insert' %}
+        # Lógica de inserción dinámica...
+        return {"msg": "inserted"}
+        {% endif %}
+{% endfor %}
+{% if generar_ui %}
+
+from fastapi.responses import HTMLResponse
+
+_UI_TABLE = "data_{{ api_name }}"
+_UI_API_NAME = "{{ api_name }}"
+
+@app.get("/ui", response_class=HTMLResponse)
+def panel_web():
+    with engine.connect() as conn:
+        rows = conn.execute(text(f"SELECT * FROM {_UI_TABLE}")).fetchall()
+        columns = rows[0]._fields if rows else []
+{% raw %}
+        rows_html = ""
+        for row in rows:
+            cells = "".join([f"<td style='padding:8px;border:1px solid #ddd'>{v}</td>" for v in row])
+            row_id = row[0]
+            rows_html += f"""
+            <tr>
+                {cells}
+                <td style='padding:8px;border:1px solid #ddd'>
+                    <button onclick="deleteRow({row_id})"
+                        style='background:#ef4444;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer'>
+                        Eliminar
+                    </button>
+                </td>
+            </tr>"""
+
+        headers = "".join([f"<th style='padding:8px;background:#6B7280;color:white;border:1px solid #ddd'>{c}</th>" for c in columns])
+
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Panel - {_UI_API_NAME}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #F9FAFB; }}
+                h1 {{ color: #6B7280; }}
+                table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }}
+                input, select {{ padding: 8px; border: 1px solid #9CA3AF; border-radius: 6px; width: 100%; box-sizing: border-box; }}
+                button.add {{ background: #6B7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; font-size: 15px; }}
+                .form-card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; }}
+                .form-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }}
+                label {{ font-size: 13px; color: #6B7280; display: block; margin-bottom: 4px; }}
+            </style>
+        </head>
+        <body>
+            <h1>Panel: {_UI_API_NAME}</h1>
+
+            <div class="form-card">
+                <h3 style="margin-top:0;color:#6B7280">Añadir registro</h3>
+                <div class="form-grid" id="formFields"></div>
+                <button class="add" onclick="addRow()">+ Añadir</button>
+            </div>
+
+            <table>
+                <thead><tr>{headers}<th style='padding:8px;background:#6B7280;color:white;border:1px solid #ddd'>Acciones</th></tr></thead>
+                <tbody id="tableBody">{rows_html}</tbody>
+            </table>
+
+            <script>
+                const cols = {list(columns)};
+                const formDiv = document.getElementById('formFields');
+                cols.filter(c => c !== 'id').forEach(col => {{
+                    formDiv.innerHTML += `<div><label>${{col}}</label><input id="field_${{col}}" placeholder="${{col}}"></div>`;
+                }});
+
+                async function addRow() {{
+                    const body = {{}};
+                    cols.filter(c => c !== 'id').forEach(col => {{
+                        body[col] = document.getElementById('field_' + col).value;
+                    }});
+                    await fetch('/ui/add', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify(body)}});
+                    location.reload();
+                }}
+
+                async function deleteRow(id) {{
+                    if (!confirm('¿Eliminar este registro?')) return;
+                    await fetch('/ui/delete/' + id, {{method:'DELETE'}});
+                    location.reload();
+                }}
+            </script>
+        </body>
+        </html>"""
+{% endraw %}
+
+@app.post("/ui/add")
+def ui_add(data: dict):
+    with engine.connect() as conn:
+        cols = ", ".join(data.keys())
+        vals = ", ".join([f":{k}" for k in data.keys()])
+        conn.execute(text(f"INSERT INTO {_UI_TABLE} ({cols}) VALUES ({vals})"), data)
+        conn.commit()
+    return {"ok": True}
+
+@app.delete("/ui/delete/{row_id}")
+def ui_delete(row_id: int):
+    with engine.connect() as conn:
+        conn.execute(text(f"DELETE FROM {_UI_TABLE} WHERE id = :id"), {"id": row_id})
+        conn.commit()
+    return {"ok": True}
+
+{% endif %}

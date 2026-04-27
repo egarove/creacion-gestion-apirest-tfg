@@ -1,0 +1,16 @@
+CC = gcc
+CFLAGS = -Wall -O2
+{% if db == 'postgresql' %}
+LIBS = -lmicrohttpd -lpq
+{% elif db in ['mysql', 'mariadb'] %}
+LIBS = -lmicrohttpd $(shell mysql_config --libs)
+CFLAGS += $(shell mysql_config --cflags)
+{% endif %}
+
+all: server
+
+server: main.c
+	$(CC) $(CFLAGS) -o server main.c $(LIBS)
+
+clean:
+	rm -f server

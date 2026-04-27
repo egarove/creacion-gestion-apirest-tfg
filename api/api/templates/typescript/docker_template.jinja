@@ -1,0 +1,7 @@
+FROM node:20-alpine
+WORKDIR /api
+COPY package.json .
+RUN npm install --production
+COPY . .
+EXPOSE 8000
+CMD ["node", "index.js"]
