@@ -1,4 +1,4 @@
-from sqlalchemy import ARRAY, Column, Integer, String
+from sqlalchemy import ARRAY, Column, Integer, JSON, String
 from events.db import Base
 
 class DBModel(Base):
@@ -11,6 +11,8 @@ class DBModel(Base):
     backup_port = Column(Integer)
     language = Column(String, default="python")
     db = Column(String)
-    columns = Column(ARRAY(String))  # campos de la base de datos
+    columns = Column(ARRAY(String))
+    endpoints = Column(JSON, default=list)
     usr = Column(String)
     paswd = Column(String)
+    generar_ui = Column(Integer, default=0)
