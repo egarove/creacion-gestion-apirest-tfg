@@ -154,17 +154,52 @@ def get_all_apis(db: Session = Depends(get_db)):
     result = []
     for api in apis:
         try:
-            container = client.containers.get(api.api_name)
-            status = container.status
+            status = client.containers.get(api.api_name).status
         except:
             status = "not_found"
+        try:
+            backup_status = client.containers.get(f"{api.api_name}_backup").status
+        except:
+            backup_status = "not_found"
         result.append({
             "api_name": api.api_name,
             "port": api.port,
+            "backup_port": api.backup_port,
             "db": api.db,
-            "status": status
+            "language": api.language or "python",
+            "columns": api.columns or [],
+            "endpoints": api.endpoints or [],
+            "generar_ui": bool(api.generar_ui),
+            "status": status,
+            "backup_status": backup_status,
         })
     return result
+
+@app.get("/stats")
+def get_stats(db: Session = Depends(get_db)):
+    client = docker.from_env()
+    apis = db.query(DBModel).all()
+    running = stopped = total_endpoints = 0
+    for api in apis:
+        try:
+            if client.containers.get(api.api_name).status == "running":
+                running += 1
+            else:
+                stopped += 1
+        except:
+            stopped += 1
+        total_endpoints += len(api.endpoints or [])
+    return {"total": len(apis), "running": running, "stopped": stopped, "total_endpoints": total_endpoints}
+
+@app.get("/{api}/logs")
+def get_api_logs(api: str, tail: int = 100):
+    try:
+        client = docker.from_env()
+        container = client.containers.get(api)
+        logs = container.logs(tail=tail, timestamps=True).decode("utf-8", errors="replace")
+        return {"logs": logs, "api_name": api}
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
 
 @app.post("/crear-api")
 def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
