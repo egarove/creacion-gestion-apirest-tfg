@@ -16,106 +16,572 @@ def {{ endpoint.function_name }}():
     with engine.connect() as conn:
         {% if endpoint.logic == 'select' %}
         res = conn.execute(text("SELECT * FROM data_{{ api_name }}")).fetchall()
-        return [dict(row) for row in res]
+        return [dict(row._mapping) for row in res]
         {% elif endpoint.logic == 'insert' %}
-        # Lógica de inserción dinámica...
         return {"msg": "inserted"}
         {% endif %}
 {% endfor %}
 {% if generar_ui %}
 
+from fastapi import Body
 from fastapi.responses import HTMLResponse
+import json
 
 _UI_TABLE = "data_{{ api_name }}"
 _UI_API_NAME = "{{ api_name }}"
+_UI_COLS = [{% for col in columns %}"{{ col.split()[0] }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 
 @app.get("/ui", response_class=HTMLResponse)
 def panel_web():
-    with engine.connect() as conn:
-        rows = conn.execute(text(f"SELECT * FROM {_UI_TABLE}")).fetchall()
-        columns = rows[0]._fields if rows else []
+    cols_js = json.dumps(_UI_COLS)
+    name_js = json.dumps(_UI_API_NAME)
 {% raw %}
-        rows_html = ""
-        for row in rows:
-            cells = "".join([f"<td style='padding:8px;border:1px solid #ddd'>{v}</td>" for v in row])
-            row_id = row[0]
-            rows_html += f"""
-            <tr>
-                {cells}
-                <td style='padding:8px;border:1px solid #ddd'>
-                    <button onclick="deleteRow({row_id})"
-                        style='background:#ef4444;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer'>
-                        Eliminar
-                    </button>
-                </td>
-            </tr>"""
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel · {_UI_API_NAME}</title>
+<style>
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+:root{{
+  --bg:#060b14;--surface:#0d1526;--card:#111827;--card2:#1e293b;
+  --border:#1f2d45;--border2:#334155;--text:#e2e8f0;--muted:#64748b;--soft:#94a3b8;
+  --primary:#6366f1;--ph:#4f46e5;--pg:rgba(99,102,241,.14);
+  --success:#10b981;--sg:rgba(16,185,129,.12);
+  --danger:#ef4444;--dg:rgba(239,68,68,.12);
+  --warning:#f59e0b;--wg:rgba(245,158,11,.12);
+  --info:#3b82f6;--ig:rgba(59,130,246,.12);
+}}
+body{{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}}
+::-webkit-scrollbar{{width:5px;height:5px}}::-webkit-scrollbar-track{{background:var(--surface)}}::-webkit-scrollbar-thumb{{background:var(--border2);border-radius:3px}}
 
-        headers = "".join([f"<th style='padding:8px;background:#6B7280;color:white;border:1px solid #ddd'>{c}</th>" for c in columns])
+/* TOPBAR */
+.topbar{{background:linear-gradient(135deg,#1e1b4b,#312e81);padding:.875rem 1.5rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid rgba(99,102,241,.3);position:sticky;top:0;z-index:50;box-shadow:0 4px 20px rgba(0,0,0,.4)}}
+.tlogo{{width:34px;height:34px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:9px;display:grid;place-items:center;font-size:1rem;flex-shrink:0}}
+.tname{{font-size:1rem;font-weight:800;color:#fff;line-height:1}}.tsub{{font-size:.72rem;color:rgba(255,255,255,.45);margin-top:2px}}
+.tright{{margin-left:auto;display:flex;align-items:center;gap:.5rem}}
+.pill{{padding:.2rem .65rem;border-radius:9999px;font-size:.72rem;font-weight:700;border:1px solid transparent}}
+.pill-g{{background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.4);color:#34d399}}
+.pill-b{{background:rgba(99,102,241,.25);border-color:rgba(99,102,241,.4);color:#a5b4fc}}
+.topbtn{{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.75);padding:.35rem .8rem;border-radius:.5rem;cursor:pointer;font-size:.78rem;font-weight:600;transition:.2s;font-family:inherit}}
+.topbtn:hover{{background:rgba(255,255,255,.15);color:#fff}}
 
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Panel - {_UI_API_NAME}</title>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #F9FAFB; }}
-                h1 {{ color: #6B7280; }}
-                table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }}
-                input, select {{ padding: 8px; border: 1px solid #9CA3AF; border-radius: 6px; width: 100%; box-sizing: border-box; }}
-                button.add {{ background: #6B7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; font-size: 15px; }}
-                .form-card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; }}
-                .form-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }}
-                label {{ font-size: 13px; color: #6B7280; display: block; margin-bottom: 4px; }}
-            </style>
-        </head>
-        <body>
-            <h1>Panel: {_UI_API_NAME}</h1>
+/* LAYOUT */
+.page{{max-width:1400px;margin:0 auto;padding:1.25rem 1.5rem}}
 
-            <div class="form-card">
-                <h3 style="margin-top:0;color:#6B7280">Añadir registro</h3>
-                <div class="form-grid" id="formFields"></div>
-                <button class="add" onclick="addRow()">+ Añadir</button>
-            </div>
+/* STAT CARDS */
+.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-bottom:1.1rem}}
+.sc{{background:var(--card2);border:1px solid var(--border2);border-radius:.875rem;padding:.875rem 1.1rem;display:flex;align-items:center;gap:.75rem}}
+.si{{width:36px;height:36px;border-radius:.6rem;display:grid;place-items:center;font-size:.95rem;flex-shrink:0}}
+.si-p{{background:var(--pg);color:var(--primary)}}.si-g{{background:var(--sg);color:var(--success)}}.si-b{{background:var(--ig);color:var(--info)}}.si-a{{background:var(--wg);color:var(--warning)}}
+.sv{{font-size:1.45rem;font-weight:800;line-height:1;color:var(--text)}}.sl{{font-size:.7rem;color:var(--muted);margin-top:2px}}
 
-            <table>
-                <thead><tr>{headers}<th style='padding:8px;background:#6B7280;color:white;border:1px solid #ddd'>Acciones</th></tr></thead>
-                <tbody id="tableBody">{rows_html}</tbody>
-            </table>
+/* TOOLBAR */
+.toolbar{{background:var(--card2);border:1px solid var(--border2);border-radius:.875rem;padding:.75rem 1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}}
+.sw{{position:relative;flex:1;min-width:180px}}
+.si-inp{{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:.5rem;padding:.45rem .875rem .45rem 2.1rem;color:var(--text);font-size:.875rem;outline:none;transition:.2s;font-family:inherit}}
+.si-inp:focus{{border-color:var(--primary);box-shadow:0 0 0 3px var(--pg)}}.si-inp::placeholder{{color:var(--muted)}}
+.sico{{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}}
+.tbbtn{{border:1px solid var(--border2);background:var(--bg);color:var(--soft);border-radius:.5rem;padding:.45rem .8rem;font-size:.78rem;font-weight:600;cursor:pointer;transition:.2s;font-family:inherit;display:flex;align-items:center;gap:.35rem;white-space:nowrap}}
+.tbbtn:hover{{border-color:var(--primary);color:var(--text)}}.tbbtn.on{{border-color:var(--primary);color:var(--primary);background:var(--pg)}}
+.btnadd{{background:linear-gradient(135deg,var(--primary),#7c3aed);color:#fff;border:none;border-radius:.5rem;padding:.45rem 1rem;font-size:.875rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:.2s;white-space:nowrap;font-family:inherit;box-shadow:0 4px 12px rgba(99,102,241,.3)}}
+.btnadd:hover{{transform:translateY(-1px);box-shadow:0 6px 16px rgba(99,102,241,.4)}}
+.drop{{position:relative}}
+.dropmenu{{display:none;position:absolute;top:calc(100% + 5px);right:0;background:var(--card2);border:1px solid var(--border2);border-radius:.625rem;min-width:160px;overflow:hidden;z-index:60;box-shadow:0 8px 25px rgba(0,0,0,.5)}}
+.dropmenu.show{{display:block}}
+.ditem{{display:block;width:100%;padding:.575rem 1rem;background:none;border:none;color:var(--soft);font-size:.83rem;font-weight:500;cursor:pointer;text-align:left;font-family:inherit;transition:.15s}}
+.ditem:hover{{background:var(--pg);color:var(--text)}}
 
-            <script>
-                const cols = {list(columns)};
-                const formDiv = document.getElementById('formFields');
-                cols.filter(c => c !== 'id').forEach(col => {{
-                    formDiv.innerHTML += `<div><label>${{col}}</label><input id="field_${{col}}" placeholder="${{col}}"></div>`;
-                }});
+/* FILTER PANEL */
+.fpanel{{background:var(--card2);border:1px solid var(--border2);border-radius:.875rem;padding:.875rem 1.1rem;margin-bottom:.75rem;display:none}}
+.fpanel.open{{display:block}}
+.fgrid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.625rem;margin-bottom:.625rem}}
+.fi label{{display:block;font-size:.67rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.25rem}}
+.fi input,.fi select{{background:var(--bg);border:1px solid var(--border);border-radius:.375rem;padding:.38rem .6rem;color:var(--text);font-size:.8rem;outline:none;transition:.2s;font-family:inherit;width:100%}}
+.fi input:focus,.fi select:focus{{border-color:var(--primary);box-shadow:0 0 0 2px var(--pg)}}.fi input::placeholder{{color:var(--muted)}}
 
-                async function addRow() {{
-                    const body = {{}};
-                    cols.filter(c => c !== 'id').forEach(col => {{
-                        body[col] = document.getElementById('field_' + col).value;
-                    }});
-                    await fetch('/ui/add', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify(body)}});
-                    location.reload();
-                }}
+/* BULK BAR */
+.bulkbar{{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(124,58,237,.08));border:1px solid rgba(99,102,241,.3);border-radius:.875rem;padding:.625rem 1.1rem;margin-bottom:.75rem;display:none;align-items:center;gap:.625rem;flex-wrap:wrap}}
+.bulkbar.show{{display:flex}}
 
-                async function deleteRow(id) {{
-                    if (!confirm('¿Eliminar este registro?')) return;
-                    await fetch('/ui/delete/' + id, {{method:'DELETE'}});
-                    location.reload();
-                }}
-            </script>
-        </body>
-        </html>"""
+/* TABLE */
+.tcard{{background:var(--card2);border:1px solid var(--border2);border-radius:.875rem;overflow:hidden}}
+.tinfo{{padding:.5rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--muted);flex-wrap:wrap}}
+.tinfo-r{{margin-left:auto;display:flex;align-items:center;gap:.4rem}}
+.pgsel{{background:var(--bg);border:1px solid var(--border);border-radius:.375rem;padding:.22rem .45rem;color:var(--soft);font-size:.75rem;outline:none;font-family:inherit}}
+.tscroll{{overflow-x:auto}}
+table{{width:100%;border-collapse:collapse;min-width:400px}}
+th{{padding:.55rem 1rem;text-align:left;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--border2);background:var(--bg);white-space:nowrap;cursor:pointer;user-select:none;transition:.15s}}
+th:hover{{color:var(--text)}}th.sorted{{color:var(--primary)}}
+td{{padding:.55rem 1rem;border-bottom:1px solid var(--border);font-size:.875rem;color:var(--soft);cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:background .12s}}
+td:hover{{background:rgba(99,102,241,.05);color:var(--text)}}
+tr.sel td{{background:var(--pg)!important}}tr:last-child td{{border-bottom:none}}
+.td-chk{{width:36px;cursor:default!important}}.td-chk:hover{{background:transparent!important}}
+.td-id{{color:var(--muted);font-size:.75rem}}
+.td-act{{width:72px;white-space:nowrap;cursor:default!important}}.td-act:hover{{background:transparent!important}}
+input[type=checkbox]{{width:13px;height:13px;cursor:pointer;accent-color:var(--primary)}}
+.abtn{{border:none;background:none;cursor:pointer;border-radius:.35rem;width:24px;height:24px;display:inline-grid;place-items:center;font-size:.82rem;transition:.15s}}
+.ae{{color:var(--muted)}}.ae:hover{{background:var(--pg);color:var(--primary)}}
+.ad{{color:var(--muted)}}.ad:hover{{background:var(--dg);color:var(--danger)}}
+.empty-state{{padding:3.5rem 2rem;text-align:center;color:var(--muted)}}
+.empty-icon{{font-size:2.2rem;margin-bottom:.625rem}}
+.empty-sub{{font-size:.8rem;margin-top:.3rem;color:var(--border2)}}
+.loading-spin{{display:inline-block;width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}}
+@keyframes spin{{to{{transform:rotate(360deg)}}}}
+
+/* PAGINATION */
+.pgbar{{display:flex;align-items:center;justify-content:center;gap:.3rem;padding:.75rem 1rem;border-top:1px solid var(--border);flex-wrap:wrap}}
+.pgbtn{{border:1px solid var(--border2);background:var(--bg);color:var(--soft);border-radius:.35rem;width:30px;height:30px;display:grid;place-items:center;cursor:pointer;font-size:.8rem;transition:.15s;font-family:inherit}}
+.pgbtn:hover:not(:disabled){{border-color:var(--primary);color:var(--primary)}}
+.pgbtn.cur{{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700}}
+.pgbtn:disabled{{opacity:.3;cursor:default}}
+
+/* MODALS */
+.ov{{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:grid;place-items:center;padding:1rem;opacity:0;pointer-events:none;transition:.2s;backdrop-filter:blur(3px)}}
+.ov.show{{opacity:1;pointer-events:all}}
+.modal{{background:var(--surface);border:1px solid var(--border2);border-radius:1.1rem;width:100%;max-width:540px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;transform:scale(.96) translateY(14px);transition:.22s}}
+.ov.show .modal{{transform:none}}
+.mhead{{padding:1.1rem 1.35rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.625rem;flex-shrink:0}}
+.mtitle{{font-size:.95rem;font-weight:700;flex:1}}.mclose{{width:28px;height:28px;border:1px solid var(--border2);background:var(--card);border-radius:.45rem;display:grid;place-items:center;cursor:pointer;color:var(--muted);transition:.15s;flex-shrink:0}}.mclose:hover{{color:var(--text)}}
+.mbody{{padding:1.1rem 1.35rem;overflow-y:auto;flex:1}}
+.mfoot{{padding:.75rem 1.35rem;border-top:1px solid var(--border);display:flex;gap:.5rem;justify-content:flex-end;flex-shrink:0}}
+.mfgrid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.75rem}}
+.mfi label{{display:block;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.28rem}}
+.mfi input{{background:var(--card);border:1.5px solid var(--border2);border-radius:.5rem;padding:.5rem .8rem;color:var(--text);font-size:.875rem;outline:none;transition:.2s;font-family:inherit;width:100%}}
+.mfi input:focus{{border-color:var(--primary);box-shadow:0 0 0 3px var(--pg)}}.mfi input::placeholder{{color:var(--muted)}}
+
+/* BUTTONS */
+.btn{{border:none;border-radius:.5rem;padding:.5rem 1rem;font-size:.875rem;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:.4rem;font-family:inherit}}
+.btn-p{{background:linear-gradient(135deg,var(--primary),#7c3aed);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.3)}}.btn-p:hover{{opacity:.9;transform:translateY(-1px)}}
+.btn-s{{background:var(--card);border:1px solid var(--border2);color:var(--soft)}}.btn-s:hover{{color:var(--text)}}
+.btn-d{{background:var(--dg);border:1px solid rgba(239,68,68,.3);color:var(--danger)}}.btn-d:hover{{background:rgba(239,68,68,.2)}}
+.btn-sm{{padding:.35rem .75rem;font-size:.78rem}}.btn:disabled{{opacity:.5;cursor:default;transform:none!important}}
+
+/* TOASTS */
+.toasts{{position:fixed;bottom:1.1rem;right:1.1rem;z-index:500;display:flex;flex-direction:column-reverse;gap:.35rem;pointer-events:none}}
+.toast{{background:var(--card2);border:1px solid var(--border2);border-radius:.6rem;padding:.55rem .9rem;font-size:.83rem;font-weight:500;display:flex;align-items:center;gap:.5rem;min-width:220px;max-width:300px;pointer-events:all;box-shadow:0 8px 25px rgba(0,0,0,.5);animation:tin .22s ease;border-left:3px solid transparent}}
+.toast.out{{animation:tout .22s ease forwards}}
+.tok{{border-color:var(--success)}}.tok .ti{{color:var(--success)}}
+.terr{{border-color:var(--danger)}}.terr .ti{{color:var(--danger)}}
+.tinf{{border-color:var(--primary)}}.tinf .ti{{color:var(--primary)}}
+.twrn{{border-color:var(--warning)}}.twrn .ti{{color:var(--warning)}}
+.ti{{font-size:.9rem;flex-shrink:0}}.tm{{flex:1;color:var(--text)}}
+@keyframes tin{{from{{opacity:0;transform:translateX(40px)}}to{{opacity:1;transform:none}}}}
+@keyframes tout{{to{{opacity:0;transform:translateX(40px)}}}}
+.ctip{{position:fixed;background:var(--card2);border:1px solid var(--border2);border-radius:.35rem;padding:.2rem .55rem;font-size:.75rem;color:var(--success);pointer-events:none;z-index:600;display:none;box-shadow:0 4px 12px rgba(0,0,0,.4)}}
+@media(max-width:600px){{.page{{padding:1rem}}.stats{{grid-template-columns:repeat(2,1fr)}}.topbar{{padding:.75rem 1rem}}}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="tlogo">&#9889;</div>
+  <div><div class="tname">{_UI_API_NAME}</div><div class="tsub">Panel de datos · APIGen</div></div>
+  <div class="tright">
+    <span class="pill pill-g" id="tb-total">&#9679; ...</span>
+    <span class="pill pill-b" id="tb-cols">{len(_UI_COLS)} col</span>
+    <button class="topbtn" onclick="loadData()">&#8635; Sync</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="stats">
+    <div class="sc"><div class="si si-p">&#128203;</div><div><div class="sv" id="s-total">—</div><div class="sl">Total</div></div></div>
+    <div class="sc"><div class="si si-g">&#128269;</div><div><div class="sv" id="s-filt">—</div><div class="sl">Filtrados</div></div></div>
+    <div class="sc"><div class="si si-b">&#9989;</div><div><div class="sv" id="s-sel">0</div><div class="sl">Seleccionados</div></div></div>
+    <div class="sc"><div class="si si-a">&#128220;</div><div><div class="sv">{len(_UI_COLS)}</div><div class="sl">Columnas</div></div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="sw">
+      <span class="sico">&#128269;</span>
+      <input class="si-inp" id="search" placeholder="Buscar en todos los campos..." oninput="onSearch()" autocomplete="off">
+    </div>
+    <button class="tbbtn" id="fbtn" onclick="toggleFilters()">&#9776; Filtros</button>
+    <div class="drop">
+      <button class="tbbtn" onclick="toggleDrop('exp-menu')">&#8659; Exportar</button>
+      <div class="dropmenu" id="exp-menu">
+        <button class="ditem" onclick="exportCSV()">&#128202; CSV</button>
+        <button class="ditem" onclick="exportJSON()">{{}} JSON</button>
+      </div>
+    </div>
+    <div class="drop">
+      <button class="tbbtn" id="colbtn" onclick="toggleDrop('col-menu')">&#9681; Columnas</button>
+      <div class="dropmenu" id="col-menu" style="min-width:180px;padding:.625rem"></div>
+    </div>
+    <button class="btnadd" onclick="openAddModal()">&#10010; Añadir</button>
+  </div>
+
+  <div class="fpanel" id="fpanel">
+    <div class="fgrid" id="fgrid"></div>
+    <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+      <button class="btn btn-s btn-sm" onclick="resetFilters()">&#8635; Limpiar</button>
+      <span style="font-size:.75rem;color:var(--muted)" id="finfo"></span>
+    </div>
+  </div>
+
+  <div class="bulkbar" id="bulkbar">
+    <span style="font-size:.875rem;font-weight:600;color:var(--primary)" id="bulk-info">0 sel</span>
+    <button class="btn btn-d btn-sm" onclick="bulkDelete()">&#128465; Eliminar seleccionados</button>
+    <button class="btn btn-s btn-sm" onclick="clearSel()">&#10005; Deseleccionar</button>
+    <button class="btn btn-s btn-sm" onclick="exportSelCSV()">&#8659; Exportar selección CSV</button>
+  </div>
+
+  <div class="tcard">
+    <div class="tinfo">
+      <span id="tinfo-txt">Cargando...</span>
+      <div class="tinfo-r">
+        <span style="font-size:.72rem">Filas:</span>
+        <select class="pgsel" onchange="setPS(+this.value)">
+          <option value="10">10</option><option value="25" selected>25</option>
+          <option value="50">50</option><option value="100">100</option>
+          <option value="0">Todas</option>
+        </select>
+      </div>
+    </div>
+    <div class="tscroll"><table><thead id="thead"></thead><tbody id="tbody"><tr><td colspan="10" style="text-align:center;padding:2.5rem"><div class="loading-spin"></div></td></tr></tbody></table></div>
+    <div class="pgbar" id="pgbar"></div>
+  </div>
+</div>
+
+<!-- ADD -->
+<div class="ov" id="ov-add" onclick="if(event.target===this)closeOv('ov-add')">
+  <div class="modal">
+    <div class="mhead"><span>&#10010;</span><span class="mtitle">Añadir registro</span><button class="mclose" onclick="closeOv('ov-add')">&#10005;</button></div>
+    <div class="mbody"><div class="mfgrid" id="add-fields"></div></div>
+    <div class="mfoot"><button class="btn btn-s" onclick="closeOv('ov-add')">Cancelar</button><button class="btn btn-p" onclick="submitAdd()">&#10010; Añadir</button></div>
+  </div>
+</div>
+
+<!-- EDIT -->
+<div class="ov" id="ov-edit" onclick="if(event.target===this)closeOv('ov-edit')">
+  <div class="modal">
+    <div class="mhead"><span>&#9998;</span><span class="mtitle">Editar <span id="edit-lbl" style="color:var(--muted);font-weight:400"></span></span><button class="mclose" onclick="closeOv('ov-edit')">&#10005;</button></div>
+    <div class="mbody"><div class="mfgrid" id="edit-fields"></div></div>
+    <div class="mfoot"><button class="btn btn-s" onclick="closeOv('ov-edit')">Cancelar</button><button class="btn btn-p" onclick="submitEdit()">&#10003; Guardar</button></div>
+  </div>
+</div>
+
+<!-- DELETE -->
+<div class="ov" id="ov-del" onclick="if(event.target===this)closeOv('ov-del')">
+  <div class="modal" style="max-width:380px">
+    <div class="mhead"><span style="color:var(--danger)">&#9888;</span><span class="mtitle">Eliminar</span><button class="mclose" onclick="closeOv('ov-del')">&#10005;</button></div>
+    <div class="mbody"><div style="text-align:center;padding:.5rem 0"><div style="width:52px;height:52px;background:var(--dg);border-radius:50%;display:grid;place-items:center;margin:0 auto .75rem;font-size:1.3rem;color:var(--danger)">&#128465;</div><div id="del-msg" style="font-size:.875rem;color:var(--soft)"></div><div style="font-size:.78rem;color:var(--muted);margin-top:.4rem">Esta acción no se puede deshacer.</div></div></div>
+    <div class="mfoot"><button class="btn btn-s" onclick="closeOv('ov-del')">Cancelar</button><button class="btn btn-d" id="del-btn" onclick="execDel()">&#128465; Eliminar</button></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div class="ctip" id="ctip">&#10003; Copiado</div>
+
+<script>
+const COLS = {cols_js};
+const API_NAME = {name_js};
+
+let DATA=[], filtered=[], editId=null, delTarget=null;
+let ST={{q:'',cf:{{}},idMin:'',idMax:'',sc:'id',sd:'asc',page:1,ps:25,sel:new Set(),hid:new Set()}};
+
+/* ── INIT ── */
+async function init(){{
+  buildAddForm(); buildFilters(); buildColMenu();
+  await loadData();
+}}
+
+async function loadData(){{
+  try{{
+    const r=await fetch('/ui/data');
+    DATA=await r.json();
+    applyFilters(); renderAll();
+  }}catch(e){{
+    toast('Error cargando datos','err');
+    document.getElementById('tbody').innerHTML='<tr><td colspan="99" style="text-align:center;padding:2rem;color:var(--danger)">Error de conexión. <button onclick="loadData()" style="color:var(--primary);background:none;border:none;cursor:pointer;font-weight:600">Reintentar</button></td></tr>';
+  }}
+}}
+
+/* ── FILTER ── */
+function applyFilters(){{
+  const q=ST.q.toLowerCase();
+  const allC=['id',...COLS];
+  filtered=DATA.filter(row=>{{
+    if(q&&!allC.some(c=>String(row[c]??'').toLowerCase().includes(q)))return false;
+    if(ST.idMin!==''&&row.id<+ST.idMin)return false;
+    if(ST.idMax!==''&&row.id>+ST.idMax)return false;
+    for(const[c,v]of Object.entries(ST.cf))if(v&&!String(row[c]??'').toLowerCase().includes(v.toLowerCase()))return false;
+    return true;
+  }});
+  filtered.sort((a,b)=>{{
+    let va=a[ST.sc]??'',vb=b[ST.sc]??'';
+    if(!isNaN(va)&&!isNaN(vb)){{va=+va;vb=+vb;}}else{{va=String(va);vb=String(vb);}}
+    return ST.sd==='asc'?(va>vb?1:va<vb?-1:0):(va<vb?1:va>vb?-1:0);
+  }});
+  ST.page=1;
+}}
+
+function onSearch(){{ST.q=document.getElementById('search').value;applyFilters();renderAll();}}
+function onCF(col,val){{ST.cf[col]=val;applyFilters();renderAll();}}
+function onId(){{ST.idMin=document.getElementById('f-imin').value;ST.idMax=document.getElementById('f-imax').value;applyFilters();renderAll();}}
+
+function resetFilters(){{
+  ST.q='';ST.cf={{}};ST.idMin='';ST.idMax='';
+  document.getElementById('search').value='';
+  document.getElementById('f-imin').value='';
+  document.getElementById('f-imax').value='';
+  COLS.forEach(c=>{{const e=document.getElementById('f-c-'+c);if(e)e.value='';}});
+  applyFilters();renderAll();toast('Filtros limpiados','inf');
+}}
+
+function toggleFilters(){{
+  document.getElementById('fpanel').classList.toggle('open');
+  document.getElementById('fbtn').classList.toggle('on');
+}}
+
+/* ── SORT ── */
+function sortBy(col){{
+  if(ST.sc===col)ST.sd=ST.sd==='asc'?'desc':'asc';
+  else{{ST.sc=col;ST.sd='asc';}}
+  applyFilters();renderAll();
+}}
+
+/* ── RENDER ── */
+function renderAll(){{renderHead();renderBody();renderPg();renderStats();updateBulk();}}
+
+function esc(s){{return String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}}
+
+function renderHead(){{
+  const cols=['id',...COLS].filter(c=>!ST.hid.has(c));
+  const allSel=filtered.length>0&&filtered.every(r=>ST.sel.has(r.id));
+  const ths=cols.map(c=>{{
+    const s=ST.sc===c,a=s?(ST.sd==='asc'?'↑':'↓'):'↕';
+    return `<th onclick="sortBy('${{c}}')" class="${{s?'sorted':''}}">${{c}} <span style="opacity:${{s?1:.4}};font-size:.65rem">${{a}}</span></th>`;
+  }}).join('');
+  document.getElementById('thead').innerHTML=`<tr><th class="td-chk" onclick="toggleAll()"><input type="checkbox" ${{allSel?'checked':''}} onchange="toggleAll()"></th>${{ths}}<th>Acciones</th></tr>`;
+}}
+
+function renderBody(){{
+  const ps=ST.ps,start=ps===0?0:(ST.page-1)*ps,end=ps===0?filtered.length:start+ps;
+  const rows=filtered.slice(start,end);
+  const cols=['id',...COLS].filter(c=>!ST.hid.has(c));
+  if(!rows.length){{
+    const msg=DATA.length===0?'Sin registros aún. Pulsa "+ Añadir" para empezar.':'Sin resultados para los filtros aplicados.';
+    const sub=DATA.length>0?`<div style="margin-top:.5rem"><button onclick="resetFilters()" style="color:var(--primary);background:none;border:none;cursor:pointer;font-size:.8rem;font-weight:600">Limpiar filtros</button></div>`:'';
+    document.getElementById('tbody').innerHTML=`<tr><td colspan="99" class="empty-state"><div class="empty-icon">&#128269;</div><div>${{msg}}</div><div class="empty-sub">${{sub}}</div></td></tr>`;
+    document.getElementById('tinfo-txt').textContent='0 registros';
+    return;
+  }}
+  document.getElementById('tbody').innerHTML=rows.map(row=>{{
+    const sel=ST.sel.has(row.id);
+    const cells=cols.map(c=>{{
+      const v=esc(String(row[c]??''));
+      return `<td class="${{c==='id'?'td-id':''}}" title="${{v}}" data-val="${{v}}" onclick="copyCell(event,this)">${{v}}</td>`;
+    }}).join('');
+    return `<tr class="${{sel?'sel':''}}" id="tr-${{row.id}}"><td class="td-chk"><input type="checkbox" ${{sel?'checked':''}} onchange="toggleSel(${{row.id}})"></td>${{cells}}<td class="td-act"><button class="abtn ae" onclick="openEdit(${{row.id}})" title="Editar">&#9998;</button><button class="abtn ad" onclick="openDel(${{row.id}})" title="Eliminar">&#128465;</button></td></tr>`;
+  }}).join('');
+  const tot=filtered.length,from=ps===0?1:start+1,to=ps===0?tot:Math.min(end,tot);
+  const extra=hasFilter()?` (filtrado de ${{DATA.length}})`:'';
+  document.getElementById('tinfo-txt').textContent=`Mostrando ${{from}}–${{to}} de ${{tot}} registros${{extra}}`;
+}}
+
+function hasFilter(){{return ST.q||Object.values(ST.cf).some(v=>v)||ST.idMin||ST.idMax;}}
+
+function renderPg(){{
+  const ps=ST.ps;
+  if(ps===0||filtered.length<=ps){{document.getElementById('pgbar').innerHTML='';return;}}
+  const tot=Math.ceil(filtered.length/ps),p=ST.page;
+  const pages=new Set([1,tot,p-1,p,p+1].filter(x=>x>=1&&x<=tot));
+  let html='',prev=0;
+  for(const pg of[...pages].sort((a,b)=>a-b)){{
+    if(prev&&pg-prev>1)html+='<span style="color:var(--muted);padding:0 .2rem">…</span>';
+    html+=`<button class="pgbtn ${{pg===p?'cur':''}}" onclick="setP(${{pg}})">${{pg}}</button>`;
+    prev=pg;
+  }}
+  document.getElementById('pgbar').innerHTML=`<button class="pgbtn" onclick="setP(${{p-1}})" ${{p<=1?'disabled':''}}>&#8592;</button>${{html}}<button class="pgbtn" onclick="setP(${{p+1}})" ${{p>=tot?'disabled':''}}>&#8594;</button>`;
+}}
+
+function renderStats(){{
+  document.getElementById('s-total').textContent=DATA.length;
+  document.getElementById('s-filt').textContent=filtered.length;
+  document.getElementById('s-sel').textContent=ST.sel.size;
+  document.getElementById('tb-total').textContent='● '+DATA.length+' registros';
+  document.getElementById('finfo').textContent=hasFilter()?`${{filtered.length}} de ${{DATA.length}} visibles`:'';
+}}
+
+function setP(n){{const t=ST.ps===0?1:Math.ceil(filtered.length/ST.ps);ST.page=Math.max(1,Math.min(n,t));renderBody();renderPg();}}
+function setPS(n){{ST.ps=n;ST.page=1;renderBody();renderPg();}}
+
+/* ── SELECTION ── */
+function toggleSel(id){{
+  ST.sel.has(id)?ST.sel.delete(id):ST.sel.add(id);
+  const tr=document.getElementById('tr-'+id);if(tr)tr.className=ST.sel.has(id)?'sel':'';
+  const chk=document.querySelector(`#tr-${{id}} input[type=checkbox]`);if(chk)chk.checked=ST.sel.has(id);
+  const ah=document.querySelector('#thead input[type=checkbox]');if(ah)ah.checked=filtered.length>0&&filtered.every(r=>ST.sel.has(r.id));
+  renderStats();updateBulk();
+}}
+function toggleAll(){{
+  const all=filtered.every(r=>ST.sel.has(r.id));
+  filtered.forEach(r=>all?ST.sel.delete(r.id):ST.sel.add(r.id));
+  renderAll();
+}}
+function clearSel(){{ST.sel.clear();renderAll();}}
+function updateBulk(){{
+  const bar=document.getElementById('bulkbar'),n=ST.sel.size;
+  n>0?bar.classList.add('show'):bar.classList.remove('show');
+  document.getElementById('bulk-info').textContent=n+' seleccionado'+(n!==1?'s':'');
+}}
+
+/* ── FILTER PANEL ── */
+function buildFilters(){{
+  document.getElementById('fgrid').innerHTML=`
+    <div class="fi"><label>ID mínimo</label><input id="f-imin" type="number" placeholder="Desde..." oninput="onId()"></div>
+    <div class="fi"><label>ID máximo</label><input id="f-imax" type="number" placeholder="Hasta..." oninput="onId()"></div>
+    ${{COLS.map(c=>`<div class="fi"><label>${{c}} contiene</label><input id="f-c-${{c}}" placeholder="Filtrar ${{c}}..." oninput="onCF('${{c}}',this.value)"></div>`).join('')}}
+  `;
+}}
+
+/* ── COL VISIBILITY ── */
+function buildColMenu(){{
+  const div=document.getElementById('col-menu');
+  div.innerHTML='<div style="font-size:.67rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem">Columnas visibles</div>'+
+    ['id',...COLS].map(c=>`<label style="display:flex;align-items:center;gap:.4rem;padding:.25rem 0;cursor:pointer;font-size:.82rem;color:var(--soft)"><input type="checkbox" checked id="vis-${{c}}" onchange="toggleCol('${{c}}')" style="accent-color:var(--primary)">${{c}}</label>`).join('');
+}}
+function toggleCol(c){{ST.hid.has(c)?ST.hid.delete(c):ST.hid.add(c);renderAll();}}
+
+/* ── ADD ── */
+function buildAddForm(){{
+  document.getElementById('add-fields').innerHTML=COLS.map(c=>`<div class="mfi"><label>${{c}}</label><input id="add-${{c}}" placeholder="${{c}}..." autocomplete="off"></div>`).join('');
+}}
+function openAddModal(){{
+  COLS.forEach(c=>{{const e=document.getElementById('add-'+c);if(e)e.value='';}});
+  openOv('ov-add');
+  setTimeout(()=>{{const f=document.querySelector('#add-fields input');if(f)f.focus();}},60);
+}}
+async function submitAdd(){{
+  const body={{}};let ok=true;
+  COLS.forEach(c=>{{const v=(document.getElementById('add-'+c)?.value??'').trim();if(!v)ok=false;body[c]=v;}});
+  if(!ok){{toast('Rellena todos los campos','wrn');return;}}
+  const btn=document.querySelector('#ov-add .btn-p');btn.disabled=true;btn.textContent='Añadiendo...';
+  try{{
+    const r=await fetch('/ui/add',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
+    if(r.ok){{closeOv('ov-add');toast('Registro añadido','ok');await loadData();}}
+    else toast('Error al añadir','err');
+  }}catch(e){{toast('Error de conexión','err');}}
+  btn.disabled=false;btn.innerHTML='&#10010; Añadir';
+}}
+
+/* ── EDIT ── */
+function openEdit(id){{
+  const row=DATA.find(r=>r.id===id);if(!row)return;
+  editId=id;
+  document.getElementById('edit-lbl').textContent='#'+id;
+  document.getElementById('edit-fields').innerHTML=COLS.map(c=>`<div class="mfi"><label>${{c}}</label><input id="edit-${{c}}" value="${{esc(String(row[c]??''))}}" autocomplete="off"></div>`).join('');
+  openOv('ov-edit');
+  setTimeout(()=>{{const f=document.querySelector('#edit-fields input');if(f)f.focus();}},60);
+}}
+async function submitEdit(){{
+  if(editId===null)return;
+  const body={{}};COLS.forEach(c=>{{body[c]=document.getElementById('edit-'+c)?.value??'';}});
+  const btn=document.querySelector('#ov-edit .btn-p');btn.disabled=true;btn.textContent='Guardando...';
+  try{{
+    const r=await fetch('/ui/update/'+editId,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
+    if(r.ok){{closeOv('ov-edit');toast('Cambios guardados','ok');await loadData();}}
+    else toast('Error al guardar','err');
+  }}catch(e){{toast('Error de conexión','err');}}
+  btn.disabled=false;btn.innerHTML='&#10003; Guardar';
+}}
+
+/* ── DELETE ── */
+function openDel(id){{delTarget={{ids:[id],single:true}};document.getElementById('del-msg').textContent='¿Eliminar el registro #'+id+'?';openOv('ov-del');}}
+function bulkDelete(){{if(!ST.sel.size)return;delTarget={{ids:[...ST.sel],single:false}};document.getElementById('del-msg').textContent='¿Eliminar '+ST.sel.size+' registros seleccionados?';openOv('ov-del');}}
+async function execDel(){{
+  if(!delTarget)return;
+  const btn=document.getElementById('del-btn');btn.disabled=true;btn.textContent='Eliminando...';
+  try{{
+    if(delTarget.ids.length===1){{await fetch('/ui/delete/'+delTarget.ids[0],{{method:'DELETE'}});}}
+    else{{await fetch('/ui/bulk-delete',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(delTarget.ids)}});}}
+    closeOv('ov-del');ST.sel.clear();
+    toast(delTarget.ids.length===1?'Registro eliminado':delTarget.ids.length+' registros eliminados','ok');
+    await loadData();
+  }}catch(e){{toast('Error al eliminar','err');}}
+  btn.disabled=false;btn.innerHTML='&#128465; Eliminar';
+}}
+
+/* ── EXPORT ── */
+function exportCSV(){{
+  const cols=['id',...COLS].filter(c=>!ST.hid.has(c));
+  const csv=[cols.join(','),...filtered.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');
+  dl(API_NAME+'_export.csv',csv,'text/csv');closeDrop('exp-menu');toast('CSV exportado','ok');
+}}
+function exportJSON(){{
+  const cols=['id',...COLS].filter(c=>!ST.hid.has(c));
+  dl(API_NAME+'_export.json',JSON.stringify(filtered.map(r=>Object.fromEntries(cols.map(c=>[c,r[c]]))),null,2),'application/json');
+  closeDrop('exp-menu');toast('JSON exportado','ok');
+}}
+function exportSelCSV(){{
+  const sel=DATA.filter(r=>ST.sel.has(r.id));
+  const cols=['id',...COLS];
+  const csv=[cols.join(','),...sel.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');
+  dl(API_NAME+'_seleccion.csv',csv,'text/csv');toast('Selección exportada CSV','ok');
+}}
+function dl(name,content,type){{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{{type}}));a.download=name;a.click();}}
+
+/* ── COPY ── */
+function copyCell(e,el){{
+  navigator.clipboard.writeText(el.dataset.val??'').then(()=>{{
+    const t=document.getElementById('ctip');t.style.left=(e.clientX+10)+'px';t.style.top=(e.clientY-26)+'px';t.style.display='block';setTimeout(()=>t.style.display='none',1100);
+  }}).catch(()=>{{}});
+}}
+
+/* ── MODALS ── */
+function openOv(id){{document.getElementById(id).classList.add('show');}}
+function closeOv(id){{document.getElementById(id).classList.remove('show');}}
+function toggleDrop(id){{document.querySelectorAll('.dropmenu').forEach(m=>{{if(m.id!==id)m.classList.remove('show');}});document.getElementById(id).classList.toggle('show');}}
+function closeDrop(id){{document.getElementById(id).classList.remove('show');}}
+
+/* ── TOAST ── */
+function toast(msg,type='inf'){{
+  const cls={{ok:'tok',err:'terr',inf:'tinf',wrn:'twrn'}};
+  const ic={{ok:'✓',err:'✕',inf:'ℹ',wrn:'⚠'}};
+  const el=document.createElement('div');el.className='toast '+(cls[type]||'tinf');
+  el.innerHTML=`<span class="ti">${{ic[type]||'ℹ'}}</span><span class="tm">${{msg}}</span>`;
+  document.getElementById('toasts').prepend(el);
+  setTimeout(()=>{{el.classList.add('out');setTimeout(()=>el.remove(),220);}},3200);
+}}
+
+/* ── KEYBOARD ── */
+document.addEventListener('keydown',e=>{{
+  if(e.key==='Escape'){{['ov-add','ov-edit','ov-del'].forEach(closeOv);document.querySelectorAll('.dropmenu').forEach(m=>m.classList.remove('show'));}}
+  if((e.key==='n'||e.key==='N')&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))openAddModal();
+  if((e.key==='f'||e.key==='F')&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))toggleFilters();
+}});
+document.addEventListener('click',e=>{{
+  if(!e.target.closest('.drop'))document.querySelectorAll('.dropmenu').forEach(m=>m.classList.remove('show'));
+}});
+
+init();
+</script>
+</body></html>"""
 {% endraw %}
 
+@app.get("/ui/data")
+def ui_data():
+    with engine.connect() as conn:
+        rows = conn.execute(text(f"SELECT * FROM {_UI_TABLE}")).fetchall()
+        return [dict(r._mapping) for r in rows]
+
 @app.post("/ui/add")
-def ui_add(data: dict):
+def ui_add(data: dict = Body(...)):
     with engine.connect() as conn:
         cols = ", ".join(data.keys())
         vals = ", ".join([f":{k}" for k in data.keys()])
         conn.execute(text(f"INSERT INTO {_UI_TABLE} ({cols}) VALUES ({vals})"), data)
+        conn.commit()
+    return {"ok": True}
+
+@app.put("/ui/update/{row_id}")
+def ui_update(row_id: int, data: dict = Body(...)):
+    with engine.connect() as conn:
+        sets = ", ".join([f"{k} = :{k}" for k in data.keys()])
+        params = dict(data)
+        params["id"] = row_id
+        conn.execute(text(f"UPDATE {_UI_TABLE} SET {sets} WHERE id = :id"), params)
         conn.commit()
     return {"ok": True}
 
@@ -125,5 +591,13 @@ def ui_delete(row_id: int):
         conn.execute(text(f"DELETE FROM {_UI_TABLE} WHERE id = :id"), {"id": row_id})
         conn.commit()
     return {"ok": True}
+
+@app.post("/ui/bulk-delete")
+def ui_bulk_delete(ids: list = Body(...)):
+    with engine.connect() as conn:
+        for id_val in ids:
+            conn.execute(text(f"DELETE FROM {_UI_TABLE} WHERE id = :id"), {"id": id_val})
+        conn.commit()
+    return {"ok": True, "deleted": len(ids)}
 
 {% endif %}
