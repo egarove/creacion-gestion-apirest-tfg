@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String _baseUrl = 'http://172.16.50.79:8000';
+  static const String _baseUrl = 'http://ec2-13-63-131-129.eu-north-1.compute.amazonaws.com:8000';
 
   Future<Map<String, dynamic>> crearApi(Map<String, dynamic> body) async {
     final uri = Uri.parse('$_baseUrl/crear-api');
@@ -24,8 +24,8 @@ class ApiService {
         mensaje = decoded is Map && decoded.containsKey('detail')
             ? decoded['detail'].toString()
             : response.body.isNotEmpty
-                ? response.body
-                : 'Error del servidor (${response.statusCode})';
+            ? response.body
+            : 'Error del servidor (${response.statusCode})';
       } catch (_) {
         mensaje = response.body.isNotEmpty
             ? response.body
@@ -60,8 +60,8 @@ class ApiService {
         mensaje = decoded is Map && decoded.containsKey('detail')
             ? decoded['detail'].toString()
             : response.body.isNotEmpty
-                ? response.body
-                : 'Error del servidor (${response.statusCode})';
+            ? response.body
+            : 'Error del servidor (${response.statusCode})';
       } catch (_) {
         mensaje = response.body.isNotEmpty
             ? response.body
