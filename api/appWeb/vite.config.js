@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Important for docker
     port: 3000,
+    allowedHosts: 'all',
     proxy: {
       '/get-all-apis': {
         target: 'http://api:8000',
