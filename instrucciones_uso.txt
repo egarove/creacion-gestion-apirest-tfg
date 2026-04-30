@@ -8,7 +8,9 @@
 --COMO ENTRAR AL SERVIDOR EC2 DE AWS--
 1. Entramos a la terminal de powershell
 2. Vamos a la carpeta donde esta el archivo .pem
-3. Ejecutamos el comando: ssh -i "par_claves_servidor.pem" ubuntu@ec2-13-63-131-129.eu-north-1.compute.amazonaws.com
+!!IMPORTANTE: Si se reinicia la instancia EC2, tendremos que cambiar la ip en 'app/lib/services/api_service.dart' y en 'api/.env' a la nueva ip!!
+                                                            Así como poner la nueva ip aquí abajo:
+3. Ejecutamos el comando: ssh -i "par_claves_servidor.pem" ubuntu@ec2-13-63-131-129.eu-north-1.compute.amazonaws.com 
 4. Una vez dentro, ejecutamos los comandos para poner en funcionamiento la app:
     - Despues de haber bajado las actualizaciones con github lanzamos:
         cd api/
