@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String _baseUrl = 'http://ec2-13-63-131-129.eu-north-1.compute.amazonaws.com:8000';
+  static const String _baseUrl =
+      'http://ec2-13-50-243-207.eu-north-1.compute.amazonaws.com:8000';
 
   Future<Map<String, dynamic>> crearApi(Map<String, dynamic> body) async {
     final uri = Uri.parse('$_baseUrl/crear-api');
