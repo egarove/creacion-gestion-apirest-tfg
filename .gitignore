@@ -48,3 +48,11 @@ app/ios/Flutter/Flutter.podspec
 
 # macOS
 .DS_Store
+
+# Web App (React / Vite)
+node_modules/
+api/appWeb/node_modules/
+api/appWeb/dist/
+api/appWeb/dist-ssr/
+api/appWeb/*.local
+api/appWeb/.eslintcache

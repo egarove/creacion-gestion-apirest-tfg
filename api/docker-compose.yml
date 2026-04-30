@@ -14,6 +14,20 @@ services:
       - PYTHONPATH=/api
     depends_on:
       - postgres
+      - mariadb
+      - mysql
+      - sqlite
+
+  appweb:
+    build:
+      context: ./appWeb
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./appWeb:/appWeb
+      - /appWeb/node_modules
+    depends_on:
+      - api
 # Base de datos para las apis:
   postgres:
     image: postgres
