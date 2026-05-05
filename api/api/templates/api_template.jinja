@@ -1,117 +1,317 @@
 # deployments/templates/api_base.py
-from fastapi import FastAPI
+# -*- coding: utf-8 -*-
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy import create_engine, text
 import os
+import json
 
 app = FastAPI()
 engine = create_engine(os.getenv("DATABASE_URL"))
 
 @app.get("/")
 def root():
-    return {"status": "online", "api": "{{ api_name }}"}
+    """
+    Ruta raíz de la API generada.
+    """
+    return {"status": "online", "api": "{{ api_name }}", "version": "1.0.0"}
 
 {% for endpoint in endpoints %}
 @app.{{ endpoint.method | lower }}("{{ endpoint.path }}")
 def {{ endpoint.function_name }}():
+    """
+    Endpoint dinámico generado: {{ endpoint.path }} ({{ endpoint.method }})
+    """
     with engine.connect() as conn:
         {% if endpoint.logic == 'select' %}
         res = conn.execute(text("SELECT * FROM data_{{ api_name }}")).fetchall()
-        return [dict(row) for row in res]
+        return [dict(row._mapping) for row in res]
         {% elif endpoint.logic == 'insert' %}
-        # Lógica de inserción dinámica...
-        return {"msg": "inserted"}
+        return {"msg": "inserted (logic pending customization)"}
+        {% else %}
+        return {"msg": "endpoint ready"}
         {% endif %}
 {% endfor %}
+
 {% if generar_ui %}
-
-from fastapi.responses import HTMLResponse
-
+# --- UI PANEL CONFIGURATION ---
 _UI_TABLE = "data_{{ api_name }}"
 _UI_API_NAME = "{{ api_name }}"
 
 @app.get("/ui", response_class=HTMLResponse)
 def panel_web():
+    """
+    Panel administrativo premium para la gestión de datos de la API.
+    """
     with engine.connect() as conn:
-        rows = conn.execute(text(f"SELECT * FROM {_UI_TABLE}")).fetchall()
-        columns = rows[0]._fields if rows else []
-{% raw %}
-        rows_html = ""
-        for row in rows:
-            cells = "".join([f"<td style='padding:8px;border:1px solid #ddd'>{v}</td>" for v in row])
-            row_id = row[0]
-            rows_html += f"""
-            <tr>
-                {cells}
-                <td style='padding:8px;border:1px solid #ddd'>
-                    <button onclick="deleteRow({row_id})"
-                        style='background:#ef4444;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer'>
-                        Eliminar
-                    </button>
-                </td>
-            </tr>"""
+        res = conn.execute(text(f"SELECT * FROM {_UI_TABLE} ORDER BY id DESC")).fetchall()
+        rows = [dict(r._mapping) for r in res]
+        columns = res[0]._fields if res else []
+        
+        # Si no hay datos, intentamos obtener las columnas del esquema (simplificado)
+        if not columns:
+             # Nota: En una versión real, consultaríamos information_schema
+             columns = ["id"] 
 
-        headers = "".join([f"<th style='padding:8px;background:#6B7280;color:white;border:1px solid #ddd'>{c}</th>" for c in columns])
+    return f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dashboard - {_UI_API_NAME}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>
+            :root {{
+                --primary: #6366f1;
+                --primary-hover: #4f46e5;
+                --secondary: #64748b;
+                --bg: #f8fafc;
+                --card-bg: #ffffff;
+                --text-main: #1e293b;
+                --text-muted: #64748b;
+                --border: #e2e8f0;
+                --success: #22c55e;
+                --danger: #ef4444;
+                --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            }}
 
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Panel - {_UI_API_NAME}</title>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #F9FAFB; }}
-                h1 {{ color: #6B7280; }}
-                table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }}
-                input, select {{ padding: 8px; border: 1px solid #9CA3AF; border-radius: 6px; width: 100%; box-sizing: border-box; }}
-                button.add {{ background: #6B7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; font-size: 15px; }}
-                .form-card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; }}
-                .form-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }}
-                label {{ font-size: 13px; color: #6B7280; display: block; margin-bottom: 4px; }}
-            </style>
-        </head>
-        <body>
-            <h1>Panel: {_UI_API_NAME}</h1>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ font-family: 'Outfit', sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.5; }}
+            
+            .navbar {{ background: white; border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }}
+            .navbar h1 {{ font-size: 1.25rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }}
+            .navbar .api-badge {{ background: #eef2ff; color: var(--primary); padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }}
 
-            <div class="form-card">
-                <h3 style="margin-top:0;color:#6B7280">Añadir registro</h3>
-                <div class="form-grid" id="formFields"></div>
-                <button class="add" onclick="addRow()">+ Añadir</button>
+            .container {{ max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; }}
+
+            .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }}
+            .stat-card {{ background: white; padding: 1.5rem; border-radius: 1rem; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; transition: transform 0.2s; }}
+            .stat-card:hover {{ transform: translateY(-2px); }}
+            .stat-icon {{ width: 48px; height: 48px; border-radius: 12px; background: #eef2ff; color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }}
+
+            .card {{ background: white; border-radius: 1rem; box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }}
+            .card-header {{ padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fcfcfd; }}
+            .card-title {{ font-weight: 600; font-size: 1.1rem; }}
+
+            .table-container {{ overflow-x: auto; }}
+            table {{ width: 100%; border-collapse: collapse; text-align: left; }}
+            th {{ background: #f8fafc; padding: 1rem; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }}
+            td {{ padding: 1rem; font-size: 0.95rem; border-bottom: 1px solid var(--border); }}
+            tr:hover {{ background: #f1f5f9; }}
+
+            .btn {{ display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; font-size: 0.9rem; }}
+            .btn-primary {{ background: var(--primary); color: white; }}
+            .btn-primary:hover {{ background: var(--primary-hover); }}
+            .btn-danger {{ background: #fee2e2; color: var(--danger); }}
+            .btn-danger:hover {{ background: #fecaca; }}
+            .btn-edit {{ background: #f1f5f9; color: var(--secondary); }}
+            .btn-edit:hover {{ background: #e2e8f0; }}
+
+            /* Modal Styles */
+            .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }}
+            .modal-content {{ background: white; border-radius: 1.25rem; width: 100%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); position: relative; animation: slideUp 0.3s ease-out; }}
+            @keyframes slideUp {{ from {{ transform: translateY(20px); opacity: 0; }} to {{ transform: translateY(0); opacity: 1; }} }}
+            
+            .modal-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }}
+            .close-btn {{ background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }}
+
+            .form-group {{ margin-bottom: 1.25rem; }}
+            .form-group label {{ display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-muted); }}
+            .form-control {{ width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 0.75rem; font-family: inherit; font-size: 1rem; transition: border-color 0.2s; }}
+            .form-control:focus {{ outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }}
+
+            /* Toast */
+            .toast {{ position: fixed; bottom: 2rem; right: 2rem; background: var(--text-main); color: white; padding: 1rem 1.5rem; border-radius: 0.75rem; box-shadow: var(--shadow); z-index: 1000; display: none; animation: fadeIn 0.3s; }}
+            @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+
+            .empty-state {{ padding: 4rem 2rem; text-align: center; color: var(--text-muted); }}
+            .empty-state i {{ font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }}
+        </style>
+    </head>
+    <body>
+        <nav class="navbar">
+            <h1><i class="fas fa-cubes"></i> API Console <span class="api-badge">{_UI_API_NAME}</span></h1>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <span style="font-size: 0.85rem; color: var(--text-muted)">v1.0.0</span>
+                <div style="width: 32px; height: 32px; background: var(--primary); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-user" style="font-size: 0.8rem"></i>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-database"></i></div>
+                    <div>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Total Registros</p>
+                        <h2 style="font-size: 1.5rem; font-weight: 700;">{len(rows)}</h2>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #ecfdf5; color: var(--success);"><i class="fas fa-link"></i></div>
+                    <div>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Status API</p>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--success);">Online</h2>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #fff7ed; color: #f97316;"><i class="fas fa-bolt"></i></div>
+                    <div>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Región</p>
+                        <h2 style="font-size: 1.5rem; font-weight: 700;">Local Container</h2>
+                    </div>
+                </div>
             </div>
 
-            <table>
-                <thead><tr>{headers}<th style='padding:8px;background:#6B7280;color:white;border:1px solid #ddd'>Acciones</th></tr></thead>
-                <tbody id="tableBody">{rows_html}</tbody>
-            </table>
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Gestión de Datos</h3>
+                    <button class="btn btn-primary" onclick="openModal('add')">
+                        <i class="fas fa-plus"></i> Nuevo Registro
+                    </button>
+                </div>
+                <div class="table-container">
+                    { f'''
+                    <table>
+                        <thead>
+                            <tr>
+                                {"".join([f'<th>{c}</th>' for c in columns])}
+                                <th style="text-align: right;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {"".join([f"""
+                            <tr id="row-{r['id']}">
+                                {"".join([f'<td>{r.get(c, "")}</td>' for c in columns])}
+                                <td style="text-align: right; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                                    <button class="btn btn-edit" onclick='openModal("edit", {json.dumps(r)})'>
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger" onclick="deleteRow({r['id']})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            """ for r in rows])}
+                        </tbody>
+                    </table>
+                    ''' if rows else '<div class="empty-state"><i class="fas fa-folder-open"></i><p>No hay datos disponibles en esta tabla.</p></div>' }
+                </div>
+            </div>
+        </div>
 
-            <script>
-                const cols = {list(columns)};
-                const formDiv = document.getElementById('formFields');
-                cols.filter(c => c !== 'id').forEach(col => {{
-                    formDiv.innerHTML += `<div><label>${{col}}</label><input id="field_${{col}}" placeholder="${{col}}"></div>`;
+        <!-- Modal Form -->
+        <div id="dataModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalTitle" style="font-weight: 700;">Añadir Registro</h2>
+                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                </div>
+                <form id="dataForm">
+                    <input type="hidden" id="edit_id">
+                    <div id="modalFields"></div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 1rem; margin-top: 1rem;">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div id="toast" class="toast">Operación realizada con éxito</div>
+
+        <script>
+            const cols = {list(columns)}.filter(c => c !== 'id');
+            const modal = document.getElementById('dataModal');
+            const form = document.getElementById('dataForm');
+            const modalFields = document.getElementById('modalFields');
+            const toast = document.getElementById('toast');
+
+            function showToast(msg, isError = false) {{
+                toast.innerText = msg;
+                toast.style.background = isError ? '#ef4444' : '#1e293b';
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 3000);
+            }}
+
+            function openModal(mode, data = null) {{
+                document.getElementById('modalTitle').innerText = mode === 'add' ? 'Nuevo Registro' : 'Editar Registro';
+                modalFields.innerHTML = '';
+                document.getElementById('edit_id').value = data ? data.id : '';
+                
+                cols.forEach(col => {{
+                    modalFields.innerHTML += `
+                        <div class="form-group">
+                            <label>${{col.toUpperCase()}}</label>
+                            <input type="text" class="form-control" id="field_${{col}}" value="${{data ? data[col] : ''}}" required>
+                        </div>
+                    `;
+                }});
+                
+                modal.style.display = 'flex';
+            }}
+
+            function closeModal() {{
+                modal.style.display = 'none';
+                form.reset();
+            }}
+
+            form.onsubmit = async (e) => {{
+                e.preventDefault();
+                const id = document.getElementById('edit_id').value;
+                const body = {{}};
+                cols.forEach(col => {{
+                    body[col] = document.getElementById('field_' + col).value;
                 }});
 
-                async function addRow() {{
-                    const body = {{}};
-                    cols.filter(c => c !== 'id').forEach(col => {{
-                        body[col] = document.getElementById('field_' + col).value;
-                    }});
-                    await fetch('/ui/add', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body: JSON.stringify(body)}});
-                    location.reload();
-                }}
+                const url = id ? '/ui/edit/' + id : '/ui/add';
+                const method = id ? 'PUT' : 'POST';
 
-                async function deleteRow(id) {{
-                    if (!confirm('¿Eliminar este registro?')) return;
-                    await fetch('/ui/delete/' + id, {{method:'DELETE'}});
-                    location.reload();
+                try {{
+                    const res = await fetch(url, {{
+                        method: method,
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify(body)
+                    }});
+                    if (res.ok) {{
+                        showToast('¡Guardado correctamente!');
+                        setTimeout(() => location.reload(), 1000);
+                    }} else {{
+                        showToast('Error al guardar', true);
+                    }}
+                }} catch (err) {{
+                    showToast('Error de conexión', true);
                 }}
-            </script>
-        </body>
-        </html>"""
-{% endraw %}
+            }};
+
+            async function deleteRow(id) {{
+                if (!confirm('¿Seguro que quieres eliminar este registro permanentemente?')) return;
+                try {{
+                    const res = await fetch('/ui/delete/' + id, {{method: 'DELETE'}});
+                    if (res.ok) {{
+                        document.getElementById('row-' + id).style.opacity = '0';
+                        setTimeout(() => location.reload(), 500);
+                    }} else {{
+                        showToast('Error al eliminar', true);
+                    }}
+                }} catch (err) {{
+                    showToast('Error de conexión', true);
+                }}
+            }}
+
+            window.onclick = (e) => {{ if (e.target == modal) closeModal(); }}
+        </script>
+    </body>
+    </html>
+    """
 
 @app.post("/ui/add")
 def ui_add(data: dict):
+    """
+    Añade un nuevo registro desde la interfaz web.
+    """
     with engine.connect() as conn:
         cols = ", ".join(data.keys())
         vals = ", ".join([f":{k}" for k in data.keys()])
@@ -119,8 +319,23 @@ def ui_add(data: dict):
         conn.commit()
     return {"ok": True}
 
+@app.put("/ui/edit/{row_id}")
+def ui_edit(row_id: int, data: dict):
+    """
+    Actualiza un registro existente.
+    """
+    with engine.connect() as conn:
+        updates = ", ".join([f"{k} = :{k}" for k in data.keys()])
+        data['id'] = row_id
+        conn.execute(text(f"UPDATE {_UI_TABLE} SET {updates} WHERE id = :id"), data)
+        conn.commit()
+    return {"ok": True}
+
 @app.delete("/ui/delete/{row_id}")
 def ui_delete(row_id: int):
+    """
+    Elimina un registro.
+    """
     with engine.connect() as conn:
         conn.execute(text(f"DELETE FROM {_UI_TABLE} WHERE id = :id"), {"id": row_id})
         conn.commit()

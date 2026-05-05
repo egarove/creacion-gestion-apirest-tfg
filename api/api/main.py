@@ -1,41 +1,28 @@
+# -*- coding: utf-8 -*-
+"""
+Master API Generator Backend
+Arquitectura de élite para la gestión dinámica de microservicios Docker.
+"""
+import os
 import shutil
 import subprocess
 import time
-from fastapi import Depends, FastAPI, Response
-import os
+import docker
 import psycopg2
 import psycopg2.errors
+from psycopg2.extensions import quote_ident
 import pymysql
-
+from fastapi import Depends, FastAPI, Response, Request
+from fastapi.responses import HTMLResponse
 from fastapi.concurrency import asynccontextmanager
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import text
-from events.db import get_db
-from models import ApiModel, DBModel, UpdateApiModel
-from models.endpoint_model import Endpoint
 from sqlalchemy.orm import Session
+
 from settings import API_IP
 from events.db import engine, Base, get_db
-import docker
-
-# Configuración de eventos para manejar la conexión a la base de datos y la creación de tablas al iniciar el contenedor, y cerrar conexiones al apagarlo.
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    print("Base de datos conectada y tablas sincronizadas.")
-
-    yield
-
-    engine.dispose()
-    print("Conexiones de base de datos cerradas.")
-
-app = FastAPI(lifespan=lifespan)
-
-db_configs = {
-    "postgresql": {"port": "5432", "driver": "postgresql", "host": "postgres"},
-    "mysql":      {"port": "3306", "driver": "mysql+pymysql", "host": "mysql"},
-    "mariadb":    {"port": "3306", "driver": "mysql+pymysql", "host": "mariadb"},
-}
+from models import ApiModel, DBModel, UpdateApiModel
+from models.endpoint_model import Endpoint
 
 # Configuración de plantillas por lenguaje
 LANG_CONFIG = {
@@ -79,288 +66,239 @@ LANG_CONFIG = {
     },
 }
 
+# Hostnames Docker para conexiones dentro de la red api_default
+db_configs = {
+    "postgresql": {"port": "5432", "driver": "postgresql", "host": "postgres"},
+    "mysql":      {"port": "3306", "driver": "mysql+pymysql", "host": "mysql"},
+    "mariadb":    {"port": "3306", "driver": "mysql+pymysql", "host": "mariadb"},
+}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+    engine.dispose()
+
+app = FastAPI(lifespan=lifespan)
+templates = Environment(loader=FileSystemLoader("templates"))
+
 def _build_database_url(motor: str, usr: str, paswd: str, api_name: str) -> str:
     if motor == "sqlite":
         return f"sqlite:///{api_name}.db"
     elif motor in db_configs:
         config = db_configs[motor]
         return f"{config['driver']}://{usr}:{paswd}@{config['host']}:{config['port']}/{api_name}_db"
-    else:
-        raise Exception("Motor no configurado")
+    raise ValueError(f"Motor '{motor}' no soportado.")
 
 def _crear_usuario_y_bd(db_type: str, api_name: str, usr: str, paswd: str):
-    if db_type == "sqlite":
-        return
+    if db_type == "sqlite": return
+    db_name = f"{api_name}_db"
 
     if db_type == "postgresql":
-        conn = psycopg2.connect(
-            host="postgres", port=5432, dbname="postgres",
-            user="user", password="password"
-        )
+        conn = psycopg2.connect(host="postgres", port=5432, dbname="postgres", user="user", password="password")
         conn.autocommit = True
         cursor = conn.cursor()
         try:
-            cursor.execute(f"CREATE USER {usr} WITH PASSWORD '{paswd}';")
+            cursor.execute(f"CREATE USER {quote_ident(usr, conn)} WITH PASSWORD %s;", (paswd,))
         except psycopg2.errors.DuplicateObject:
-            cursor.execute(f"ALTER USER {usr} WITH PASSWORD '{paswd}';")
+            cursor.execute(f"ALTER USER {quote_ident(usr, conn)} WITH PASSWORD %s;", (paswd,))
         try:
-            cursor.execute(f"CREATE DATABASE {api_name}_db OWNER {usr};")
+            cursor.execute(f"CREATE DATABASE {quote_ident(db_name, conn)} OWNER {quote_ident(usr, conn)};")
         except psycopg2.errors.DuplicateDatabase:
             pass
-        cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {api_name}_db TO {usr};")
+        cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {quote_ident(db_name, conn)} TO {quote_ident(usr, conn)};")
         cursor.close()
         conn.close()
-
     elif db_type in ("mariadb", "mysql"):
-        port = 3306 # El puerto interno en Docker siempre es 3306 para ambos
-        conn = pymysql.connect(host=db_type, port=port, user="root", password="password")
+        conn = pymysql.connect(host=db_type, port=3306, user="root", password="password")
         cursor = conn.cursor()
-        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {api_name}_db;")
-        cursor.execute(f"CREATE USER IF NOT EXISTS '{usr}'@'%' IDENTIFIED BY '{paswd}';")
-        cursor.execute(f"ALTER USER '{usr}'@'%' IDENTIFIED BY '{paswd}';")
-        cursor.execute(f"GRANT ALL PRIVILEGES ON {api_name}_db.* TO '{usr}'@'%';")
-        cursor.execute("FLUSH PRIVILEGES;")
-        conn.commit()
-        cursor.close()
-        conn.close()
+        try:
+            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{api_name}_db`;")
+            cursor.execute(f"CREATE USER IF NOT EXISTS '{usr}'@'%' IDENTIFIED BY %s;", (paswd,))
+            cursor.execute(f"GRANT ALL PRIVILEGES ON `{api_name}_db`.* TO '{usr}'@'%';")
+            cursor.execute("FLUSH PRIVILEGES;")
+        finally:
+            conn.commit()
+            cursor.close()
+            conn.close()
 
 def _crear_tabla_en_bd_usuario(db_type: str, api_name: str, usr: str, paswd: str, sql_columns: str):
-    """Crea la tabla data_{api_name} en la BD del usuario, no en api_db."""
-    if db_type == "sqlite":
-        return
+    if db_type == "sqlite": return
+    table_name = f"data_{api_name}"
+    db_name = f"{api_name}_db"
+
     if db_type == "postgresql":
-        conn = psycopg2.connect(
-            host="postgres", port=5432, dbname=f"{api_name}_db",
-            user=usr, password=paswd
-        )
+        conn = psycopg2.connect(host="postgres", port=5432, dbname=db_name, user=usr, password=paswd)
         conn.autocommit = True
         cursor = conn.cursor()
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS data_{api_name} (id SERIAL PRIMARY KEY, {sql_columns});")
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {quote_ident(table_name, conn)} (id SERIAL PRIMARY KEY, {sql_columns});")
         cursor.close()
         conn.close()
     elif db_type in ("mariadb", "mysql"):
-        port = 3306 # Puerto interno en Docker
-        conn = pymysql.connect(host=db_type, port=port, user=usr, password=paswd, database=f"{api_name}_db")
+        conn = pymysql.connect(host=db_type, port=3306, user=usr, password=paswd, database=db_name)
         cursor = conn.cursor()
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS data_{api_name} (id INT AUTO_INCREMENT PRIMARY KEY, {sql_columns});")
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS `{table_name}` (id INT AUTO_INCREMENT PRIMARY KEY, {sql_columns});")
         conn.commit()
         cursor.close()
         conn.close()
 
-def _eliminar_usuario_y_bd(db_type: str, api_name: str, usr: str):
-    if db_type == "sqlite":
-        return
+@app.get("/", response_class=HTMLResponse)
+def root_dashboard():
+    template = templates.get_template("dashboard.jinja")
+    return template.render()
 
-    if db_type == "postgresql":
-        conn = psycopg2.connect(
-            host=API_IP, port=5432, dbname="postgres",
-            user="user", password="password"
-        )
-        conn.autocommit = True
-        cursor = conn.cursor()
-        cursor.execute(f"DROP DATABASE IF EXISTS {api_name}_db;")
-        cursor.execute(f"DROP USER IF EXISTS {usr};")
-        cursor.close()
-        conn.close()
-
-    elif db_type in ("mariadb", "mysql"):
-        port = 5433 if db_type == "mariadb" else 5434
-        conn = pymysql.connect(host=API_IP, port=port, user="root", password="password")
-        cursor = conn.cursor()
-        cursor.execute(f"DROP DATABASE IF EXISTS {api_name}_db;")
-        cursor.execute(f"DROP USER IF EXISTS '{usr}'@'%';")
-        cursor.execute("FLUSH PRIVILEGES;")
-        conn.commit()
-        cursor.close()
-        conn.close()
+@app.get("/get-all-apis")
+def get_all_apis(db: Session = Depends(get_db)):
+    client = docker.from_env()
+    apis = db.query(DBModel).all()
+    result = []
+    for api in apis:
+        try:
+            container = client.containers.get(api.api_name)
+            status = container.status
+        except:
+            status = "not_found"
+        result.append({
+            "api_name": api.api_name,
+            "port": api.port,
+            "db": api.db,
+            "status": status
+        })
+    return result
 
 @app.post("/crear-api")
-def crear_nueva_api(proyect: ApiModel, db: Session = Depends(get_db)):
-    """Crea una nueva API en Docker basada en el modelo proporcionado."""
+def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
     try:
-        if db.query(DBModel).filter(DBModel.api_name == proyect.api_name).first():
-            print(f"DEBUG: API {proyect.api_name} ya existe en la base de datos.", flush=True)
-            return Response(status_code=400, content=f"Ya existe una API con el nombre {proyect.api_name}")
+        if db.query(DBModel).filter(DBModel.api_name == project.api_name).first():
+            return Response(status_code=400, content="La API ya existe.")
 
-        # Obtener configuración del lenguaje seleccionado
-        lang = proyect.language
+        lang = project.language
         if lang not in LANG_CONFIG:
             return Response(status_code=400, content=f"Lenguaje '{lang}' no soportado")
         config = LANG_CONFIG[lang]
 
-        proyect_path = f"deployments/{proyect.api_name}"
-        os.makedirs(proyect_path, exist_ok=True)
+        project_path = f"deployments/{project.api_name}"
+        os.makedirs(project_path, exist_ok=True)
 
-        # Cargar plantillas del lenguaje seleccionado
         env = Environment(loader=FileSystemLoader(config["template_dir"]))
         template = env.get_template("api_template.jinja")
         codigo = template.render(
-            api_name=proyect.api_name,
-            endpoints=proyect.endpoints,
-            generar_ui=proyect.generar_ui,
-            db=proyect.db,
+            api_name=project.api_name,
+            endpoints=project.endpoints,
+            generar_ui=project.generar_ui,
+            db=project.db,
         )
 
-        # Guardar archivo principal con el nombre correcto según el lenguaje
-        main_file_path = os.path.join(proyect_path, config["main_file"])
+        main_file_path = os.path.join(project_path, config["main_file"])
         os.makedirs(os.path.dirname(main_file_path), exist_ok=True)
         with open(main_file_path, "w") as f:
             f.write(codigo)
 
-        # Generar archivos extra del lenguaje (package.json, go.mod, Cargo.toml, pom.xml, etc.)
         for template_name, output_name in config["extra_files"]:
             extra_template = env.get_template(template_name)
-            extra_content = extra_template.render(
-                api_name=proyect.api_name,
-                db=proyect.db,
-            )
-            extra_path = os.path.join(proyect_path, output_name)
+            extra_content = extra_template.render(api_name=project.api_name, db=project.db)
+            extra_path = os.path.join(project_path, output_name)
             os.makedirs(os.path.dirname(extra_path), exist_ok=True)
             with open(extra_path, "w") as f:
                 f.write(extra_content)
 
-        # Crear Dockerfile
         dockerfile_content = env.get_template("docker_template.jinja").render(
-            api_name=proyect.api_name,
-            db=proyect.db,
+            api_name=project.api_name,
+            db=project.db,
         )
-
-        with open(f"{proyect_path}/Dockerfile", "w") as f:
+        with open(os.path.join(project_path, "Dockerfile"), "w") as f:
             f.write(dockerfile_content)
 
-        # Construir la imagen Docker
-        subprocess.run(["docker", "build", "-t", f"api-{proyect.api_name}", proyect_path])
+        subprocess.run(["docker", "build", "-t", f"api-{project.api_name}", project_path], check=True)
 
-        url = _build_database_url(proyect.db, proyect.usr, proyect.paswd, proyect.api_name)
-        backup_port = proyect.port + 1
+        url = _build_database_url(project.db, project.usr, project.paswd, project.api_name)
+        backup_port = project.port + 1
 
-        _crear_usuario_y_bd(proyect.db, proyect.api_name, proyect.usr, proyect.paswd)
+        _crear_usuario_y_bd(project.db, project.api_name, project.usr, project.paswd)
 
-        # Lanzar contenedor principal
         subprocess.Popen([
             "docker", "run", "-d",
-            "--name", f"{proyect.api_name}",
+            "--name", project.api_name,
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
-            "-p", f"{proyect.port}:8000",
-            f"api-{proyect.api_name}"
+            "-p", f"{project.port}:8000",
+            f"api-{project.api_name}"
         ])
-
-        # Lanzar contenedor de respaldo
         subprocess.Popen([
             "docker", "run", "-d",
-            "--name", f"{proyect.api_name}_backup",
+            "--name", f"{project.api_name}_backup",
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{backup_port}:8000",
-            f"api-{proyect.api_name}"
+            f"api-{project.api_name}"
         ])
 
-        # Guardamos el registro de la API en la base de datos
+        endpoints_data = [ep.model_dump() for ep in project.endpoints]
         db_data = DBModel(
-            api_name=proyect.api_name,
-            port=proyect.port,
+            api_name=project.api_name,
+            port=project.port,
             backup_port=backup_port,
-            language=proyect.language,
-            db=proyect.db,
-            usr=proyect.usr,
-            columns=proyect.columns,
-            paswd=proyect.paswd
+            language=project.language,
+            db=project.db,
+            usr=project.usr,
+            columns=project.columns,
+            paswd=project.paswd,
+            endpoints=endpoints_data,
+            generar_ui=int(project.generar_ui),
         )
-
         db.add(db_data)
         db.commit()
 
-        # Crear tabla en la BD del usuario (no en api_db)
-        sql_columns = ", ".join([col for col in proyect.columns])
-        _crear_tabla_en_bd_usuario(proyect.db, proyect.api_name, proyect.usr, proyect.paswd, sql_columns)
-        db.refresh(db_data)
+        sql_columns = ", ".join(project.columns)
+        _crear_tabla_en_bd_usuario(project.db, project.api_name, project.usr, project.paswd, sql_columns)
 
         return {
-            "mensaje": f"API {proyect.api_name} creada en {lang}",
-            "puerto": proyect.port,
+            "mensaje": f"API {project.api_name} creada en {lang}",
+            "puerto": project.port,
             "backup_port": backup_port,
-            "id_db": db_data.id,
-            "columnas": proyect.columns,
-            "language": lang
+            "id": db_data.id,
+            "language": lang,
         }
     except Exception as e:
         db.rollback()
-        print(e, flush=True)
         return Response(status_code=500, content=str(e))
-
-@app.get("/{api}")
-def get_api_data(api: str):
-    return {}
-
-@app.post("/{api}/update")
-def update_api(api: str, item: UpdateApiModel):
-    return {}
 
 @app.post("/{api}/start")
 def start_api(api: str):
-    """Iniciar una api"""
     try:
         client = docker.from_env()
-        container = client.containers.get(api)
-        if container.status == "running":
-            return {"status": "running"}
-
-        container.start()
-        time.sleep(2)
-
-        return {"status": container.status}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+        c = client.containers.get(api)
+        c.start()
+        return {"status": "running"}
+    except Exception as e: return Response(status_code=500, content=str(e))
 
 @app.post("/{api}/stop")
 def stop_api(api: str):
-    """Parar una api"""
     try:
         client = docker.from_env()
         container = client.containers.get(api)
         if container.status == "exited":
             return {"status": container.status}
-
         container.stop()
         time.sleep(2)
-
-        return {"status": container.status}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
-
-@app.post("/{api}/status")
-def post_api_status(api: str):
-    """Estado de una api (legacy POST)"""
-    try:
-        client = docker.from_env()
-        container = client.containers.get(api)
         return {"status": container.status}
     except Exception as e:
         return Response(status_code=500, content=str(e))
 
 @app.get("/{api}/status")
 def get_api_status(api: str):
-    """Estado del contenedor principal y del respaldo"""
+    """Estado del contenedor principal y del respaldo."""
     try:
         client = docker.from_env()
-
         try:
-            main = client.containers.get(api)
-            main_status = main.status
+            main_status = client.containers.get(api).status
         except Exception:
             main_status = "not_found"
-
         try:
-            backup = client.containers.get(f"{api}_backup")
-            backup_status = backup.status
+            backup_status = client.containers.get(f"{api}_backup").status
         except Exception:
             backup_status = "not_found"
-
-        return {
-            "status": main_status,
-            "backup_status": backup_status,
-        }
+        return {"status": main_status, "backup_status": backup_status}
     except Exception as e:
         return Response(status_code=500, content=str(e))
 
@@ -382,30 +320,25 @@ def restore_api(api: str, db: Session = Depends(get_db)):
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", api,
+            "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{port}:8000",
             f"api-{api}"
         ])
-
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", f"{api}_backup",
+            "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{backup_port}:8000",
             f"api-{api}"
         ])
 
-        return {
-            "mensaje": "API restaurada",
-            "puerto": port,
-            "backup_port": backup_port,
-        }
+        return {"mensaje": "API restaurada", "puerto": port, "backup_port": backup_port}
     except Exception as e:
-        print(f"DEBUG ERROR RESTORE: {str(e)}", flush=True)
         return Response(status_code=500, content=str(e))
 
-# Snippets de código para añadir endpoints dinámicamente por lenguaje
-def _generar_snippet_endpoint(lang: str, api: str, endpoint: Endpoint, db_type: str) -> str:
+def _generar_snippet_endpoint(lang: str, api: str, endpoint: Endpoint, db_type: str):
     """Genera el snippet de código para un nuevo endpoint según el lenguaje."""
     if lang == "python":
         if endpoint.logic == "select":
@@ -443,38 +376,7 @@ def _generar_snippet_endpoint(lang: str, api: str, endpoint: Endpoint, db_type: 
             f"    }}\n"
             f"}});\n"
         )
-    else:
-        # Para lenguajes compilados (Go, Rust, C, C++, Java), regeneramos desde plantilla
-        return None
-
-
-def _regenerar_api_desde_plantilla(api: str, api_data, endpoint: Endpoint, db_session: Session):
-    """Para lenguajes compilados, regenera toda la API desde la plantilla con el nuevo endpoint."""
-    lang = api_data.language or "python"
-    config = LANG_CONFIG[lang]
-    proyect_path = f"deployments/{api}"
-
-    # Leer los endpoints existentes del archivo actual no es práctico,
-    # así que reconstruimos el código completo con el nuevo endpoint añadido.
-    # Almacenamos los endpoints en la BD para poder regenerar.
-    env = Environment(loader=FileSystemLoader(config["template_dir"]))
-    template = env.get_template("api_template.jinja")
-
-    # Crear un endpoint temporal para renderizar
-    existing_endpoints = []
-    # Intentar parsear los endpoints del archivo existente no es viable,
-    # así que simplemente añadimos el nuevo y reconstruimos la imagen
-    new_endpoint = {
-        "method": endpoint.method,
-        "path": endpoint.path,
-        "function_name": endpoint.function_name,
-        "logic": endpoint.logic,
-    }
-    existing_endpoints.append(new_endpoint)
-
-    # No regeneramos el código principal, solo reconstruimos Docker
     return None
-
 
 @app.post("/{api}/create-end-point")
 def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)):
@@ -489,26 +391,22 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
         if not config:
             return Response(status_code=400, content=f"Lenguaje '{lang}' no soportado")
 
-        proyect_path = f"deployments/{api}"
-        main_file = os.path.join(proyect_path, config["main_file"])
+        project_path = f"deployments/{api}"
+        main_file = os.path.join(project_path, config["main_file"])
 
-        # Generar snippet de código para el nuevo endpoint
         snippet = _generar_snippet_endpoint(lang, api, endpoint, api_data.db)
 
         if snippet is not None:
-            # Lenguajes interpretados: append al archivo
             with open(main_file, "a") as f:
                 f.write(snippet)
         else:
-            # Lenguajes compilados: no se puede hacer append simple,
-            # se notifica que se debe recrear la API con los endpoints deseados
             return Response(
                 status_code=400,
                 content=f"Para APIs en {lang}, recrea la API con todos los endpoints deseados. "
                         f"No se soporta añadir endpoints dinámicamente a lenguajes compilados."
             )
 
-        subprocess.run(["docker", "build", "-t", f"api-{api}", proyect_path])
+        subprocess.run(["docker", "build", "-t", f"api-{api}", project_path])
         subprocess.run(["docker", "rm", "-f", api])
         subprocess.run(["docker", "rm", "-f", f"{api}_backup"])
 
@@ -524,7 +422,6 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
             "-p", f"{port}:8000",
             f"api-{api}",
         ])
-
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", f"{api}_backup",
@@ -536,40 +433,25 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
 
         return {"mensaje": "Endpoint añadido", "endpoint": endpoint.path}
     except Exception as e:
-        print(f"DEBUG ERROR CREATE ENDPOINT: {str(e)}", flush=True)
         return Response(status_code=500, content=str(e))
 
 @app.post("/{api}/delete")
 def delete_api(api: str, db: Session = Depends(get_db)):
+    """Elimina la API y sus recursos."""
     try:
-        registro = db.query(DBModel).filter(DBModel.api_name == api).first()
-        if not registro:
-            return Response(status_code=404, content=f"No se encontró la API {api}")
+        reg = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not reg: return Response(status_code=404)
 
-        usr = registro.usr
-        db_type = registro.db
+        client = docker.from_env()
+        for suffix in ["", "_backup"]:
+            try: client.containers.get(f"{api}{suffix}").remove(force=True)
+            except: pass
 
-        subprocess.run(["docker", "rm", "-f", api])
-        subprocess.run(["docker", "rm", "-f", f"{api}_backup"])
+        project_path = f"deployments/{api}"
+        if os.path.exists(project_path): shutil.rmtree(project_path)
 
-        proyect_path = f"deployments/{api}"
-
-        if os.path.exists(proyect_path):
-            shutil.rmtree(proyect_path)
-
-        db.query(DBModel).filter(DBModel.api_name == api).delete()
-        drop = text(f"DROP TABLE IF EXISTS data_{api}")
-        db.execute(drop)
-
-        try:
-            _eliminar_usuario_y_bd(db_type, api, usr)
-        except Exception as e_clean:
-            print(f"WARN: no se pudo limpiar BD/usuario para {api}: {e_clean}", flush=True)
-
+        db.delete(reg)
+        db.execute(text(f"DROP TABLE IF EXISTS data_{api}"))
         db.commit()
-
-        return Response(status_code=200, content=f"API {api} eliminada exitosamente")
-    except Exception as e:
-        db.rollback()
-        print(f"DEBUG ERROR DELETE: {str(e)}", flush=True)
-        return Response(status_code=500, content=f"Error al eliminar la API {api}: {str(e)}")
+        return {"mensaje": "Eliminado"}
+    except Exception as e: return Response(status_code=500, content=str(e))
