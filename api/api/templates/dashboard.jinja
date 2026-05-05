@@ -1,173 +1,1046 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Console - API Generator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APIGen Master Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --bg: #060b14;
+  --surface: #0d1526;
+  --card: #111827;
+  --card-hover: #1a2540;
+  --border: #1f2d45;
+  --border-light: #2d3f5c;
+  --text: #e8f0fe;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+  --primary: #6366f1;
+  --primary-h: #4f46e5;
+  --primary-glow: rgba(99,102,241,.18);
+  --success: #10b981;
+  --success-bg: rgba(16,185,129,.12);
+  --danger: #ef4444;
+  --danger-bg: rgba(239,68,68,.12);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245,158,11,.12);
+  --info: #3b82f6;
+  --info-bg: rgba(59,130,246,.12);
+  --sidebar: 270px;
+  --panel: 480px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:4px}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Outfit', sans-serif; background-color: var(--bg); color: var(--text-main); }
+/* SIDEBAR */
+.sidebar{position:fixed;top:0;left:0;width:var(--sidebar);height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100}
+.sidebar-logo{padding:1.75rem 1.5rem 1rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border)}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--primary),#8b5cf6);border-radius:10px;display:grid;place-items:center;font-size:1.1rem;color:#fff;flex-shrink:0;box-shadow:0 0 20px var(--primary-glow)}
+.logo-text{font-size:1.1rem;font-weight:800;background:linear-gradient(90deg,#fff,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-ver{font-size:.65rem;color:var(--text-muted);font-weight:400;margin-top:1px}
+.sidebar-nav{padding:1rem .75rem;flex:1;overflow-y:auto}
+.nav-section{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:.5rem .75rem;margin-top:.5rem}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-radius:.625rem;color:var(--text-soft);cursor:pointer;transition:.2s;margin-bottom:2px;font-size:.9rem;font-weight:500;text-decoration:none;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:rgba(99,102,241,.08);color:var(--text)}
+.nav-item.active{background:var(--primary-glow);color:#fff}
+.nav-item.active .nav-icon{color:var(--primary)}
+.nav-icon{width:20px;text-align:center;font-size:.9rem}
+.nav-badge{margin-left:auto;background:var(--primary);color:#fff;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:9999px;min-width:20px;text-align:center}
+.sidebar-stats{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.sidebar-stat-row{display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;font-size:.82rem;color:var(--text-soft)}
+.sidebar-stat-val{font-weight:700;font-size:.85rem}
+.sidebar-stat-val.green{color:var(--success)}
+.sidebar-stat-val.red{color:var(--danger)}
+.shortcuts{padding:.75rem 1.25rem 1.25rem;border-top:1px solid var(--border)}
+.shortcut-title{font-size:.65rem;font-weight:700;letter-spacing:.08em;color:var(--text-muted);text-transform:uppercase;margin-bottom:.5rem}
+.shortcut-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;font-size:.75rem;color:var(--text-soft)}
+.kbd{background:var(--card);border:1px solid var(--border-light);border-radius:4px;padding:.1rem .4rem;font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--text)}
 
-        .sidebar { width: 280px; background: var(--card-bg); height: 100vh; position: fixed; border-right: 1px solid var(--border); padding: 2rem; }
-        .main-content { margin-left: 280px; padding: 3rem; min-height: 100vh; }
+/* MAIN */
+.main{margin-left:var(--sidebar);padding:2rem 2.5rem;min-height:100vh}
 
-        .logo { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 3rem; }
-        .logo i { color: var(--primary); }
+/* HEADER */
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
+.header-title h1{font-size:1.6rem;font-weight:800;color:var(--text);line-height:1}
+.header-title p{font-size:.85rem;color:var(--text-muted);margin-top:.25rem}
+.header-actions{display:flex;align-items:center;gap:.75rem;margin-left:auto}
+.search-wrap{position:relative}
+.search-input{background:var(--card);border:1px solid var(--border);border-radius:.625rem;padding:.6rem 1rem .6rem 2.5rem;color:var(--text);font-family:inherit;font-size:.875rem;width:240px;outline:none;transition:.2s}
+.search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
+.search-icon{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.85rem;pointer-events:none}
+.refresh-btn{background:var(--card);border:1px solid var(--border);border-radius:.625rem;padding:.6rem 1rem;color:var(--text-soft);cursor:pointer;transition:.2s;font-family:inherit;font-size:.85rem;display:flex;align-items:center;gap:.5rem}
+.refresh-btn:hover{border-color:var(--border-light);color:var(--text)}
+.countdown{font-size:.75rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+.btn-create{background:linear-gradient(135deg,var(--primary),#8b5cf6);border:none;border-radius:.625rem;padding:.65rem 1.25rem;color:#fff;cursor:pointer;font-family:inherit;font-weight:700;font-size:.875rem;display:flex;align-items:center;gap:.5rem;transition:.2s;box-shadow:0 4px 15px rgba(99,102,241,.3)}
+.btn-create:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,.4)}
 
-        .nav-link { display: flex; align-items: center; gap: 1rem; padding: 1rem; color: var(--text-muted); text-decoration: none; border-radius: 0.75rem; transition: all 0.2s; margin-bottom: 0.5rem; }
-        .nav-link:hover, .nav-link.active { background: rgba(79, 70, 229, 0.1); color: white; }
-        .nav-link.active i { color: var(--primary); }
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:1rem;padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1rem;transition:.2s}
+.stat-card:hover{border-color:var(--border-light);transform:translateY(-2px)}
+.stat-icon{width:46px;height:46px;border-radius:.75rem;display:grid;place-items:center;font-size:1.1rem;flex-shrink:0}
+.stat-icon.purple{background:var(--primary-glow);color:var(--primary)}
+.stat-icon.green{background:var(--success-bg);color:var(--success)}
+.stat-icon.red{background:var(--danger-bg);color:var(--danger)}
+.stat-icon.blue{background:var(--info-bg);color:var(--info)}
+.stat-label{font-size:.78rem;color:var(--text-muted);font-weight:500}
+.stat-val{font-size:1.75rem;font-weight:800;line-height:1;color:var(--text)}
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; }
-        .header h2 { font-size: 2rem; font-weight: 700; }
+/* FILTER BAR */
+.filter-bar{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.filter-tabs{display:flex;background:var(--card);border:1px solid var(--border);border-radius:.625rem;overflow:hidden}
+.filter-tab{padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:.2s;border:none;background:none;color:var(--text-muted);font-family:inherit;white-space:nowrap}
+.filter-tab.active{background:var(--primary);color:#fff}
+.filter-tab:hover:not(.active){color:var(--text)}
+.filter-select{background:var(--card);border:1px solid var(--border);border-radius:.625rem;padding:.5rem .75rem;color:var(--text-soft);font-family:inherit;font-size:.82rem;outline:none;cursor:pointer;transition:.2s}
+.filter-select:focus{border-color:var(--primary)}
+.filter-count{margin-left:auto;font-size:.82rem;color:var(--text-muted)}
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
-        .api-card { background: var(--card-bg); border-radius: 1.25rem; border: 1px solid var(--border); padding: 2rem; transition: all 0.3s; }
-        .api-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5); }
+/* API GRID */
+.api-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem}
 
-        .api-header { display: flex; justify-content: space-between; margin-bottom: 1.5rem; }
-        .status-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-        .status-running { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-        .status-stopped { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+/* API CARD */
+.api-card{background:var(--card);border:1px solid var(--border);border-radius:1rem;overflow:hidden;transition:.25s;position:relative}
+.api-card:hover{border-color:var(--border-light);transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.4)}
+.card-top-bar{height:3px;width:100%}
+.card-body{padding:1.25rem 1.25rem .75rem}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.875rem}
+.card-name{font-size:1.05rem;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace;word-break:break-all}
+.card-status-group{display:flex;align-items:center;gap:.5rem;flex-shrink:0;margin-left:.5rem;flex-direction:column;align-items:flex-end}
+.status-dot-row{display:flex;align-items:center;gap:.3rem;font-size:.67rem;color:var(--text-muted)}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.running{background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse-green 2s infinite}
+.status-dot.exited,.status-dot.stopped{background:var(--danger)}
+.status-dot.not_found{background:var(--text-muted)}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.4)}50%{box-shadow:0 0 0 5px rgba(16,185,129,0)}}
+.card-meta{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.875rem}
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .6rem;border-radius:.375rem;font-size:.72rem;font-weight:600;white-space:nowrap}
+.badge-lang-python{background:rgba(55,118,171,.2);color:#4ea8de;border:1px solid rgba(55,118,171,.3)}
+.badge-lang-typescript{background:rgba(49,120,198,.2);color:#5ba3f5;border:1px solid rgba(49,120,198,.3)}
+.badge-lang-go{background:rgba(0,173,216,.15);color:#00d4ff;border:1px solid rgba(0,173,216,.25)}
+.badge-lang-rust{background:rgba(206,74,24,.2);color:#ff7a3d;border:1px solid rgba(206,74,24,.3)}
+.badge-lang-java{background:rgba(237,139,0,.2);color:#ffb347;border:1px solid rgba(237,139,0,.3)}
+.badge-lang-c{background:rgba(168,185,204,.15);color:#bdd0e0;border:1px solid rgba(168,185,204,.25)}
+.badge-lang-cpp{background:rgba(0,89,156,.2);color:#5b9bd5;border:1px solid rgba(0,89,156,.3)}
+.badge-db{background:rgba(99,102,241,.12);color:#a5b4fc;border:1px solid rgba(99,102,241,.2)}
+.badge-port{background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.18)}
+.badge-neutral{background:rgba(100,116,139,.12);color:var(--text-soft);border:1px solid rgba(100,116,139,.2)}
+.badge-ui{background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.2)}
+.card-endpoints-preview{margin-bottom:.875rem;min-height:28px}
+.ep-row{display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem;font-size:.75rem;color:var(--text-soft)}
+.ep-more{color:var(--primary);font-size:.75rem;cursor:pointer;font-weight:600}
+.card-actions{display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:.4rem;padding:.75rem 1.25rem;background:rgba(0,0,0,.2);border-top:1px solid var(--border)}
+.card-btn{border:1px solid var(--border-light);border-radius:.5rem;padding:.45rem .6rem;font-size:.75rem;font-weight:600;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:.3rem;background:transparent;color:var(--text-soft);font-family:inherit;white-space:nowrap}
+.card-btn:hover{color:var(--text);background:var(--card-hover)}
+.card-btn.start{color:var(--success);border-color:rgba(16,185,129,.3)}
+.card-btn.start:hover{background:var(--success-bg)}
+.card-btn.stop{color:var(--warning);border-color:rgba(245,158,11,.3)}
+.card-btn.stop:hover{background:var(--warning-bg)}
+.card-btn.restore{color:var(--info);border-color:rgba(59,130,246,.3)}
+.card-btn.restore:hover{background:var(--info-bg)}
+.card-btn.detail{color:var(--primary);border-color:rgba(99,102,241,.3)}
+.card-btn.detail:hover{background:var(--primary-glow)}
+.card-btn.danger{color:var(--danger);border-color:rgba(239,68,68,.3)}
+.card-btn.danger:hover{background:var(--danger-bg)}
+.card-btn.link{color:var(--success);border-color:rgba(16,185,129,.3)}
+.card-btn.link:hover{background:var(--success-bg)}
+.card-btn:disabled{opacity:.3;cursor:not-allowed}
+.mth{padding:.15rem .4rem;border-radius:.25rem;font-size:.65rem;font-weight:700;font-family:'JetBrains Mono',monospace;min-width:42px;text-align:center;flex-shrink:0}
+.mth-get{background:rgba(34,197,94,.15);color:#4ade80}
+.mth-post{background:rgba(59,130,246,.15);color:#60a5fa}
+.mth-put{background:rgba(245,158,11,.15);color:#fbbf24}
+.mth-delete{background:rgba(239,68,68,.15);color:#f87171}
 
-        .api-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .api-info { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; }
+/* EMPTY */
+.empty-state{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5rem;background:var(--card);border:2px dashed var(--border);border-radius:1rem;gap:1rem;text-align:center}
+.empty-icon{font-size:3rem;color:var(--border-light)}
+.empty-state h3{font-size:1.1rem;color:var(--text-soft)}
+.empty-state p{font-size:.85rem;color:var(--text-muted)}
 
-        .actions { display: flex; gap: 0.75rem; }
-        .btn { flex: 1; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid var(--border); background: transparent; color: white; cursor: pointer; transition: all 0.2s; font-family: inherit; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; }
-        .btn-primary { background: var(--primary); border: none; }
-        .btn-primary:hover { background: var(--primary-hover); }
-        .btn-outline:hover { background: var(--border); }
+/* PANEL */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:190;opacity:0;pointer-events:none;transition:.3s;backdrop-filter:blur(2px)}
+.panel-overlay.show{opacity:1;pointer-events:all}
+.right-panel{position:fixed;top:0;right:0;width:var(--panel);height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:200;transform:translateX(100%);transition:.35s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column}
+.right-panel.show{transform:translateX(0)}
+.panel-header{padding:1.5rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:10;display:flex;align-items:center;gap:.75rem}
+.panel-title{font-size:1.05rem;font-weight:700;font-family:'JetBrains Mono',monospace;flex:1;word-break:break-all}
+.panel-close{background:var(--card);border:1px solid var(--border);border-radius:.5rem;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;color:var(--text-soft);transition:.2s;flex-shrink:0}
+.panel-close:hover{color:var(--text);border-color:var(--border-light)}
+.panel-section{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border)}
+.panel-section-title{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.875rem;display:flex;align-items:center;gap:.5rem}
+.panel-section-title i{color:var(--primary)}
+.container-row{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;background:var(--card);border-radius:.625rem;margin-bottom:.5rem;border:1px solid var(--border)}
+.container-name{font-size:.8rem;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--text)}
+.container-port{font-size:.72rem;color:var(--text-muted)}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.info-item{background:var(--card);border:1px solid var(--border);border-radius:.625rem;padding:.75rem}
+.info-item-label{font-size:.68rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
+.info-item-val{font-size:.85rem;font-weight:600;color:var(--text)}
+.url-row{display:flex;align-items:center;gap:.5rem;background:var(--card);border:1px solid var(--border);border-radius:.625rem;padding:.6rem .75rem;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-soft);margin-bottom:.4rem}
+.url-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-btn{border:none;background:none;cursor:pointer;color:var(--text-muted);padding:.2rem;transition:.2s;border-radius:.25rem;display:grid;place-items:center;width:26px;height:26px}
+.icon-btn:hover{color:var(--primary);background:var(--primary-glow)}
+.cols-wrap{display:flex;flex-wrap:wrap;gap:.4rem}
+.col-chip{background:var(--card);border:1px solid var(--border-light);border-radius:.375rem;padding:.2rem .6rem;font-size:.75rem;color:var(--text-soft);font-family:'JetBrains Mono',monospace}
+.ep-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.ep-table th{text-align:left;padding:.4rem .5rem;color:var(--text-muted);font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.ep-table td{padding:.5rem .5rem;color:var(--text-soft);border-bottom:1px solid var(--border)}
+.ep-table tr:last-child td{border-bottom:none}
+.ep-table tr:hover td{background:rgba(255,255,255,.02)}
+.add-ep-form{background:var(--card);border-radius:.75rem;border:1px solid var(--border);padding:1rem;margin-top:.75rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem}
+.form-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem}
+.fi{display:flex;flex-direction:column;gap:.25rem}
+.fi label{font-size:.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.fi input,.fi select{background:var(--surface);border:1px solid var(--border);border-radius:.5rem;padding:.5rem .75rem;color:var(--text);font-family:inherit;font-size:.82rem;outline:none;transition:.2s}
+.fi input:focus,.fi select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
+.logs-area{background:var(--bg);border:1px solid var(--border);border-radius:.625rem;padding:.75rem;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:#4ade80;white-space:pre-wrap;word-break:break-all;max-height:250px;overflow-y:auto;line-height:1.5}
+.logs-controls{display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem;flex-wrap:wrap}
+.danger-zone{display:flex;gap:.5rem;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:700}
+.pill-green{background:var(--success-bg);color:var(--success)}
+.pill-red{background:var(--danger-bg);color:var(--danger)}
+.pill-gray{background:rgba(100,116,139,.12);color:var(--text-muted)}
 
-        .empty-state { grid-column: 1 / -1; text-align: center; padding: 5rem; background: var(--card-bg); border-radius: 1.25rem; border: 2px dashed var(--border); }
-        
-        .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--primary); color: white; padding: 1rem 2rem; border-radius: 1rem; display: none; z-index: 1000; animation: slideIn 0.3s; }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-    </style>
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:.25s;backdrop-filter:blur(4px)}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--border-light);border-radius:1.25rem;width:100%;max-width:680px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;transform:scale(.95) translateY(20px);transition:.25s}
+.modal-overlay.show .modal{transform:scale(1) translateY(0)}
+.modal-header{padding:1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;flex-shrink:0}
+.modal-title{font-size:1.1rem;font-weight:700;flex:1}
+.modal-close{background:var(--card);border:1px solid var(--border);border-radius:.5rem;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;color:var(--text-soft);transition:.2s}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:1.5rem;overflow-y:auto;flex:1}
+.modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:.75rem;justify-content:flex-end;flex-shrink:0}
+.wizard-steps{display:flex;margin-bottom:1.5rem;background:var(--card);border:1px solid var(--border);border-radius:.625rem;overflow:hidden}
+.wizard-step{flex:1;padding:.625rem;text-align:center;font-size:.78rem;font-weight:600;color:var(--text-muted);cursor:default;transition:.2s}
+.wizard-step.done{background:rgba(99,102,241,.08);color:var(--primary)}
+.wizard-step.active{background:var(--primary);color:#fff}
+.wizard-step-num{display:block;font-size:.65rem;font-weight:700;margin-bottom:.1rem;opacity:.7}
+.step-page{display:none}
+.step-page.active{display:block}
+.option-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:.75rem}
+.option-card{border:2px solid var(--border);border-radius:.75rem;padding:.75rem .5rem;text-align:center;cursor:pointer;transition:.2s;background:var(--card)}
+.option-card:hover{border-color:var(--border-light);background:var(--card-hover)}
+.option-card.selected{border-color:var(--primary);background:var(--primary-glow)}
+.option-card .oc-icon{font-size:1.4rem;margin-bottom:.3rem;display:block}
+.option-card .oc-label{font-size:.7rem;font-weight:600;color:var(--text-soft)}
+.option-card.selected .oc-label{color:var(--text)}
+.dyn-table{width:100%;border-collapse:collapse;margin-bottom:.5rem}
+.dyn-table th{padding:.4rem .5rem;font-size:.7rem;color:var(--text-muted);text-align:left;border-bottom:1px solid var(--border)}
+.dyn-table td{padding:.35rem .25rem}
+.dyn-table input,.dyn-table select{background:var(--bg);border:1px solid var(--border);border-radius:.375rem;padding:.35rem .5rem;color:var(--text);font-family:inherit;font-size:.78rem;width:100%;outline:none}
+.dyn-table input:focus,.dyn-table select:focus{border-color:var(--primary)}
+.dyn-table .rm-btn{background:none;border:1px solid rgba(239,68,68,.3);border-radius:.375rem;color:var(--danger);padding:0;cursor:pointer;transition:.2s;width:28px;height:28px;display:grid;place-items:center}
+.dyn-table .rm-btn:hover{background:var(--danger-bg)}
+.add-row-btn{background:none;border:1px dashed var(--border-light);border-radius:.5rem;color:var(--text-soft);padding:.45rem 1rem;cursor:pointer;font-family:inherit;font-size:.8rem;width:100%;transition:.2s;display:flex;align-items:center;justify-content:center;gap:.4rem}
+.add-row-btn:hover{border-color:var(--primary);color:var(--primary)}
+.btn{border:none;border-radius:.625rem;padding:.6rem 1.25rem;font-family:inherit;font-weight:600;font-size:.875rem;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:.4rem}
+.btn-primary{background:linear-gradient(135deg,var(--primary),#7c3aed);color:#fff}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-secondary{background:var(--card);border:1px solid var(--border-light);color:var(--text-soft)}
+.btn-secondary:hover{color:var(--text)}
+.btn-danger{background:var(--danger-bg);border:1px solid rgba(239,68,68,.3);color:var(--danger)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+.btn-sm{padding:.4rem .875rem;font-size:.8rem}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+.delete-warn{display:flex;flex-direction:column;align-items:center;text-align:center;gap:1rem;padding:1rem 0}
+.delete-icon{width:60px;height:60px;background:var(--danger-bg);border-radius:50%;display:grid;place-items:center;font-size:1.5rem;color:var(--danger)}
+.confirm-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:.625rem;padding:.7rem 1rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.875rem;text-align:center;outline:none;transition:.2s;margin-top:.25rem}
+.confirm-input:focus{border-color:var(--danger);box-shadow:0 0 0 3px rgba(239,68,68,.15)}
+
+/* TOASTS */
+.toasts{position:fixed;bottom:1.5rem;right:1.5rem;z-index:500;display:flex;flex-direction:column-reverse;gap:.5rem;pointer-events:none}
+.toast{background:var(--card);border:1px solid var(--border-light);border-radius:.75rem;padding:.875rem 1.25rem;display:flex;align-items:center;gap:.75rem;font-size:.85rem;font-weight:500;min-width:260px;max-width:360px;pointer-events:all;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:toastIn .3s ease}
+.toast.out{animation:toastOut .3s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(60px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateX(60px) scale(.9)}}
+.toast-success{border-left:3px solid var(--success)}
+.toast-error{border-left:3px solid var(--danger)}
+.toast-info{border-left:3px solid var(--info)}
+.toast-warning{border-left:3px solid var(--warning)}
+.toast-icon{font-size:1rem;flex-shrink:0}
+.toast-success .toast-icon{color:var(--success)}
+.toast-error .toast-icon{color:var(--danger)}
+.toast-info .toast-icon{color:var(--info)}
+.toast-warning .toast-icon{color:var(--warning)}
+.toast-msg{flex:1;color:var(--text)}
+.toast-close{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:.1rem;flex-shrink:0}
+.toast-close:hover{color:var(--text)}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(6,11,20,.85);z-index:400;flex-direction:column;align-items:center;justify-content:center;gap:1rem;display:none}
+.loading-overlay.show{display:flex}
+.spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{color:var(--text-soft);font-size:.9rem;text-align:center;max-width:300px}
+.spin-inline{animation:spin 1s linear infinite;display:inline-block}
+.text-mono{font-family:'JetBrains Mono',monospace}
+@media(max-width:900px){.sidebar{transform:translateX(-100%)}.main{margin-left:0}.stats-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="logo">
-            <i class="fas fa-layer-group"></i>
-            <span>APIGen Master</span>
-        </div>
-        <nav>
-            <a href="#" class="nav-link active"><i class="fas fa-th-large"></i> Dashboard</a>
-            <a href="#" class="nav-link"><i class="fas fa-server"></i> Infraestructura</a>
-            <a href="#" class="nav-link"><i class="fas fa-cog"></i> Ajustes</a>
-        </nav>
-    </div>
 
-    <div class="main-content">
-        <div class="header">
-            <div>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Bienvenido de nuevo, Administrador</p>
-                <h2>Panel de Control</h2>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+    <div><div class="logo-text">APIGen Master</div><div class="logo-ver">Console v2.0</div></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+    <button class="nav-item active">
+      <i class="nav-icon fas fa-th-large"></i> Dashboard
+      <span class="nav-badge" id="nav-total">0</span>
+    </button>
+    <a href="/docs" target="_blank" class="nav-item">
+      <i class="nav-icon fas fa-book-open"></i> Swagger UI
+    </a>
+    <div class="nav-section">Herramientas</div>
+    <button class="nav-item" onclick="loadApis(true)">
+      <i class="nav-icon fas fa-sync-alt"></i> Refrescar todo
+    </button>
+    <button class="nav-item" onclick="openCreateModal()">
+      <i class="nav-icon fas fa-plus-circle"></i> Nueva API
+    </button>
+  </nav>
+  <div class="sidebar-stats">
+    <div class="sidebar-stat-row">
+      <span><i class="fas fa-circle fa-xs" style="color:var(--success)"></i>&nbsp; En ejecución</span>
+      <span class="sidebar-stat-val green" id="sb-running">—</span>
+    </div>
+    <div class="sidebar-stat-row">
+      <span><i class="fas fa-circle fa-xs" style="color:var(--danger)"></i>&nbsp; Detenidas</span>
+      <span class="sidebar-stat-val red" id="sb-stopped">—</span>
+    </div>
+    <div class="sidebar-stat-row">
+      <span><i class="fas fa-code-branch fa-xs" style="color:var(--primary)"></i>&nbsp; Endpoints</span>
+      <span class="sidebar-stat-val" id="sb-eps">—</span>
+    </div>
+  </div>
+  <div class="shortcuts">
+    <div class="shortcut-title">Atajos de teclado</div>
+    <div class="shortcut-row"><span class="kbd">N</span>&nbsp;Nueva API</div>
+    <div class="shortcut-row"><span class="kbd">R</span>&nbsp;Refrescar</div>
+    <div class="shortcut-row"><span class="kbd">/</span>&nbsp;Buscar</div>
+    <div class="shortcut-row"><span class="kbd">Esc</span>&nbsp;Cerrar panel</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="header">
+    <div class="header-title">
+      <h1>Panel de Control</h1>
+      <p id="header-subtitle">Cargando APIs...</p>
+    </div>
+    <div class="header-actions">
+      <div class="search-wrap">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar API..." autocomplete="off">
+      </div>
+      <button class="refresh-btn" onclick="loadApis(true)">
+        <i class="fas fa-sync-alt" id="refresh-icon"></i>
+        <span class="countdown" id="countdown"></span>
+      </button>
+      <button class="btn-create" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> Nueva API
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-icon purple"><i class="fas fa-layer-group"></i></div><div><div class="stat-label">Total APIs</div><div class="stat-val" id="s-total">—</div></div></div>
+    <div class="stat-card"><div class="stat-icon green"><i class="fas fa-play-circle"></i></div><div><div class="stat-label">En ejecución</div><div class="stat-val" id="s-running">—</div></div></div>
+    <div class="stat-card"><div class="stat-icon red"><i class="fas fa-stop-circle"></i></div><div><div class="stat-label">Detenidas / Error</div><div class="stat-val" id="s-stopped">—</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-code-branch"></i></div><div><div class="stat-label">Total Endpoints</div><div class="stat-val" id="s-eps">—</div></div></div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="setFilter('all')" data-filter="all">Todas</button>
+      <button class="filter-tab" onclick="setFilter('running')" data-filter="running">En ejecución</button>
+      <button class="filter-tab" onclick="setFilter('stopped')" data-filter="stopped">Detenidas</button>
+    </div>
+    <select class="filter-select" id="lang-filter" onchange="renderGrid()">
+      <option value="">Todos los lenguajes</option>
+      <option value="python">Python</option>
+      <option value="typescript">TypeScript</option>
+      <option value="go">Go</option>
+      <option value="rust">Rust</option>
+      <option value="java">Java</option>
+      <option value="c">C</option>
+      <option value="cpp">C++</option>
+    </select>
+    <select class="filter-select" id="db-filter" onchange="renderGrid()">
+      <option value="">Todas las BD</option>
+      <option value="postgresql">PostgreSQL</option>
+      <option value="mysql">MySQL</option>
+      <option value="mariadb">MariaDB</option>
+      <option value="sqlite">SQLite</option>
+    </select>
+    <select class="filter-select" id="sort-select" onchange="renderGrid()">
+      <option value="name">Ordenar: Nombre</option>
+      <option value="status">Ordenar: Estado</option>
+      <option value="port">Ordenar: Puerto</option>
+      <option value="eps">Ordenar: Endpoints</option>
+    </select>
+    <span class="filter-count" id="filter-count"></span>
+  </div>
+
+  <div class="api-grid" id="api-grid"></div>
+</main>
+
+<!-- PANEL OVERLAY -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel" id="right-panel">
+  <div class="panel-header">
+    <div class="panel-title text-mono" id="panel-api-name">—</div>
+    <button class="panel-close" onclick="closePanel()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="panel-section">
+    <div class="panel-section-title"><i class="fas fa-heartbeat"></i> Estado de contenedores</div>
+    <div id="panel-containers"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap">
+      <button class="btn btn-sm btn-secondary" onclick="panelRefreshStatus()"><i class="fas fa-sync-alt"></i> Refrescar</button>
+      <button class="btn btn-sm" style="background:var(--info-bg);border:1px solid rgba(59,130,246,.3);color:var(--info)" onclick="panelRestore()"><i class="fas fa-undo"></i> Restaurar</button>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-section-title"><i class="fas fa-info-circle"></i> Información</div>
+    <div class="info-grid" id="panel-info-grid"></div>
+    <div id="panel-ui-url" style="margin-top:.6rem"></div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-section-title"><i class="fas fa-terminal"></i> Ejemplos cURL</div>
+    <div id="panel-curls"></div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-section-title"><i class="fas fa-table"></i> Columnas</div>
+    <div class="cols-wrap" id="panel-cols"></div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-section-title"><i class="fas fa-code-branch"></i> Endpoints</div>
+    <table class="ep-table">
+      <thead><tr><th>Método</th><th>Path</th><th>Función</th><th>Lógica</th></tr></thead>
+      <tbody id="panel-eps-tbody"></tbody>
+    </table>
+    <div class="add-ep-form" id="add-ep-form" style="display:none">
+      <div class="form-row-4">
+        <div class="fi"><label>Método</label><select id="ep-method"><option value="get">GET</option><option value="post">POST</option><option value="put">PUT</option><option value="delete">DELETE</option></select></div>
+        <div class="fi"><label>Lógica</label><select id="ep-logic"><option value="select">select</option><option value="insert">insert</option><option value="update">update</option><option value="delete">delete</option></select></div>
+        <div class="fi"><label>Path</label><input id="ep-path" placeholder="/items"></div>
+        <div class="fi"><label>Función</label><input id="ep-func" placeholder="get_items"></div>
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-primary btn-sm" onclick="submitAddEndpoint()"><i class="fas fa-plus"></i> Añadir</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('add-ep-form').style.display='none'">Cancelar</button>
+      </div>
+    </div>
+    <button class="add-row-btn" style="margin-top:.5rem" onclick="document.getElementById('add-ep-form').style.display='block'"><i class="fas fa-plus"></i> Añadir endpoint</button>
+  </div>
+  <div class="panel-section">
+    <div class="panel-section-title"><i class="fas fa-scroll"></i> Logs del contenedor</div>
+    <div class="logs-controls">
+      <select class="filter-select" id="log-container-sel" style="flex:1"><option value="main">Principal</option><option value="backup">Respaldo</option></select>
+      <select class="filter-select" id="log-tail-sel"><option value="50">50 líneas</option><option value="100" selected>100 líneas</option><option value="200">200 líneas</option><option value="500">500 líneas</option></select>
+      <button class="btn btn-secondary btn-sm" onclick="loadLogs()"><i class="fas fa-download"></i> Cargar</button>
+    </div>
+    <div class="logs-area" id="logs-area">Pulsa "Cargar" para ver los logs.</div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-section-title" style="color:var(--danger)"><i class="fas fa-exclamation-triangle"></i> Zona de peligro</div>
+    <div class="danger-zone">
+      <button class="btn btn-sm" id="panel-toggle-btn" onclick="panelToggle()" style="background:var(--warning-bg);border:1px solid rgba(245,158,11,.3);color:var(--warning)"><i class="fas fa-stop"></i> Detener API</button>
+      <button class="btn btn-danger btn-sm" onclick="panelDelete()"><i class="fas fa-trash"></i> Eliminar API</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CREATE API -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <i class="fas fa-plus-circle" style="color:var(--primary)"></i>
+      <span class="modal-title">Nueva API</span>
+      <button class="modal-close" onclick="closeCreateModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="ws-1"><span class="wizard-step-num">Paso 1</span>Configuración</div>
+        <div class="wizard-step" id="ws-2"><span class="wizard-step-num">Paso 2</span>Base de datos</div>
+        <div class="wizard-step" id="ws-3"><span class="wizard-step-num">Paso 3</span>Estructura</div>
+      </div>
+      <!-- Step 1 -->
+      <div class="step-page active" id="step-1">
+        <div class="form-row">
+          <div class="fi"><label>Nombre de la API *</label><input id="c-name" placeholder="mi_api_rest" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"></div>
+          <div class="fi"><label>Puerto *</label><input id="c-port" type="number" placeholder="8080" min="1024" max="65535"></div>
+        </div>
+        <div class="fi" style="margin-bottom:.75rem"><label>Lenguaje de la API</label></div>
+        <div class="option-grid" id="lang-grid">
+          <div class="option-card selected" data-val="python" onclick="selectOption('lang-grid','python')"><span class="oc-icon">🐍</span><span class="oc-label">Python</span></div>
+          <div class="option-card" data-val="typescript" onclick="selectOption('lang-grid','typescript')"><span class="oc-icon">📘</span><span class="oc-label">TypeScript</span></div>
+          <div class="option-card" data-val="go" onclick="selectOption('lang-grid','go')"><span class="oc-icon">🐹</span><span class="oc-label">Go</span></div>
+          <div class="option-card" data-val="rust" onclick="selectOption('lang-grid','rust')"><span class="oc-icon">🦀</span><span class="oc-label">Rust</span></div>
+          <div class="option-card" data-val="java" onclick="selectOption('lang-grid','java')"><span class="oc-icon">☕</span><span class="oc-label">Java</span></div>
+          <div class="option-card" data-val="c" onclick="selectOption('lang-grid','c')"><span class="oc-icon">⚙️</span><span class="oc-label">C</span></div>
+          <div class="option-card" data-val="cpp" onclick="selectOption('lang-grid','cpp')"><span class="oc-icon">🔧</span><span class="oc-label">C++</span></div>
+          <div class="option-card" style="border-color:transparent;cursor:default"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.875rem;background:var(--card);border-radius:.625rem;border:1px solid var(--border);cursor:pointer" onclick="toggleGenUI()">
+          <div style="flex:1"><div style="font-weight:600;font-size:.9rem">Generar panel web</div><div style="font-size:.78rem;color:var(--text-muted)">Añade una interfaz /ui para gestionar datos visualmente</div></div>
+          <div id="gen-ui-toggle" style="width:42px;height:24px;background:var(--border);border-radius:12px;position:relative;transition:.2s;flex-shrink:0">
+            <div id="gen-ui-thumb" style="width:18px;height:18px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:.2s"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Step 2 -->
+      <div class="step-page" id="step-2">
+        <div class="fi" style="margin-bottom:.75rem"><label>Tipo de base de datos</label></div>
+        <div class="option-grid" id="db-grid" style="grid-template-columns:repeat(4,1fr)">
+          <div class="option-card selected" data-val="postgresql" onclick="selectOption('db-grid','postgresql')"><span class="oc-icon">🐘</span><span class="oc-label">PostgreSQL</span></div>
+          <div class="option-card" data-val="mysql" onclick="selectOption('db-grid','mysql')"><span class="oc-icon">🐬</span><span class="oc-label">MySQL</span></div>
+          <div class="option-card" data-val="mariadb" onclick="selectOption('db-grid','mariadb')"><span class="oc-icon">🦁</span><span class="oc-label">MariaDB</span></div>
+          <div class="option-card" data-val="sqlite" onclick="selectOption('db-grid','sqlite')"><span class="oc-icon">📦</span><span class="oc-label">SQLite</span></div>
+        </div>
+        <div id="db-creds" class="form-row">
+          <div class="fi"><label>Usuario BD *</label><input id="c-usr" placeholder="api_user"></div>
+          <div class="fi"><label>Contraseña BD *</label>
+            <div style="position:relative">
+              <input id="c-pass" type="password" placeholder="••••••••" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:.5rem;padding:.5rem 2.5rem .5rem .75rem;color:var(--text);font-family:inherit;font-size:.82rem;outline:none;transition:.2s">
+              <button type="button" onclick="togglePassVis()" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer"><i class="fas fa-eye" id="pass-eye"></i></button>
             </div>
-            <button class="btn btn-primary" onclick="location.reload()" style="flex: none; padding: 0.75rem 1.5rem;">
-                <i class="fas fa-sync-alt"></i> Refrescar
-            </button>
+          </div>
         </div>
-
-        <div class="grid" id="apiGrid">
-            <!-- APIs se cargarán dinámicamente -->
+      </div>
+      <!-- Step 3 -->
+      <div class="step-page" id="step-3">
+        <div style="margin-bottom:1.25rem">
+          <div style="font-weight:600;margin-bottom:.5rem;font-size:.9rem;display:flex;align-items:center;gap:.5rem"><i class="fas fa-table" style="color:var(--primary)"></i> Columnas <span style="color:var(--text-muted);font-weight:400;font-size:.78rem">— campos de la tabla SQL</span></div>
+          <table class="dyn-table"><thead><tr><th>Nombre</th><th>Tipo SQL</th><th style="width:36px"></th></tr></thead><tbody id="cols-tbody"></tbody></table>
+          <button class="add-row-btn" onclick="addColRow()"><i class="fas fa-plus"></i> Añadir columna</button>
         </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:.5rem;font-size:.9rem;display:flex;align-items:center;gap:.5rem"><i class="fas fa-code-branch" style="color:var(--primary)"></i> Endpoints <span style="color:var(--text-muted);font-weight:400;font-size:.78rem">— rutas HTTP de la API</span></div>
+          <table class="dyn-table"><thead><tr><th>Método</th><th>Path</th><th>Función</th><th>Lógica</th><th style="width:36px"></th></tr></thead><tbody id="eps-tbody"></tbody></table>
+          <button class="add-row-btn" onclick="addEpRow()"><i class="fas fa-plus"></i> Añadir endpoint</button>
+        </div>
+      </div>
     </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-prev" onclick="wizardPrev()" style="display:none"><i class="fas fa-arrow-left"></i> Anterior</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-secondary" onclick="closeCreateModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-next" onclick="wizardNext()">Siguiente <i class="fas fa-arrow-right"></i></button>
+    </div>
+  </div>
+</div>
 
-    <div id="toast" class="toast">Mensaje del sistema</div>
+<!-- MODAL: DELETE CONFIRM -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i>
+      <span class="modal-title">Eliminar API</span>
+      <button class="modal-close" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="delete-warn">
+        <div class="delete-icon"><i class="fas fa-trash"></i></div>
+        <h3>Eliminar <span id="del-api-name" style="color:var(--danger)"></span></h3>
+        <p>Esta acción es <strong>irreversible</strong>. Se eliminarán los contenedores Docker, los archivos de deployment y los registros de la base de datos.</p>
+        <div style="width:100%;text-align:left">
+          <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.35rem">Escribe el nombre exacto para confirmar:</div>
+          <input class="confirm-input" id="del-confirm-input" placeholder="" oninput="checkDeleteConfirm()">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+      <button class="btn btn-danger" id="del-confirm-btn" disabled onclick="executeDelete()"><i class="fas fa-trash"></i> Eliminar definitivamente</button>
+    </div>
+  </div>
+</div>
 
-    <script>
-        async function fetchApis() {
-            try {
-                // Obtenemos el registro de la base de datos maestra
-                const response = await fetch('/get-all-apis'); 
-                const apis = await response.json();
-                renderApis(apis);
-            } catch (e) {
-                console.error("Error al cargar APIs", e);
-            }
-        }
+<!-- TOASTS -->
+<div class="toasts" id="toasts"></div>
 
-        function renderApis(apis) {
-            const grid = document.getElementById('apiGrid');
-            if (apis.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-plus-circle" style="font-size: 3rem; color: var(--border); margin-bottom: 1rem;"></i>
-                        <h3>No hay APIs creadas</h3>
-                        <p style="color: var(--text-muted)">Usa la App móvil para generar tu primera API.</p>
-                    </div>`;
-                return;
-            }
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">Procesando...</div>
+</div>
 
-            grid.innerHTML = apis.map(api => `
-                <div class="api-card">
-                    <div class="api-header">
-                        <span class="status-badge ${api.status === 'running' ? 'status-running' : 'status-stopped'}">
-                            ${api.status || 'unknown'}
-                        </span>
-                        <i class="fas fa-ellipsis-h" style="color: var(--text-muted); cursor: pointer;"></i>
-                    </div>
-                    <h3 class="api-name">${api.api_name}</h3>
-                    <div class="api-info">
-                        <span><i class="fas fa-network-wired"></i> Puerto: ${api.port}</span>
-                        <span><i class="fas fa-database"></i> ${api.db}</span>
-                    </div>
-                    <div class="actions">
-                        <a href="http://${window.location.hostname}:${api.port}/ui" target="_blank" class="btn btn-primary">
-                            <i class="fas fa-external-link-alt"></i> Panel
-                        </a>
-                        <button onclick="toggleApi('${api.api_name}', '${api.status}')" class="btn btn-outline">
-                            <i class="fas ${api.status === 'running' ? 'fa-stop' : 'fa-play'}"></i>
-                            ${api.status === 'running' ? 'Detener' : 'Iniciar'}
-                        </button>
-                        <button onclick="deleteApi('${api.api_name}')" class="btn btn-outline" style="color: var(--danger);">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
+{% raw %}
+<script>
+const state = {
+  apis: [],
+  filter: 'all',
+  panelApi: null,
+  deleteTarget: null,
+  wizardStep: 1,
+  genUI: false,
+  countdown: 15,
+  timer: null,
+};
 
-        async function toggleApi(name, currentStatus) {
-            const action = currentStatus === 'running' ? 'stop' : 'start';
-            await fetch(\`/${name}/${action}\`, {method: 'POST'});
-            showToast(\`API ${{name}} ${{action === 'stop' ? 'detenida' : 'iniciada'}}\`);
-            fetchApis();
-        }
+const HOST = window.location.hostname;
 
-        async function deleteApi(name) {
-            if (!confirm(\`¿Estás seguro de eliminar permanentemente la API ${{name}}?\`)) return;
-            await fetch(\`/${name}/delete\`, {method: 'POST'});
-            showToast(\`API ${{name}} eliminada\`);
-            fetchApis();
-        }
+const LANG = {
+  python:     { icon:'🐍', label:'Python',     color:'#3776AB' },
+  typescript: { icon:'📘', label:'TypeScript', color:'#3178C6' },
+  go:         { icon:'🐹', label:'Go',         color:'#00ADD8' },
+  rust:       { icon:'🦀', label:'Rust',       color:'#CE4A18' },
+  java:       { icon:'☕', label:'Java',       color:'#ED8B00' },
+  c:          { icon:'⚙️',  label:'C',          color:'#8899aa' },
+  cpp:        { icon:'🔧', label:'C++',        color:'#00599C' },
+};
+const DB = {
+  postgresql:{ icon:'🐘', label:'PostgreSQL' },
+  mysql:     { icon:'🐬', label:'MySQL' },
+  mariadb:   { icon:'🦁', label:'MariaDB' },
+  sqlite:    { icon:'📦', label:'SQLite' },
+};
+const MTH = { get:'mth-get', post:'mth-post', put:'mth-put', delete:'mth-delete' };
+const COL_TYPES = ['VARCHAR(255)','INTEGER','BOOLEAN','TEXT','FLOAT','DATE','TIMESTAMP'];
 
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.style.display = 'block';
-            setTimeout(() => t.style.display = 'none', 3000);
-        }
+// ── FETCH ──
+async function apiFetch(url, opts={}) {
+  const r = await fetch(url, opts);
+  if (!r.ok) { const b=await r.text(); throw new Error(b||`HTTP ${r.status}`); }
+  const ct = r.headers.get('content-type')||'';
+  return ct.includes('application/json') ? r.json() : r.text();
+}
 
-        fetchApis();
-        // Polling para refrescar estados cada 10 segundos
-        setInterval(fetchApis, 10000);
-    </script>
+// ── LOAD APIS ──
+async function loadApis(manual=false) {
+  if (manual) { const ic=document.getElementById('refresh-icon'); ic.classList.add('spin-inline'); setTimeout(()=>ic.classList.remove('spin-inline'),800); }
+  try {
+    state.apis = await apiFetch('/get-all-apis');
+    updateStats();
+    renderGrid();
+    if (state.panelApi) {
+      const upd = state.apis.find(a=>a.api_name===state.panelApi.api_name);
+      if (upd) { state.panelApi=upd; renderPanel(); }
+    }
+  } catch(e) { toast('Error al cargar APIs: '+e.message,'error'); }
+  resetCountdown();
+}
+
+// ── STATS ──
+function updateStats() {
+  const a=state.apis, run=a.filter(x=>x.status==='running').length, stop=a.length-run, eps=a.reduce((s,x)=>s+(x.endpoints||[]).length,0);
+  $('s-total',a.length); $('s-running',run); $('s-stopped',stop); $('s-eps',eps);
+  $('sb-running',run); $('sb-stopped',stop); $('sb-eps',eps); $('nav-total',a.length);
+  $('header-subtitle',`${a.length} APIs · ${run} en ejecución · ${eps} endpoints`);
+}
+
+// ── RENDER GRID ──
+function renderGrid() {
+  const grid=document.getElementById('api-grid');
+  const search=document.getElementById('search-input').value.toLowerCase();
+  const langF=document.getElementById('lang-filter').value;
+  const dbF=document.getElementById('db-filter').value;
+  const sort=document.getElementById('sort-select').value;
+  let apis=[...state.apis];
+  if (state.filter==='running') apis=apis.filter(a=>a.status==='running');
+  else if (state.filter==='stopped') apis=apis.filter(a=>a.status!=='running');
+  if (search) apis=apis.filter(a=>a.api_name.includes(search));
+  if (langF) apis=apis.filter(a=>(a.language||'python')===langF);
+  if (dbF) apis=apis.filter(a=>a.db===dbF);
+  if (sort==='name') apis.sort((a,b)=>a.api_name.localeCompare(b.api_name));
+  else if (sort==='status') apis.sort((a,b)=>(a.status==='running'?0:1)-(b.status==='running'?0:1));
+  else if (sort==='port') apis.sort((a,b)=>a.port-b.port);
+  else if (sort==='eps') apis.sort((a,b)=>(b.endpoints||[]).length-(a.endpoints||[]).length);
+  $('filter-count',`${apis.length} de ${state.apis.length} APIs`);
+  if (!apis.length) {
+    grid.innerHTML=`<div class="empty-state"><div class="empty-icon"><i class="fas fa-wind"></i></div><h3>${state.apis.length===0?'No hay APIs creadas':'Sin resultados'}</h3><p>${state.apis.length===0?'Pulsa "+ Nueva API" para crear tu primera.':'Ajusta los filtros.'}</p>${state.apis.length===0?'<button class="btn btn-primary" onclick="openCreateModal()"><i class="fas fa-plus"></i> Nueva API</button>':''}</div>`;
+    return;
+  }
+  grid.innerHTML=apis.map(cardHTML).join('');
+}
+
+function cardHTML(api) {
+  const lang=api.language||'python', lc=LANG[lang]||LANG.python, dc=DB[api.db]||{icon:'🗄️',label:api.db};
+  const eps=api.endpoints||[], cols=(api.columns||[]).map(c=>c.split(' ')[0]);
+  const isRun=api.status==='running', anyDown=api.status!=='running'||api.backup_status!=='running';
+  const epPrev=eps.slice(0,3).map(ep=>`<div class="ep-row"><span class="mth ${MTH[ep.method]||'mth-get'}">${(ep.method||'get').toUpperCase()}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ep.path}</span></div>`).join('');
+  const epMore=eps.length>3?`<div class="ep-more">+${eps.length-3} más</div>`:'';
+  const gr=lc.color;
+  return `<div class="api-card">
+    <div class="card-top-bar" style="background:linear-gradient(90deg,${gr},${gr}66)"></div>
+    <div class="card-body">
+      <div class="card-header">
+        <div class="card-name">${api.api_name}</div>
+        <div class="card-status-group">
+          <div class="status-dot-row"><div class="status-dot ${api.status}"></div><span>main</span></div>
+          <div class="status-dot-row"><div class="status-dot ${api.backup_status}"></div><span>backup</span></div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <span class="badge badge-lang-${lang}">${lc.icon} ${lc.label}</span>
+        <span class="badge badge-db">${dc.icon} ${dc.label}</span>
+        <span class="badge badge-port">:${api.port}</span>
+        ${eps.length?`<span class="badge badge-neutral"><i class="fas fa-code-branch"></i> ${eps.length} ep</span>`:''}
+        ${cols.length?`<span class="badge badge-neutral"><i class="fas fa-table"></i> ${cols.length} col</span>`:''}
+        ${api.generar_ui?'<span class="badge badge-ui"><i class="fas fa-desktop"></i> UI</span>':''}
+      </div>
+      <div class="card-endpoints-preview">${epPrev}${epMore}</div>
+    </div>
+    <div class="card-actions">
+      <button class="card-btn ${isRun?'stop':'start'}" onclick="toggleApi('${api.api_name}','${api.status}',this)">
+        <i class="fas fa-${isRun?'stop':'play'}"></i> ${isRun?'Detener':'Iniciar'}
+      </button>
+      <button class="card-btn ${anyDown?'restore':''}" ${anyDown?'':'disabled'} onclick="restoreApi('${api.api_name}',this)">
+        <i class="fas fa-undo"></i> Restaurar
+      </button>
+      <button class="card-btn detail" onclick="openPanel('${api.api_name}')">
+        <i class="fas fa-eye"></i> Detalle
+      </button>
+      ${api.generar_ui?`<button class="card-btn link" title="Abrir panel UI" onclick="window.open('http://${HOST}:${api.port}/ui','_blank')"><i class="fas fa-external-link-alt"></i></button>`:'<span></span>'}
+      <button class="card-btn danger" onclick="openDeleteModal('${api.api_name}')"><i class="fas fa-trash"></i></button>
+    </div>
+  </div>`;
+}
+
+// ── FILTER ──
+function setFilter(f) {
+  state.filter=f;
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',t.dataset.filter===f));
+  renderGrid();
+}
+
+// ── TOGGLE ──
+async function toggleApi(name, status, btn) {
+  const action=status==='running'?'stop':'start';
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
+  try {
+    await apiFetch(`/${name}/${action}`,{method:'POST'});
+    toast(`API ${name} ${action==='stop'?'detenida':'iniciada'}`,'success');
+    await loadApis();
+  } catch(e) { toast('Error: '+e.message,'error'); if(btn)btn.disabled=false; }
+}
+
+// ── RESTORE ──
+async function restoreApi(name, btn) {
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
+  try {
+    await apiFetch(`/${name}/restore`,{method:'POST'});
+    toast(`Restaurando ${name}...`,'success');
+    await loadApis();
+  } catch(e) { toast('Error: '+e.message,'error'); if(btn)btn.disabled=false; }
+}
+
+// ── DELETE ──
+function openDeleteModal(name) {
+  state.deleteTarget=name;
+  document.getElementById('del-api-name').textContent=name;
+  document.getElementById('del-confirm-input').value='';
+  document.getElementById('del-confirm-input').placeholder=name;
+  document.getElementById('del-confirm-btn').disabled=true;
+  document.getElementById('delete-modal').classList.add('show');
+}
+function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('show'); }
+function checkDeleteConfirm() { document.getElementById('del-confirm-btn').disabled=document.getElementById('del-confirm-input').value!==state.deleteTarget; }
+async function executeDelete() {
+  const name=state.deleteTarget;
+  showLoading(`Eliminando ${name}...`);
+  try {
+    await apiFetch(`/${name}/delete`,{method:'POST'});
+    closeDeleteModal();
+    if(state.panelApi&&state.panelApi.api_name===name) closePanel();
+    toast(`API ${name} eliminada`,'success');
+    await loadApis();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+  hideLoading();
+}
+
+// ── PANEL ──
+function openPanel(name) {
+  const api=state.apis.find(a=>a.api_name===name);
+  if(!api) return;
+  state.panelApi=api;
+  renderPanel();
+  document.getElementById('right-panel').classList.add('show');
+  document.getElementById('panel-overlay').classList.add('show');
+  document.getElementById('logs-area').textContent='Pulsa "Cargar" para ver los logs.';
+}
+function closePanel() {
+  document.getElementById('right-panel').classList.remove('show');
+  document.getElementById('panel-overlay').classList.remove('show');
+}
+
+function renderPanel() {
+  const api=state.panelApi;
+  if(!api) return;
+  const lang=api.language||'python', lc=LANG[lang]||LANG.python, dc=DB[api.db]||{icon:'🗄️',label:api.db};
+  const eps=api.endpoints||[], cols=api.columns||[], isRun=api.status==='running';
+  $('panel-api-name', api.api_name);
+
+  // Containers
+  const cRow=(n,st,port)=>`<div class="container-row"><div class="status-dot ${st}" style="width:10px;height:10px;flex-shrink:0"></div><div style="flex:1"><div class="container-name">${n}</div><div class="container-port">puerto ${port} · ${st}</div></div><span class="pill pill-${st==='running'?'green':'red'}">${st}</span></div>`;
+  document.getElementById('panel-containers').innerHTML=cRow(api.api_name,api.status,api.port)+cRow(api.api_name+'_backup',api.backup_status,api.backup_port||api.port+1);
+
+  // Info grid
+  document.getElementById('panel-info-grid').innerHTML=`
+    <div class="info-item"><div class="info-item-label">Lenguaje</div><div class="info-item-val">${lc.icon} ${lc.label}</div></div>
+    <div class="info-item"><div class="info-item-label">Base de datos</div><div class="info-item-val">${dc.icon} ${dc.label}</div></div>
+    <div class="info-item"><div class="info-item-label">Puerto principal</div><div class="info-item-val text-mono">:${api.port}</div></div>
+    <div class="info-item"><div class="info-item-label">Puerto backup</div><div class="info-item-val text-mono">:${api.backup_port||api.port+1}</div></div>`;
+
+  // UI URL
+  const uiDiv=document.getElementById('panel-ui-url');
+  if(api.generar_ui){const u=`http://${HOST}:${api.port}/ui`;uiDiv.innerHTML=`<div class="url-row"><i class="fas fa-desktop" style="color:var(--success);flex-shrink:0"></i><span class="url-text">${u}</span><button class="icon-btn" onclick="copyText('${u}')" title="Copiar"><i class="fas fa-copy"></i></button><button class="icon-btn" onclick="window.open('${u}','_blank')" title="Abrir"><i class="fas fa-external-link-alt"></i></button></div>`;}
+  else uiDiv.innerHTML='';
+
+  // cURL examples
+  const base=`http://${HOST}:${api.port}`;
+  document.getElementById('panel-curls').innerHTML=eps.slice(0,4).map(ep=>{
+    const url=base+ep.path, curl=`curl -X ${ep.method.toUpperCase()} ${url}`;
+    return `<div class="url-row"><span class="mth ${MTH[ep.method]||'mth-get'}" style="flex-shrink:0">${ep.method.toUpperCase()}</span><span class="url-text">${url}</span><button class="icon-btn" onclick="copyText('${curl}')" title="Copiar cURL"><i class="fas fa-copy"></i></button><button class="icon-btn" onclick="window.open('${url}','_blank')" title="Abrir"><i class="fas fa-external-link-alt"></i></button></div>`;
+  }).join('')||'<div style="font-size:.82rem;color:var(--text-muted)">Sin endpoints definidos.</div>';
+
+  // Columns
+  document.getElementById('panel-cols').innerHTML=cols.length?cols.map(c=>`<span class="col-chip">${c}</span>`).join(''):'<span style="font-size:.82rem;color:var(--text-muted)">Sin columnas.</span>';
+
+  // Endpoints
+  document.getElementById('panel-eps-tbody').innerHTML=eps.length?eps.map(ep=>`<tr><td><span class="mth ${MTH[ep.method]||'mth-get'}">${ep.method.toUpperCase()}</span></td><td class="text-mono" style="color:var(--text)">${ep.path}</td><td>${ep.function_name}</td><td><span class="badge badge-neutral">${ep.logic}</span></td></tr>`).join(''):`<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:.75rem">Sin endpoints</td></tr>`;
+
+  // Toggle btn
+  const tb=document.getElementById('panel-toggle-btn');
+  tb.innerHTML=isRun?'<i class="fas fa-stop"></i> Detener API':'<i class="fas fa-play"></i> Iniciar API';
+  tb.style.color=isRun?'var(--warning)':'var(--success)';
+  tb.style.borderColor=isRun?'rgba(245,158,11,.3)':'rgba(16,185,129,.3)';
+  tb.style.background=isRun?'var(--warning-bg)':'var(--success-bg)';
+}
+
+async function panelRefreshStatus() {
+  if(!state.panelApi) return;
+  try {
+    const r=await apiFetch(`/${state.panelApi.api_name}/status`);
+    state.panelApi.status=r.status; state.panelApi.backup_status=r.backup_status;
+    renderPanel(); toast('Estado actualizado','info');
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+async function panelRestore() {
+  if(!state.panelApi) return;
+  showLoading('Restaurando contenedores...');
+  try {
+    await apiFetch(`/${state.panelApi.api_name}/restore`,{method:'POST'});
+    toast('Restauración iniciada','success');
+    setTimeout(async()=>{await panelRefreshStatus();hideLoading();},4000);
+  } catch(e) { toast('Error: '+e.message,'error'); hideLoading(); }
+}
+async function panelToggle() {
+  if(!state.panelApi) return;
+  const api=state.panelApi, action=api.status==='running'?'stop':'start';
+  showLoading(`${action==='stop'?'Deteniendo':'Iniciando'} API...`);
+  try {
+    await apiFetch(`/${api.api_name}/${action}`,{method:'POST'});
+    toast(`API ${action==='stop'?'detenida':'iniciada'}`,'success');
+    await loadApis();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+  hideLoading();
+}
+function panelDelete() { if(state.panelApi) openDeleteModal(state.panelApi.api_name); }
+
+// ── ADD ENDPOINT ──
+async function submitAddEndpoint() {
+  if(!state.panelApi) return;
+  const method=document.getElementById('ep-method').value;
+  const logic=document.getElementById('ep-logic').value;
+  const path=document.getElementById('ep-path').value.trim();
+  const fn=document.getElementById('ep-func').value.trim();
+  if(!path||!fn){toast('Path y función son obligatorios','warning');return;}
+  if(!path.startsWith('/')){toast('El path debe empezar por /','warning');return;}
+  showLoading('Añadiendo endpoint y reconstruyendo imagen Docker...');
+  try {
+    await apiFetch(`/${state.panelApi.api_name}/create-end-point`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({method,path,function_name:fn,logic})});
+    toast('Endpoint añadido. Reconstruyendo contenedores...','success');
+    document.getElementById('add-ep-form').style.display='none';
+    document.getElementById('ep-path').value='';
+    document.getElementById('ep-func').value='';
+    if(!state.panelApi.endpoints) state.panelApi.endpoints=[];
+    state.panelApi.endpoints.push({method,path,function_name:fn,logic});
+    renderPanel(); await loadApis();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+  hideLoading();
+}
+
+// ── LOGS ──
+async function loadLogs() {
+  if(!state.panelApi) return;
+  const ctype=document.getElementById('log-container-sel').value;
+  const tail=document.getElementById('log-tail-sel').value;
+  const target=ctype==='backup'?`${state.panelApi.api_name}_backup`:state.panelApi.api_name;
+  const area=document.getElementById('logs-area');
+  area.textContent='Cargando logs...';
+  try {
+    const r=await apiFetch(`/${target}/logs?tail=${tail}`);
+    area.textContent=r.logs||(typeof r==='string'?r:'(sin logs)');
+    area.scrollTop=area.scrollHeight;
+  } catch(e) { area.textContent='Error: '+e.message; }
+}
+
+// ── CREATE MODAL ──
+function openCreateModal() {
+  state.wizardStep=1; state.genUI=false;
+  document.getElementById('create-modal').classList.add('show');
+  ['c-name','c-port','c-usr','c-pass'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  selectOption('lang-grid','python'); selectOption('db-grid','postgresql');
+  initColsRows(); initEpRows(); renderWizard(); updateGenUIToggle();
+  document.getElementById('db-creds').style.display='';
+}
+function closeCreateModal() { document.getElementById('create-modal').classList.remove('show'); }
+
+function renderWizard() {
+  [1,2,3].forEach(i=>{
+    document.getElementById('ws-'+i).classList.toggle('active',i===state.wizardStep);
+    document.getElementById('ws-'+i).classList.toggle('done',i<state.wizardStep);
+    document.getElementById('step-'+i).classList.toggle('active',i===state.wizardStep);
+  });
+  document.getElementById('btn-prev').style.display=state.wizardStep>1?'':'none';
+  document.getElementById('btn-next').innerHTML=state.wizardStep<3?'Siguiente <i class="fas fa-arrow-right"></i>':'<i class="fas fa-rocket"></i> Crear API';
+}
+
+function wizardNext() {
+  if(state.wizardStep===1){
+    const name=document.getElementById('c-name').value.trim();
+    const port=parseInt(document.getElementById('c-port').value);
+    if(!name||!/^[a-z0-9_]+$/.test(name)){toast('Nombre inválido (solo minúsculas, números y _)','warning');return;}
+    if(!port||port<1024||port>65535){toast('Puerto debe ser entre 1024 y 65535','warning');return;}
+    state.wizardStep=2;
+  } else if(state.wizardStep===2){
+    const db=(document.querySelector('#db-grid .selected')||{}).dataset.val||'postgresql';
+    if(db==='sqlite'){document.getElementById('db-creds').style.display='none';}
+    else{
+      const usr=document.getElementById('c-usr').value.trim();
+      const pass=document.getElementById('c-pass').value;
+      if(!usr||!pass){toast('Usuario y contraseña son obligatorios','warning');return;}
+    }
+    state.wizardStep=3;
+  } else {
+    submitCreateApi(); return;
+  }
+  renderWizard();
+}
+function wizardPrev() { if(state.wizardStep>1){state.wizardStep--;renderWizard();} }
+
+function selectOption(gridId, val) {
+  document.querySelectorAll(`#${gridId} .option-card`).forEach(c=>c.classList.toggle('selected',c.dataset.val===val));
+}
+function toggleGenUI() { state.genUI=!state.genUI; updateGenUIToggle(); }
+function updateGenUIToggle() {
+  const t=document.getElementById('gen-ui-toggle'), th=document.getElementById('gen-ui-thumb');
+  t.style.background=state.genUI?'var(--primary)':'var(--border)';
+  th.style.left=state.genUI?'21px':'3px';
+}
+function togglePassVis() {
+  const inp=document.getElementById('c-pass'), eye=document.getElementById('pass-eye');
+  if(inp.type==='password'){inp.type='text';eye.className='fas fa-eye-slash';}
+  else{inp.type='password';eye.className='fas fa-eye';}
+}
+
+function initColsRows(){const tb=document.getElementById('cols-tbody');tb.innerHTML='';addColRow();}
+function addColRow(){
+  const tb=document.getElementById('cols-tbody'), tr=document.createElement('tr');
+  tr.innerHTML=`<td><input placeholder="nombre_columna"></td><td><select>${COL_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></td><td><button class="rm-btn" onclick="this.closest('tr').remove()"><i class="fas fa-times"></i></button></td>`;
+  tb.appendChild(tr);
+}
+function initEpRows(){const tb=document.getElementById('eps-tbody');tb.innerHTML='';addEpRow();}
+function addEpRow(){
+  const tb=document.getElementById('eps-tbody'), tr=document.createElement('tr');
+  tr.innerHTML=`<td><select><option value="get">GET</option><option value="post">POST</option><option value="put">PUT</option><option value="delete">DELETE</option></select></td><td><input placeholder="/items"></td><td><input placeholder="get_items"></td><td><select><option value="select">select</option><option value="insert">insert</option><option value="update">update</option><option value="delete">delete</option></select></td><td><button class="rm-btn" onclick="this.closest('tr').remove()"><i class="fas fa-times"></i></button></td>`;
+  tb.appendChild(tr);
+}
+
+async function submitCreateApi() {
+  const name=document.getElementById('c-name').value.trim();
+  const port=parseInt(document.getElementById('c-port').value);
+  const lang=(document.querySelector('#lang-grid .selected')||{}).dataset.val||'python';
+  const db=(document.querySelector('#db-grid .selected')||{}).dataset.val||'postgresql';
+  const usr=(document.getElementById('c-usr').value||'').trim();
+  const pass=document.getElementById('c-pass').value||'';
+  const columns=[];
+  document.querySelectorAll('#cols-tbody tr').forEach(row=>{
+    const inp=row.querySelector('input'), sel=row.querySelectorAll('select');
+    const n=inp?inp.value.trim():'', t=sel[0]?sel[0].value:'VARCHAR(255)';
+    if(n) columns.push(`${n} ${t}`);
+  });
+  const endpoints=[];
+  document.querySelectorAll('#eps-tbody tr').forEach(row=>{
+    const sels=row.querySelectorAll('select'), inps=row.querySelectorAll('input');
+    if(!inps[0]||!inps[1]) return;
+    const path=inps[0].value.trim(), fn=inps[1].value.trim();
+    if(path&&fn) endpoints.push({method:sels[0]?sels[0].value:'get',path,function_name:fn,logic:sels[1]?sels[1].value:'select'});
+  });
+  if(!columns.length){toast('Añade al menos una columna','warning');return;}
+  if(!endpoints.length){toast('Añade al menos un endpoint','warning');return;}
+  closeCreateModal();
+  showLoading(`Creando "${name}"... Construyendo imagen Docker, esto puede tardar un minuto.`);
+  try {
+    await apiFetch('/crear-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_name:name,port,language:lang,db,usr,paswd:pass,columns,endpoints,generar_ui:state.genUI})});
+    toast(`API "${name}" creada en ${LANG[lang].label}`,'success');
+    await loadApis();
+  } catch(e) { toast('Error al crear API: '+e.message,'error'); }
+  hideLoading();
+}
+
+// ── AUTO-REFRESH ──
+function resetCountdown() {
+  state.countdown=15; clearInterval(state.timer);
+  state.timer=setInterval(()=>{
+    state.countdown--;
+    const el=document.getElementById('countdown');
+    if(el) el.textContent=state.countdown+'s';
+    if(state.countdown<=0) loadApis();
+  },1000);
+}
+
+// ── CLIPBOARD ──
+function copyText(text) { navigator.clipboard.writeText(text).then(()=>toast('Copiado al portapapeles','success')).catch(()=>toast('No se pudo copiar','error')); }
+
+// ── TOAST ──
+function toast(msg, type='info') {
+  const icons={success:'fa-check-circle',error:'fa-times-circle',info:'fa-info-circle',warning:'fa-exclamation-circle'};
+  const el=document.createElement('div');
+  el.className=`toast toast-${type}`;
+  el.innerHTML=`<i class="fas ${icons[type]} toast-icon"></i><span class="toast-msg">${msg}</span><button class="toast-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>`;
+  document.getElementById('toasts').prepend(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),300);},4500);
+}
+
+// ── LOADING ──
+function showLoading(msg='Procesando...') { $('loading-msg',msg); document.getElementById('loading-overlay').classList.add('show'); }
+function hideLoading() { document.getElementById('loading-overlay').classList.remove('show'); }
+
+// ── UTILS ──
+function $(id,val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+
+// ── KEYBOARD ──
+document.addEventListener('keydown',e=>{
+  const tag=document.activeElement.tagName, inInp=['INPUT','TEXTAREA','SELECT'].includes(tag);
+  if(e.key==='Escape'){closePanel();closeCreateModal();closeDeleteModal();}
+  if(inInp) return;
+  if(e.key==='n'||e.key==='N') openCreateModal();
+  if(e.key==='r'||e.key==='R') loadApis(true);
+  if(e.key==='/'){e.preventDefault();document.getElementById('search-input').focus();}
+});
+document.getElementById('search-input').addEventListener('input',()=>renderGrid());
+
+// ── INIT ──
+loadApis();
+</script>
+{% endraw %}
 </body>
 </html>
