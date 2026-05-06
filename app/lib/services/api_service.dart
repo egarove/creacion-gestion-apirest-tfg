@@ -2,12 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-<<<<<<< HEAD
-  static const String _baseUrl =
-      'http://ec2-13-63-139-218.eu-north-1.compute.amazonaws.com:8000';
-=======
   static const String _baseUrl = 'https://tfg-dam.libertoguillen.com';
->>>>>>> 57312f249539ce6818905d3fc48225ceb02d0c6a
 
   Future<Map<String, dynamic>> crearApi(Map<String, dynamic> body) async {
     final uri = Uri.parse('$_baseUrl/crear-api');
