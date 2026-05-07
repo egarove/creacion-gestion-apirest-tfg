@@ -526,16 +526,18 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                       OutlinedButton.icon(
                         onPressed: () async {
                           final uri = Uri.parse(uiUrl);
-                          if (await canLaunchUrl(uri)) {
+                          try {
                             await launchUrl(uri,
                                 mode: LaunchMode.externalApplication);
-                          } else if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('No se pudo abrir $uiUrl'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('No se pudo abrir $uiUrl'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
                           }
                         },
                         icon: const Icon(Icons.open_in_browser,

@@ -201,6 +201,45 @@ def get_api_logs(api: str, tail: int = 100):
     except Exception as e:
         return Response(status_code=500, content=str(e))
 
+def _get_free_port(db: Session) -> int:
+    used = set()
+    for row in db.query(DBModel).all():
+        used.add(row.port)
+        if row.backup_port:
+            used.add(row.backup_port)
+    port = 8100
+    while port in used or (port + 1) in used:
+        port += 2
+    return port
+
+@app.get("/sync")
+def sync_apis(db: Session = Depends(get_db)):
+    client = docker.from_env()
+    apis = db.query(DBModel).all()
+    result = []
+    for api in apis:
+        try:
+            status = client.containers.get(api.api_name).status
+        except Exception:
+            status = "not_found"
+        try:
+            backup_status = client.containers.get(f"{api.api_name}_backup").status
+        except Exception:
+            backup_status = "not_found"
+        result.append({
+            "api_name": api.api_name,
+            "port": api.port,
+            "backup_port": api.backup_port,
+            "db": api.db,
+            "language": api.language or "python",
+            "columns": api.columns or [],
+            "endpoints": api.endpoints or [],
+            "generar_ui": bool(api.generar_ui),
+            "status": status,
+            "backup_status": backup_status,
+        })
+    return result
+
 @app.post("/crear-api")
 def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
     try:
@@ -211,6 +250,8 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         if lang not in LANG_CONFIG:
             return Response(status_code=400, content=f"Lenguaje '{lang}' no soportado")
         config = LANG_CONFIG[lang]
+
+        port = project.port if project.port is not None else _get_free_port(db)
 
         project_path = f"deployments/{project.api_name}"
         os.makedirs(project_path, exist_ok=True)
@@ -247,7 +288,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         subprocess.run(["docker", "build", "-t", f"api-{project.api_name}", project_path], check=True)
 
         url = _build_database_url(project.db, project.usr, project.paswd, project.api_name)
-        backup_port = project.port + 1
+        backup_port = port + 1
 
         _crear_usuario_y_bd(project.db, project.api_name, project.usr, project.paswd)
 
@@ -256,7 +297,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
             "--name", project.api_name,
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
-            "-p", f"{project.port}:8000",
+            "-p", f"{port}:8000",
             f"api-{project.api_name}"
         ])
         subprocess.Popen([
@@ -271,7 +312,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         endpoints_data = [ep.model_dump() for ep in project.endpoints]
         db_data = DBModel(
             api_name=project.api_name,
-            port=project.port,
+            port=port,
             backup_port=backup_port,
             language=project.language,
             db=project.db,
@@ -289,7 +330,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
 
         return {
             "mensaje": f"API {project.api_name} creada en {lang}",
-            "puerto": project.port,
+            "puerto": port,
             "backup_port": backup_port,
             "id": db_data.id,
             "language": lang,

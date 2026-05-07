@@ -4,14 +4,25 @@ import 'package:tfg_2dama_gestion_apirest/services/api_service.dart';
 import 'package:tfg_2dama_gestion_apirest/services/login_singup_methods.dart';
 import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authService = AuthService();
-    final apiService = ApiService();
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
 
+class _DashboardScreenState extends State<DashboardScreen> {
+  final authService = AuthService();
+  final apiService = ApiService();
+  int _refreshKey = 0;
+
+  Future<void> _onRefresh() async {
+    setState(() => _refreshKey++);
+    await Future.delayed(const Duration(milliseconds: 600));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -84,7 +95,10 @@ class DashboardScreen extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
+          return RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: AppTheme.primaryColor,
+            child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
             itemBuilder: (context, index) {
@@ -168,6 +182,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
               );
             },
+          ),
           );
         },
       ),

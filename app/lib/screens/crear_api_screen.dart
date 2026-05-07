@@ -148,11 +148,11 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
               })
           .toList();
 
-      final port = int.parse(_portCtrl.text.trim());
+      final portText = _portCtrl.text.trim();
+      final port = portText.isEmpty ? null : int.parse(portText);
 
-      final body = {
+      final body = <String, dynamic>{
         'api_name': _nameCtrl.text.trim(),
-        'port': port,
         'language': _language,
         'db': _dbType,
         'usr': _dbUserCtrl.text.trim(),
@@ -161,16 +161,19 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
         'endpoints': endpoints,
         'generar_ui': _generarUi,
       };
+      if (port != null) body['port'] = port;
 
       final apiService = ApiService();
       final authService = AuthService();
 
       final response = await apiService.crearApi(body);
 
+      final assignedPort = response['puerto'] as int? ?? port ?? 0;
       final dataToSave = Map<String, dynamic>.from(body);
-      dataToSave['backup_port'] = response['backup_port'] ?? port + 1;
+      dataToSave['port'] = assignedPort;
+      dataToSave['backup_port'] = response['backup_port'] ?? assignedPort + 1;
       if (_generarUi) {
-        dataToSave['ui_url'] = 'http://tfg-dam.libertoguillen.com:$port/ui';
+        dataToSave['ui_url'] = 'http://tfg-dam.libertoguillen.com:$assignedPort/ui';
       }
 
       await authService.guardarApi(dataToSave);
@@ -232,12 +235,12 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                 TextFormField(
                   controller: _portCtrl,
                   decoration: const InputDecoration(
-                    labelText: 'Puerto',
-                    hintText: '8080',
+                    labelText: 'Puerto (opcional)',
+                    hintText: 'Se asigna automáticamente si se deja vacío',
                   ),
                   keyboardType: TextInputType.number,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Campo obligatorio';
+                    if (v == null || v.isEmpty) return null;
                     final port = int.tryParse(v);
                     if (port == null) return 'Debe ser un número';
                     if (port < 1024 || port > 65535) return 'Puerto entre 1024 y 65535';
