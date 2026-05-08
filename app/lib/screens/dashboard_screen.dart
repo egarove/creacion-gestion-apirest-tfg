@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tfg_2dama_gestion_apirest/services/api_service.dart';
 import 'package:tfg_2dama_gestion_apirest/services/login_singup_methods.dart';
 import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,8 +17,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final apiService = ApiService();
   int _refreshKey = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    _cleanOrphanedApis();
+  }
+
+  Future<void> _cleanOrphanedApis() async {
+    final serverNames = await apiService.syncApiNames();
+    if (serverNames == null) return;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(uid)
+        .collection('apis')
+        .get();
+
+    final orphans = snapshot.docs.where((doc) => !serverNames.contains(doc.id)).toList();
+    for (final doc in orphans) {
+      await doc.reference.delete();
+    }
+
+    if (orphans.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${orphans.length} API(s) eliminadas: no existen en el servidor',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
   Future<void> _onRefresh() async {
     setState(() => _refreshKey++);
+    _cleanOrphanedApis();
     await Future.delayed(const Duration(milliseconds: 600));
   }
 

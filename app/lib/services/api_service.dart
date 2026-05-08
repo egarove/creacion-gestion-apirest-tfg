@@ -114,6 +114,21 @@ class ApiService {
     }
   }
 
+  // Returns null on network/server error (don't clean up), empty list if server has 0 APIs
+  Future<List<String>?> syncApiNames() async {
+    final uri = Uri.parse('$_baseUrl/sync');
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body) as List;
+        return list.map((e) => (e as Map)['api_name'] as String).toList();
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> eliminarApi(String apiName) async {
     final uri = Uri.parse('$_baseUrl/$apiName/delete');
 
