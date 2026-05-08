@@ -3,6 +3,7 @@ services:
   api:
     build:
       context: ./api
+    restart: unless-stopped
     env_file:
       - ./api/.env
     ports:
@@ -21,6 +22,7 @@ services:
   appweb:
     build:
       context: ./appWeb
+    restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
@@ -31,6 +33,7 @@ services:
 # Base de datos para las apis:
   postgres:
     image: postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -39,9 +42,10 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-  
+
   mariadb:
     image: mariadb
+    restart: unless-stopped
     environment:
       MARIADB_ROOT_USER: root
       MARIADB_ROOT_PASSWORD: password
@@ -52,9 +56,10 @@ services:
       - "5433:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-  
+
   mysql:
     image: mysql
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: mysql
@@ -67,6 +72,7 @@ services:
 
   sqlite:
     image: nouchka/sqlite3
+    restart: unless-stopped
     volumes:
       - ./sqlite_data:/data
 
