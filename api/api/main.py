@@ -201,6 +201,28 @@ def get_api_logs(api: str, tail: int = 100):
     except Exception as e:
         return Response(status_code=500, content=str(e))
 
+NGINX_CONF_DIR = "/etc/nginx/conf.d/apis"
+
+def _write_nginx_conf(api_name: str, port: int):
+    os.makedirs(NGINX_CONF_DIR, exist_ok=True)
+    conf = (
+        f"location /app/{api_name}/ {{\n"
+        f"    proxy_pass http://localhost:{port}/;\n"
+        f"    proxy_set_header Host $host;\n"
+        f"    proxy_set_header X-Real-IP $remote_addr;\n"
+        f"    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n"
+        f"    proxy_set_header X-Forwarded-Proto $scheme;\n"
+        f"    proxy_read_timeout 120s;\n"
+        f"}}\n"
+    )
+    with open(f"{NGINX_CONF_DIR}/{api_name}.conf", "w") as f:
+        f.write(conf)
+
+def _remove_nginx_conf(api_name: str):
+    path = f"{NGINX_CONF_DIR}/{api_name}.conf"
+    if os.path.exists(path):
+        os.remove(path)
+
 def _get_free_port(db: Session) -> int:
     used = set()
     for row in db.query(DBModel).all():
@@ -327,6 +349,11 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
 
         sql_columns = ", ".join(project.columns)
         _crear_tabla_en_bd_usuario(project.db, project.api_name, project.usr, project.paswd, sql_columns)
+
+        try:
+            _write_nginx_conf(project.api_name, port)
+        except Exception:
+            pass
 
         return {
             "mensaje": f"API {project.api_name} creada en {lang}",
@@ -529,5 +556,9 @@ def delete_api(api: str, db: Session = Depends(get_db)):
         db.delete(reg)
         db.execute(text(f"DROP TABLE IF EXISTS data_{api}"))
         db.commit()
+        try:
+            _remove_nginx_conf(api)
+        except Exception:
+            pass
         return {"mensaje": "Eliminado"}
     except Exception as e: return Response(status_code=500, content=str(e))

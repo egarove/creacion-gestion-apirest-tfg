@@ -276,6 +276,7 @@ input[type=checkbox]{{width:13px;height:13px;cursor:pointer;accent-color:var(--p
 <script>
 const COLS = {cols_js};
 const API_NAME = {name_js};
+const BASE = window.location.pathname.replace(/\/ui.*$/, '');
 
 let DATA=[], filtered=[], editId=null, delTarget=null;
 let ST={{q:'',cf:{{}},idMin:'',idMax:'',sc:'id',sd:'asc',page:1,ps:25,sel:new Set(),hid:new Set()}};
@@ -288,7 +289,7 @@ async function init(){{
 
 async function loadData(){{
   try{{
-    const r=await fetch('/ui/data');
+    const r=await fetch(BASE+'/ui/data');
     DATA=await r.json();
     applyFilters(); renderAll();
   }}catch(e){{
@@ -459,7 +460,7 @@ async function submitAdd(){{
   if(!ok){{toast('Rellena todos los campos','wrn');return;}}
   const btn=document.querySelector('#ov-add .btn-p');btn.disabled=true;btn.textContent='Añadiendo...';
   try{{
-    const r=await fetch('/ui/add',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
+    const r=await fetch(BASE+'/ui/add',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
     if(r.ok){{closeOv('ov-add');toast('Registro añadido','ok');await loadData();}}
     else toast('Error al añadir','err');
   }}catch(e){{toast('Error de conexión','err');}}
@@ -480,7 +481,7 @@ async function submitEdit(){{
   const body={{}};COLS.forEach(c=>{{body[c]=document.getElementById('edit-'+c)?.value??'';}});
   const btn=document.querySelector('#ov-edit .btn-p');btn.disabled=true;btn.textContent='Guardando...';
   try{{
-    const r=await fetch('/ui/update/'+editId,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
+    const r=await fetch(BASE+'/ui/update/'+editId,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});
     if(r.ok){{closeOv('ov-edit');toast('Cambios guardados','ok');await loadData();}}
     else toast('Error al guardar','err');
   }}catch(e){{toast('Error de conexión','err');}}
@@ -494,8 +495,8 @@ async function execDel(){{
   if(!delTarget)return;
   const btn=document.getElementById('del-btn');btn.disabled=true;btn.textContent='Eliminando...';
   try{{
-    if(delTarget.ids.length===1){{await fetch('/ui/delete/'+delTarget.ids[0],{{method:'DELETE'}});}}
-    else{{await fetch('/ui/bulk-delete',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(delTarget.ids)}});}}
+    if(delTarget.ids.length===1){{await fetch(BASE+'/ui/delete/'+delTarget.ids[0],{{method:'DELETE'}});}}
+    else{{await fetch(BASE+'/ui/bulk-delete',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(delTarget.ids)}});}}
     closeOv('ov-del');ST.sel.clear();
     toast(delTarget.ids.length===1?'Registro eliminado':delTarget.ids.length+' registros eliminados','ok');
     await loadData();

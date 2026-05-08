@@ -11,6 +11,7 @@ services:
     volumes:
       - ./api:/api
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/nginx/conf.d/apis:/etc/nginx/conf.d/apis
     environment:
       - PYTHONPATH=/api
     depends_on:

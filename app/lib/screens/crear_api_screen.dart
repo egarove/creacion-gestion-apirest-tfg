@@ -173,7 +173,7 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
       dataToSave['port'] = assignedPort;
       dataToSave['backup_port'] = response['backup_port'] ?? assignedPort + 1;
       if (_generarUi) {
-        dataToSave['ui_url'] = 'http://tfg-dam.libertoguillen.com:$assignedPort/ui';
+        dataToSave['ui_url'] = 'https://tfg-dam.libertoguillen.com/app/${_nameCtrl.text.trim()}/ui';
       }
 
       await authService.guardarApi(dataToSave);

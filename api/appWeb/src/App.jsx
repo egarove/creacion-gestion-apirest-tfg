@@ -363,7 +363,7 @@ function ApiCard({ api, toggleApi, restoreApi, openPanel, setDeleteTarget }) {
           <i className="fas fa-eye"></i> Detalle
         </button>
         {api.generar_ui ? (
-          <button onClick={() => window.open(`http://${window.location.hostname}:${api.port}/ui`, '_blank')} className="flex items-center justify-center w-9 border border-success/30 rounded-lg text-xs font-bold text-success hover:bg-successBg transition-colors" title="Abrir panel UI">
+          <button onClick={() => window.open(`/app/${api.api_name}/ui`, '_blank')} className="flex items-center justify-center w-9 border border-success/30 rounded-lg text-xs font-bold text-success hover:bg-successBg transition-colors" title="Abrir panel UI">
             <i className="fas fa-external-link-alt"></i>
           </button>
         ) : <span className="w-9"></span>}
@@ -508,7 +508,7 @@ function Panel({ api, close, toggleApi, restoreApi, showToast, reload }) {
                   <i className="fas fa-undo mr-1.5"></i>Restaurar
                 </button>
                 {api.generar_ui && (
-                  <button onClick={() => window.open(`http://${window.location.hostname}:${api.port}/ui`, '_blank')} className="col-span-2 py-2.5 rounded-xl border border-success/30 text-success text-xs font-bold hover:bg-successBg transition-colors">
+                  <button onClick={() => window.open(`/app/${api.api_name}/ui`, '_blank')} className="col-span-2 py-2.5 rounded-xl border border-success/30 text-success text-xs font-bold hover:bg-successBg transition-colors">
                     <i className="fas fa-external-link-alt mr-1.5"></i>Abrir panel UI
                   </button>
                 )}
