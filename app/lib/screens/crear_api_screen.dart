@@ -337,7 +337,9 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                             ),
                             validator: (v) {
                               if (v == null || v.isEmpty) return 'Obligatorio';
-                              if (v.contains(' ')) return 'Sin espacios';
+                              if (!RegExp(r'^[a-z_][a-z0-9_]*$').hasMatch(v)) {
+                                return 'Solo a-z, números y _ (ej: nombre_col)';
+                              }
                               return null;
                             },
                           ),
@@ -461,6 +463,9 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                             validator: (v) {
                               if (v == null || v.isEmpty) return 'Obligatorio';
                               if (!v.startsWith('/')) return 'Debe empezar por /';
+                              if (!RegExp(r'^[/a-zA-Z0-9_:{}.\-]+$').hasMatch(v)) {
+                                return 'Solo ASCII: letras, números, /, _, -, :, {}';
+                              }
                               return null;
                             },
                           ),
@@ -473,7 +478,9 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                             ),
                             validator: (v) {
                               if (v == null || v.isEmpty) return 'Obligatorio';
-                              if (v.contains(' ')) return 'Sin espacios (usa snake_case)';
+                              if (!RegExp(r'^[a-z_][a-z0-9_]*$').hasMatch(v)) {
+                                return 'Solo letras a-z, números y _ (snake_case)';
+                              }
                               return null;
                             },
                           ),

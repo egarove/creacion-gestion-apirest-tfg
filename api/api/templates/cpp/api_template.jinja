@@ -6,30 +6,44 @@
 #include <libpq-fe.h>
 {% elif db in ['mysql', 'mariadb'] %}
 #include <mysql/mysql.h>
+{% elif db == 'sqlite' %}
+#include <sqlite3.h>
 {% endif %}
 
 {% if db == 'postgresql' %}
-PGconn* db_conn = nullptr;
+static PGconn* db_conn = nullptr;
 
 void init_db() {
     const char* url = std::getenv("DATABASE_URL");
-    db_conn = PQconnectdb(url);
+    db_conn = PQconnectdb(url ? url : "");
     if (PQstatus(db_conn) != CONNECTION_OK) {
         std::cerr << "Error conexion BD: " << PQerrorMessage(db_conn) << std::endl;
         std::exit(1);
     }
 }
 {% elif db in ['mysql', 'mariadb'] %}
-MYSQL* db_conn = nullptr;
+static MYSQL* db_conn = nullptr;
 
 void init_db() {
     const char* url = std::getenv("DATABASE_URL");
     db_conn = mysql_init(nullptr);
-    char user[64], pass[64], host[128], dbname[64];
+    char user[64] = {}, pass[64] = {}, host[128] = {}, dbname[64] = {};
     int port = 3306;
     sscanf(url, "%*[^/]//%63[^:]:%63[^@]@%127[^:]:%d/%63s", user, pass, host, &port, dbname);
     if (!mysql_real_connect(db_conn, host, user, pass, dbname, port, nullptr, 0)) {
         std::cerr << "Error conexion BD: " << mysql_error(db_conn) << std::endl;
+        std::exit(1);
+    }
+}
+{% elif db == 'sqlite' %}
+static sqlite3* db_conn = nullptr;
+
+void init_db() {
+    const char* url = std::getenv("DATABASE_URL");
+    std::string path(url ? url : "data.db");
+    if (path.find("sqlite:///") == 0) path = path.substr(10);
+    if (sqlite3_open(path.c_str(), &db_conn) != SQLITE_OK) {
+        std::cerr << "Error abriendo BD: " << sqlite3_errmsg(db_conn) << std::endl;
         std::exit(1);
     }
 }
@@ -74,11 +88,28 @@ int main() {
         while ((row = mysql_fetch_row(res))) {
             crow::json::wvalue r;
             for (int j = 0; j < ncols; j++) {
-                r[fields[j].name] = row[j] ? row[j] : "null";
+                r[fields[j].name] = row[j] ? row[j] : "";
             }
             result.push_back(std::move(r));
         }
         mysql_free_result(res);
+        return crow::json::wvalue(std::move(result));
+        {% elif db == 'sqlite' %}
+        crow::json::wvalue::list result;
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(db_conn, "SELECT * FROM data_{{ api_name }}", -1, &stmt, nullptr) == SQLITE_OK) {
+            int ncols = sqlite3_column_count(stmt);
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                crow::json::wvalue row;
+                for (int j = 0; j < ncols; j++) {
+                    const char* name = sqlite3_column_name(stmt, j);
+                    const char* val = (const char*)sqlite3_column_text(stmt, j);
+                    row[name] = val ? val : "";
+                }
+                result.push_back(std::move(row));
+            }
+            sqlite3_finalize(stmt);
+        }
         return crow::json::wvalue(std::move(result));
         {% endif %}
         {% elif endpoint.logic == 'insert' %}
@@ -103,6 +134,8 @@ int main() {
     PQfinish(db_conn);
     {% elif db in ['mysql', 'mariadb'] %}
     mysql_close(db_conn);
+    {% elif db == 'sqlite' %}
+    sqlite3_close(db_conn);
     {% endif %}
     return 0;
 }

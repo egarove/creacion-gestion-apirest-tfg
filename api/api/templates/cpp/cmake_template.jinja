@@ -22,4 +22,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(MYSQL REQUIRED mysqlclient)
 target_include_directories(server PRIVATE ${MYSQL_INCLUDE_DIRS})
 target_link_libraries(server PRIVATE ${MYSQL_LIBRARIES})
+{% elif db == 'sqlite' %}
+find_package(SQLite3 REQUIRED)
+target_link_libraries(server PRIVATE SQLite::SQLite3)
 {% endif %}

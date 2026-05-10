@@ -317,6 +317,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", project.api_name,
+            "--restart", "unless-stopped",
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{port}:8000",
@@ -325,6 +326,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", f"{project.api_name}_backup",
+            "--restart", "unless-stopped",
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{backup_port}:8000",
@@ -423,6 +425,7 @@ def restore_api(api: str, db: Session = Depends(get_db)):
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", api,
+            "--restart", "unless-stopped",
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{port}:8000",
@@ -431,6 +434,7 @@ def restore_api(api: str, db: Session = Depends(get_db)):
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", f"{api}_backup",
+            "--restart", "unless-stopped",
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{backup_port}:8000",
@@ -520,6 +524,7 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", api,
+            "--restart", "unless-stopped",
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{port}:8000",
@@ -528,6 +533,7 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", f"{api}_backup",
+            "--restart", "unless-stopped",
             "--network", "api_default",
             "-e", f"DATABASE_URL={url}",
             "-p", f"{backup_port}:8000",

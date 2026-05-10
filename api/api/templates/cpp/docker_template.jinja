@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     {% elif db in ['mysql', 'mariadb'] %}
     default-libmysqlclient-dev \
+    {% elif db == 'sqlite' %}
+    libsqlite3-dev \
     {% endif %}
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -18,6 +20,8 @@ RUN apt-get update && apt-get install -y \
     libpq5 \
     {% elif db in ['mysql', 'mariadb'] %}
     default-mysql-client \
+    {% elif db == 'sqlite' %}
+    libsqlite3-0 \
     {% endif %}
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
