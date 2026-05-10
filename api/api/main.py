@@ -409,6 +409,83 @@ def get_api_status(api: str):
     except Exception as e:
         return Response(status_code=500, content=str(e))
 
+@app.post("/{api}/rebuild")
+def rebuild_api(api: str, db: Session = Depends(get_db)):
+    """Regenera el código con el template actual y reconstruye la imagen Docker."""
+    try:
+        api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not api_data:
+            return Response(status_code=404, content=f"No se encontró la API {api}")
+
+        lang = api_data.language or "python"
+        if lang not in LANG_CONFIG:
+            return Response(status_code=400, content=f"Lenguaje '{lang}' no soportado")
+        config = LANG_CONFIG[lang]
+
+        project_path = f"deployments/{api}"
+        os.makedirs(project_path, exist_ok=True)
+
+        env = Environment(loader=FileSystemLoader(config["template_dir"]))
+        template = env.get_template("api_template.jinja")
+        from models.endpoint_model import Endpoint as EndpointModel
+        endpoints = [EndpointModel(**ep) for ep in (api_data.endpoints or [])]
+        codigo = template.render(
+            api_name=api,
+            endpoints=endpoints,
+            generar_ui=bool(api_data.generar_ui),
+            db=api_data.db,
+            columns=api_data.columns or [],
+        )
+        main_file_path = os.path.join(project_path, config["main_file"])
+        os.makedirs(os.path.dirname(main_file_path), exist_ok=True)
+        with open(main_file_path, "w") as f:
+            f.write(codigo)
+
+        for template_name, output_name in config["extra_files"]:
+            extra_template = env.get_template(template_name)
+            extra_content = extra_template.render(api_name=api, db=api_data.db)
+            extra_path = os.path.join(project_path, output_name)
+            os.makedirs(os.path.dirname(extra_path), exist_ok=True)
+            with open(extra_path, "w") as f:
+                f.write(extra_content)
+
+        dockerfile_content = env.get_template("docker_template.jinja").render(
+            api_name=api, db=api_data.db,
+        )
+        with open(os.path.join(project_path, "Dockerfile"), "w") as f:
+            f.write(dockerfile_content)
+
+        subprocess.run(["docker", "build", "-t", f"api-{api}", project_path], check=True)
+        subprocess.run(["docker", "rm", "-f", api])
+        subprocess.run(["docker", "rm", "-f", f"{api}_backup"])
+
+        url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api)
+        port = api_data.port
+        backup_port = api_data.backup_port or (port + 1)
+
+        subprocess.Popen([
+            "docker", "run", "-d",
+            "--name", api,
+            "--restart", "unless-stopped",
+            "--network", "api_default",
+            "-e", f"DATABASE_URL={url}",
+            "-p", f"{port}:8000",
+            f"api-{api}",
+        ])
+        subprocess.Popen([
+            "docker", "run", "-d",
+            "--name", f"{api}_backup",
+            "--restart", "unless-stopped",
+            "--network", "api_default",
+            "-e", f"DATABASE_URL={url}",
+            "-p", f"{backup_port}:8000",
+            f"api-{api}",
+        ])
+
+        return {"mensaje": "API reconstruida", "puerto": port, "backup_port": backup_port}
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
 @app.post("/{api}/restore")
 def restore_api(api: str, db: Session = Depends(get_db)):
     """Para ambos contenedores y los relanza desde cero."""
