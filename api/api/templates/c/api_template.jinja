@@ -325,7 +325,15 @@ static enum MHD_Result handle_request(void *cls, struct MHD_Connection *connecti
         resp_str = strdup(json_root);
     }
     {% for endpoint in endpoints %}
+    {% if '{' in endpoint.path %}
+    else if (strncmp(url, "{{ endpoint.path.split('{')[0] }}", {{ endpoint.path.split('{')[0]|length }}) == 0 && strcasecmp(method, "{{ endpoint.method | upper }}") == 0) {
+        char path_id_buf[256] = {0};
+        strncpy(path_id_buf, url + {{ endpoint.path.split('{')[0]|length }}, 255);
+        char *_sl = strchr(path_id_buf, '/'); if (_sl) *_sl = '\0';
+        char *_qm = strchr(path_id_buf, '?'); if (_qm) *_qm = '\0';
+    {% else %}
     else if (strcmp(url, "{{ endpoint.path }}") == 0 && strcasecmp(method, "{{ endpoint.method | upper }}") == 0) {
+    {% endif %}
         {% if endpoint.logic == 'select' %}
         {% if db == 'postgresql' %}
         PGresult *res = PQexec(db_conn, "SELECT * FROM data_{{ api_name }}");
@@ -412,9 +420,30 @@ static enum MHD_Result handle_request(void *cls, struct MHD_Connection *connecti
         {% elif endpoint.logic == 'insert' %}
         resp_str = do_insert(pd->data);
         {% elif endpoint.logic == 'update' %}
+        {% if '{' in endpoint.path %}
+        char upd_body[4096];
+        if (pd->data && pd->size >= 2) {
+            int _blen = (int)strlen(pd->data);
+            strncpy(upd_body, pd->data, _blen - 1);
+            upd_body[_blen - 1] = '\0';
+            char _id_frag[128];
+            snprintf(_id_frag, sizeof(_id_frag), ",\"id\":\"%s\"}", path_id_buf);
+            strncat(upd_body, _id_frag, sizeof(upd_body) - strlen(upd_body) - 1);
+        } else {
+            snprintf(upd_body, sizeof(upd_body), "{\"id\":\"%s\"}", path_id_buf);
+        }
+        resp_str = do_update(upd_body);
+        {% else %}
         resp_str = do_update(pd->data);
+        {% endif %}
         {% elif endpoint.logic == 'delete' %}
+        {% if '{' in endpoint.path %}
+        char del_body[256];
+        snprintf(del_body, sizeof(del_body), "{\"id\":\"%s\"}", path_id_buf);
+        resp_str = do_delete(del_body);
+        {% else %}
         resp_str = do_delete(pd->data);
+        {% endif %}
         {% endif %}
     }
     {% endfor %}

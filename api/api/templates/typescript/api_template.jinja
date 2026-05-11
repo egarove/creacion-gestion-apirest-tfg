@@ -52,7 +52,7 @@ app.get('/', (req, res) => {
 });
 
 {% for endpoint in endpoints %}
-app.{{ endpoint.method | lower }}('{{ endpoint.path }}', async (req, res) => {
+app.{{ endpoint.method | lower }}('{{ endpoint.path | replace("{", ":") | replace("}", "") }}', async (req, res) => {
     try {
         {% if endpoint.logic == 'select' %}
         const rows = await query('SELECT * FROM data_{{ api_name }}');
