@@ -1,0 +1,342 @@
+# -*- coding: utf-8 -*-
+"""
+Endpoints para la gestión CRUD de APIs.
+"""
+import os
+import shutil
+import subprocess
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from models import ApiModel, DBModel
+from models.endpoint_model import Endpoint
+from settings import LANG_CONFIG
+from events.db import get_db
+from services.db_manager import (
+    _build_database_url,
+    _crear_usuario_y_bd,
+    _crear_tabla_en_bd_usuario,
+    _get_free_port,
+)
+from services.docker_service import (
+    _build_docker_env_args,
+    build_docker_image,
+    start_api_containers,
+    remove_containers,
+    get_container_status,
+)
+from services.nginx_service import _write_nginx_conf, _remove_nginx_conf, _reload_nginx
+from services.generator import (
+    generate_api_project,
+    regenerate_api_code,
+    add_endpoint_to_project,
+)
+
+
+router = APIRouter()
+
+
+@router.get("/get-all-apis")
+def get_all_apis(db: Session = Depends(get_db)):
+    """Obtiene todas las APIs registradas con su estado."""
+    apis = db.query(DBModel).all()
+    result = []
+    for api in apis:
+        main_status = get_container_status(api.api_name)
+        backup_status = get_container_status(api.api_name, "_backup")
+        result.append({
+            "api_name": api.api_name,
+            "port": api.port,
+            "backup_port": api.backup_port,
+            "db": api.db,
+            "language": api.language or "python",
+            "columns": api.columns or [],
+            "endpoints": api.endpoints or [],
+            "generar_ui": bool(api.generar_ui),
+            "status": main_status,
+            "backup_status": backup_status,
+        })
+    return result
+
+
+@router.get("/sync")
+def sync_apis(db: Session = Depends(get_db)):
+    """Sincroniza el estado de todas las APIs con Docker."""
+    apis = db.query(DBModel).all()
+    result = []
+    for api in apis:
+        main_status = get_container_status(api.api_name)
+        backup_status = get_container_status(api.api_name, "_backup")
+        result.append({
+            "api_name": api.api_name,
+            "port": api.port,
+            "backup_port": api.backup_port,
+            "db": api.db,
+            "language": api.language or "python",
+            "columns": api.columns or [],
+            "endpoints": api.endpoints or [],
+            "generar_ui": bool(api.generar_ui),
+            "status": main_status,
+            "backup_status": backup_status,
+        })
+    return result
+
+
+@router.post("/crear-api")
+def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
+    """Crea una nueva API con la configuración proporcionada."""
+    try:
+        if db.query(DBModel).filter(DBModel.api_name == project.api_name).first():
+            return Response(status_code=400, content="La API ya existe.")
+
+        lang = project.language
+        if lang not in LANG_CONFIG:
+            return Response(status_code=400, content=f"Lenguaje '{lang}' no soportado")
+
+        port = project.port if project.port is not None else _get_free_port(db)
+
+        # Generar proyecto desde plantillas
+        generate_api_project(
+            project.api_name,
+            lang,
+            project.db,
+            project.endpoints,
+            project.generar_ui,
+        )
+
+        # Construir imagen Docker
+        project_path = f"deployments/{project.api_name}"
+        build_docker_image(project.api_name, project_path)
+
+        # Crear usuario y base de datos
+        url = _build_database_url(project.db, project.usr, project.paswd, project.api_name)
+        backup_port = port + 1
+        _crear_usuario_y_bd(project.db, project.api_name, project.usr, project.paswd)
+
+        # Generar argumentos de entorno para Docker
+        env_args = _build_docker_env_args(lang, project.db, url, project.usr, project.paswd, project.api_name)
+
+        # Arrancar contenedores
+        start_api_containers(project.api_name, port, backup_port, env_args)
+
+        # Guardar en base de datos
+        endpoints_data = [ep.model_dump() for ep in project.endpoints]
+        db_data = DBModel(
+            api_name=project.api_name,
+            port=port,
+            backup_port=backup_port,
+            language=project.language,
+            db=project.db,
+            usr=project.usr,
+            columns=project.columns,
+            paswd=project.paswd,
+            endpoints=endpoints_data,
+            generar_ui=int(project.generar_ui),
+        )
+        db.add(db_data)
+        db.commit()
+
+        # Crear tabla en base de datos
+        sql_columns = ", ".join(project.columns)
+        _crear_tabla_en_bd_usuario(project.db, project.api_name, project.usr, project.paswd, sql_columns)
+
+        # Configurar nginx
+        try:
+            _write_nginx_conf(project.api_name, port)
+        except Exception:
+            pass
+
+        return {
+            "mensaje": f"API {project.api_name} creada en {lang}",
+            "puerto": port,
+            "backup_port": backup_port,
+            "id": db_data.id,
+            "language": lang,
+        }
+    except Exception as e:
+        db.rollback()
+        return Response(status_code=500, content=str(e))
+
+
+@router.post("/{api}/start")
+def start_api(api: str):
+    """Inicia los contenedores de una API detenida."""
+    try:
+        from services.docker_service import start_container
+        result = start_container(api)
+        if isinstance(result, Response):
+            return result
+        return result
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+
+@router.post("/{api}/stop")
+def stop_api(api: str):
+    """Para los contenedores de una API en ejecución."""
+    try:
+        from services.docker_service import stop_container
+        result = stop_container(api)
+        if isinstance(result, Response):
+            return result
+        return result
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+
+@router.get("/{api}/status")
+def get_api_status(api: str):
+    """Obtiene el estado del contenedor principal y del respaldo."""
+    try:
+        main_status = get_container_status(api)
+        backup_status = get_container_status(api, "_backup")
+        return {"status": main_status, "backup_status": backup_status}
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+
+@router.post("/{api}/rebuild")
+def rebuild_api(api: str, db: Session = Depends(get_db)):
+    """Regenera el código con el template actual y reconstruye la imagen Docker."""
+    try:
+        api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not api_data:
+            return Response(status_code=404, content=f"No se encontró la API {api}")
+
+        lang = api_data.language or "python"
+        
+        # Regenerar código
+        regenerate_api_code(
+            api,
+            lang,
+            api_data.db,
+            api_data.endpoints or [],
+            api_data.columns or [],
+            bool(api_data.generar_ui),
+        )
+
+        # Construir imagen
+        project_path = f"deployments/{api}"
+        build_docker_image(api, project_path)
+
+        # Eliminar y relanzar contenedores
+        remove_containers(api)
+
+        url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api)
+        port = api_data.port
+        backup_port = api_data.backup_port or (port + 1)
+        env_args = _build_docker_env_args(lang, api_data.db, url, api_data.usr, api_data.paswd, api)
+
+        start_api_containers(api, port, backup_port, env_args)
+
+        _write_nginx_conf(api, port)
+        _reload_nginx()
+
+        return {"mensaje": "API reconstruida", "puerto": port, "backup_port": backup_port}
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+
+@router.post("/{api}/restore")
+def restore_api(api: str, db: Session = Depends(get_db)):
+    """Para ambos contenedores y los relanza desde cero."""
+    try:
+        api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not api_data:
+            return Response(status_code=404, content=f"No se encontró la API {api}")
+
+        remove_containers(api)
+
+        url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api)
+        port = api_data.port
+        backup_port = api_data.backup_port or (port + 1)
+        env_args = _build_docker_env_args(
+            api_data.language or "python",
+            api_data.db,
+            url,
+            api_data.usr,
+            api_data.paswd,
+            api
+        )
+
+        start_api_containers(api, port, backup_port, env_args)
+
+        _write_nginx_conf(api, port)
+        _reload_nginx()
+
+        return {"mensaje": "API restaurada", "puerto": port, "backup_port": backup_port}
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+
+@router.post("/{api}/create-end-point")
+def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)):
+    """Añade un nuevo endpoint a una API existente."""
+    try:
+        api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not api_data:
+            return Response(status_code=404, content=f"No se encontró la API {api}")
+
+        lang = api_data.language or "python"
+
+        # Intentar añadir el endpoint
+        success = add_endpoint_to_project(api, lang, endpoint)
+
+        if not success:
+            return Response(
+                status_code=400,
+                content=f"Para APIs en {lang}, recrea la API con todos los endpoints deseados. "
+                        f"No se soporta añadir endpoints dinámicamente a lenguajes compilados."
+            )
+
+        # Reconstruir imagen y contenedores
+        project_path = f"deployments/{api}"
+        build_docker_image(api, project_path)
+        remove_containers(api)
+
+        url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api)
+        port = api_data.port
+        backup_port = api_data.backup_port or (port + 1)
+
+        env_args = ["-e", f"DATABASE_URL={url}"]
+        start_api_containers(api, port, backup_port, env_args)
+
+        _write_nginx_conf(api, port)
+        _reload_nginx()
+
+        return {"mensaje": "Endpoint añadido", "endpoint": endpoint.path}
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+
+@router.post("/{api}/delete")
+def delete_api(api: str, db: Session = Depends(get_db)):
+    """Elimina la API y sus recursos (contenedores, archivos, BD)."""
+    try:
+        reg = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not reg:
+            return Response(status_code=404)
+
+        # Eliminar contenedores
+        remove_containers(api)
+
+        # Eliminar archivos del proyecto
+        project_path = f"deployments/{api}"
+        if os.path.exists(project_path):
+            shutil.rmtree(project_path)
+
+        # Eliminar registro de BD
+        db.delete(reg)
+        db.execute(text(f"DROP TABLE IF EXISTS data_{api}"))
+        db.commit()
+
+        # Eliminar configuración de nginx
+        try:
+            _remove_nginx_conf(api)
+        except Exception:
+            pass
+
+        return {"mensaje": "Eliminado"}
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
