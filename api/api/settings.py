@@ -47,8 +47,6 @@ LANG_CONFIG = {
     },
 }
 NGINX_CONF_DIR = "/etc/nginx/conf.d/apis"
-# URL base de appWeb (dentro de Docker)
-APPWEB_URL = "http://appweb:3000"
 # Hostnames Docker para conexiones dentro de la red api_default
 DB_CONFIGS = {
     "postgresql": {"port": "5432", "driver": "postgresql", "host": "postgres"},
