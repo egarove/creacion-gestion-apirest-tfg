@@ -23,11 +23,18 @@ templates = Environment(loader=FileSystemLoader("templates"))
 def root_dashboard():
     """Dashboard principal - proxy a appWeb."""
     try:
-        with httpx.Client() as client:
-            response = client.get(APPWEB_URL)
+        with httpx.Client(timeout=10.0) as client:
+            response = client.get(APPWEB_URL, follow_redirects=True)
+            response.raise_for_status()
             return response.text
+    except httpx.ConnectError as e:
+        return f"""<h1>Error de conexión</h1>
+        <p>No se puede conectar a appWeb en {APPWEB_URL}</p>
+        <p>Verifica que el contenedor 'appweb' esté corriendo.</p>
+        <details><summary>Detalles</summary><pre>{str(e)}</pre></details>"""
     except Exception as e:
-        return f"<h1>Error conectando a appWeb</h1><p>{str(e)}</p>"
+        return f"""<h1>Error</h1>
+        <p>Error al obtener el dashboard: {str(e)}</p>"""
 
 
 @router.get("/stats")
