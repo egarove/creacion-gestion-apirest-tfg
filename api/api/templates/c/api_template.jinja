@@ -51,6 +51,7 @@ void init_db() {
         fprintf(stderr, "Error abriendo BD: %s\n", sqlite3_errmsg(db_conn));
         exit(1);
     }
+    sqlite3_exec(db_conn, "CREATE TABLE IF NOT EXISTS data_{{ api_name }} (id INTEGER PRIMARY KEY AUTOINCREMENT, {% for col in columns %}{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})", NULL, NULL, NULL);
 }
 {% endif %}
 
@@ -100,6 +101,16 @@ static char *do_insert(const char *body) {
             snprintf(escaped, sizeof(escaped), "NULL");
         }
         strcat(vals, escaped);
+        {% elif db == 'sqlite' %}
+        char val_buf[1024];
+        if (cJSON_IsString(item)) {
+            snprintf(val_buf, sizeof(val_buf), "'%s'", item->valuestring);
+        } else if (cJSON_IsNumber(item)) {
+            snprintf(val_buf, sizeof(val_buf), "%g", item->valuedouble);
+        } else {
+            snprintf(val_buf, sizeof(val_buf), "NULL");
+        }
+        strcat(vals, val_buf);
         {% endif %}
         idx++;
     }
@@ -181,6 +192,16 @@ static char *do_update(const char *body) {
             snprintf(escaped, sizeof(escaped), "%s = NULL", item->string);
         }
         strcat(sets, escaped);
+        {% elif db == 'sqlite' %}
+        char set_buf[1024];
+        if (cJSON_IsString(item)) {
+            snprintf(set_buf, sizeof(set_buf), "%s = '%s'", item->string, item->valuestring);
+        } else if (cJSON_IsNumber(item)) {
+            snprintf(set_buf, sizeof(set_buf), "%s = %g", item->string, item->valuedouble);
+        } else {
+            snprintf(set_buf, sizeof(set_buf), "%s = NULL", item->string);
+        }
+        strcat(sets, set_buf);
         {% endif %}
         idx++;
     }
