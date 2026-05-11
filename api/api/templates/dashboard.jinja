@@ -498,7 +498,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
           <div class="option-card" style="border-color:transparent;cursor:default"></div>
         </div>
         <div id="gen-ui-wrap" style="display:flex;align-items:center;gap:.75rem;padding:.875rem;background:var(--card);border-radius:.625rem;border:1px solid var(--border);cursor:pointer;transition:opacity .2s" onclick="toggleGenUI()">
-          <div style="flex:1"><div style="font-weight:600;font-size:.9rem">Generar panel web</div><div style="font-size:.78rem;color:var(--text-muted)">Añade una interfaz /ui para gestionar datos (solo Python)</div></div>
+          <div style="flex:1"><div style="font-weight:600;font-size:.9rem">Generar panel web</div><div style="font-size:.78rem;color:var(--text-muted)">Añade una interfaz /ui para gestionar datos visualmente</div></div>
           <div id="gen-ui-toggle" style="width:42px;height:24px;background:var(--border);border-radius:12px;position:relative;transition:.2s;flex-shrink:0">
             <div id="gen-ui-thumb" style="width:18px;height:18px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:.2s"></div>
           </div>
@@ -938,21 +938,8 @@ function wizardPrev() { if(state.wizardStep>1){state.wizardStep--;renderWizard()
 
 function selectOption(gridId, val) {
   document.querySelectorAll(`#${gridId} .option-card`).forEach(c=>c.classList.toggle('selected',c.dataset.val===val));
-  if(gridId==='lang-grid' && val!=='python'){state.genUI=false;updateGenUIToggle();}
-  if(gridId==='lang-grid') updateGenUIPanel();
 }
-function updateGenUIPanel(){
-  const lang=(document.querySelector('#lang-grid .selected')||{}).dataset.val||'python';
-  const wrap=document.getElementById('gen-ui-wrap');
-  if(!wrap)return;
-  if(lang==='python'){wrap.style.opacity='1';wrap.style.pointerEvents='auto';wrap.title='';}
-  else{wrap.style.opacity='0.35';wrap.style.pointerEvents='none';wrap.title='El panel /ui solo está disponible para Python';}
-}
-function toggleGenUI() {
-  const lang=(document.querySelector('#lang-grid .selected')||{}).dataset.val||'python';
-  if(lang!=='python'){toast('El panel web (/ui) solo está disponible para Python','warning');return;}
-  state.genUI=!state.genUI; updateGenUIToggle();
-}
+function toggleGenUI() { state.genUI=!state.genUI; updateGenUIToggle(); }
 function updateGenUIToggle() {
   const t=document.getElementById('gen-ui-toggle'), th=document.getElementById('gen-ui-thumb');
   if(!t)return;

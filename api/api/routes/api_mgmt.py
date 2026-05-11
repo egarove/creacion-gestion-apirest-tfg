@@ -115,8 +115,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         else:
             port = _get_free_port(db)
 
-        # generar_ui solo está implementado para Python
-        generar_ui = project.generar_ui and lang == "python"
+        generar_ui = project.generar_ui
 
         # Generar proyecto desde plantillas
         generate_api_project(
