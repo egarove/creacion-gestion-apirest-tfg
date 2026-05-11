@@ -25,7 +25,8 @@ async function query(sql, params) {
 {% elif db in ['mysql', 'mariadb'] %}
 let pool;
 (async () => {
-    pool = await mysql.createPool(DATABASE_URL);
+    const url = DATABASE_URL.replace('mysql+pymysql://', 'mysql://');
+    pool = await mysql.createPool(url);
 })();
 
 async function query(sql, params) {
@@ -35,6 +36,7 @@ async function query(sql, params) {
 {% elif db == 'sqlite' %}
 const Database = require('better-sqlite3');
 const db_conn = new Database(DATABASE_URL.replace('sqlite:///', ''));
+db_conn.prepare("CREATE TABLE IF NOT EXISTS data_{{ api_name }} (id INTEGER PRIMARY KEY AUTOINCREMENT, {% for col in columns %}{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})").run();
 
 function query(sql, params) {
     if (sql.trim().toUpperCase().startsWith('SELECT')) {
