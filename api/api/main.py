@@ -6,6 +6,7 @@ Arquitectura de élite para la gestión dinámica de microservicios Docker.
 import os
 import shutil
 import subprocess
+import sqlite3 as sqlite3_lib
 import time
 import docker
 import psycopg2
@@ -128,11 +129,21 @@ def _crear_usuario_y_bd(db_type: str, api_name: str, usr: str, paswd: str):
             conn.close()
 
 def _crear_tabla_en_bd_usuario(db_type: str, api_name: str, usr: str, paswd: str, sql_columns: str):
-    if db_type == "sqlite": return
     table_name = f"data_{api_name}"
     db_name = f"{api_name}_db"
 
-    if db_type == "postgresql":
+    if db_type == "sqlite":
+        # SQLite: crear la tabla dentro del directorio de deployment para que el contenedor la monte
+        project_path = f"deployments/{api_name}"
+        os.makedirs(project_path, exist_ok=True)
+        db_path = os.path.join(project_path, f"{api_name}.db")
+        conn = sqlite3_lib.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY AUTOINCREMENT, {sql_columns});")
+        conn.commit()
+        cursor.close()
+        conn.close()
+    elif db_type == "postgresql":
         conn = psycopg2.connect(host="postgres", port=5432, dbname=db_name, user=usr, password=paswd)
         conn.autocommit = True
         cursor = conn.cursor()
@@ -146,6 +157,20 @@ def _crear_tabla_en_bd_usuario(db_type: str, api_name: str, usr: str, paswd: str
         conn.commit()
         cursor.close()
         conn.close()
+
+def _build_docker_env_args(lang: str, db_type: str, url: str, usr: str, paswd: str, api_name: str) -> list:
+    """Genera los argumentos -e para docker run según el lenguaje."""
+    env_args = ["-e", f"DATABASE_URL={url}"]
+    if lang == "java" and db_type in db_configs:
+        config = db_configs[db_type]
+        env_args.extend([
+            "-e", f"DB_HOST={config['host']}",
+            "-e", f"DB_PORT={config['port']}",
+            "-e", f"DB_NAME={api_name}_db",
+            "-e", f"DB_USER={usr}",
+            "-e", f"DB_PASS={paswd}",
+        ])
+    return env_args
 
 @app.get("/", response_class=HTMLResponse)
 def root_dashboard():
@@ -321,12 +346,14 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
 
         _crear_usuario_y_bd(project.db, project.api_name, project.usr, project.paswd)
 
+        env_args = _build_docker_env_args(lang, project.db, url, project.usr, project.paswd, project.api_name)
+
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", project.api_name,
             "--restart", "unless-stopped",
             "--network", "api_default",
-            "-e", f"DATABASE_URL={url}",
+            *env_args,
             "-p", f"{port}:8000",
             f"api-{project.api_name}"
         ])
@@ -335,7 +362,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
             "--name", f"{project.api_name}_backup",
             "--restart", "unless-stopped",
             "--network", "api_default",
-            "-e", f"DATABASE_URL={url}",
+            *env_args,
             "-p", f"{backup_port}:8000",
             f"api-{project.api_name}"
         ])
@@ -467,13 +494,14 @@ def rebuild_api(api: str, db: Session = Depends(get_db)):
         url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api)
         port = api_data.port
         backup_port = api_data.backup_port or (port + 1)
+        env_args = _build_docker_env_args(lang, api_data.db, url, api_data.usr, api_data.paswd, api)
 
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", api,
             "--restart", "unless-stopped",
             "--network", "api_default",
-            "-e", f"DATABASE_URL={url}",
+            *env_args,
             "-p", f"{port}:8000",
             f"api-{api}",
         ])
@@ -482,7 +510,7 @@ def rebuild_api(api: str, db: Session = Depends(get_db)):
             "--name", f"{api}_backup",
             "--restart", "unless-stopped",
             "--network", "api_default",
-            "-e", f"DATABASE_URL={url}",
+            *env_args,
             "-p", f"{backup_port}:8000",
             f"api-{api}",
         ])
@@ -527,13 +555,14 @@ def restore_api(api: str, db: Session = Depends(get_db)):
         url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api)
         port = api_data.port
         backup_port = api_data.backup_port or (port + 1)
+        env_args = _build_docker_env_args(api_data.language or "python", api_data.db, url, api_data.usr, api_data.paswd, api)
 
         subprocess.Popen([
             "docker", "run", "-d",
             "--name", api,
             "--restart", "unless-stopped",
             "--network", "api_default",
-            "-e", f"DATABASE_URL={url}",
+            *env_args,
             "-p", f"{port}:8000",
             f"api-{api}"
         ])
@@ -542,7 +571,7 @@ def restore_api(api: str, db: Session = Depends(get_db)):
             "--name", f"{api}_backup",
             "--restart", "unless-stopped",
             "--network", "api_default",
-            "-e", f"DATABASE_URL={url}",
+            *env_args,
             "-p", f"{backup_port}:8000",
             f"api-{api}"
         ])

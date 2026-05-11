@@ -18,7 +18,7 @@ def root():
 
 {% for endpoint in endpoints %}
 @app.{{ endpoint.method | lower }}("{{ endpoint.path }}")
-def {{ endpoint.function_name }}():
+async def {{ endpoint.function_name }}({% if endpoint.logic != 'select' %}request: Request{% endif %}):
     """
     Endpoint dinámico generado: {{ endpoint.path }} ({{ endpoint.method }})
     """
@@ -27,7 +27,27 @@ def {{ endpoint.function_name }}():
         res = conn.execute(text("SELECT * FROM data_{{ api_name }}")).fetchall()
         return [dict(row._mapping) for row in res]
         {% elif endpoint.logic == 'insert' %}
-        return {"msg": "inserted (logic pending customization)"}
+        body = await request.json()
+        if not body: return {"error": "empty body"}
+        cols = ", ".join(body.keys())
+        vals = ", ".join(f":{k}" for k in body.keys())
+        conn.execute(text(f"INSERT INTO data_{{ api_name }} ({cols}) VALUES ({vals})"), body)
+        conn.commit()
+        return {"msg": "inserted"}
+        {% elif endpoint.logic == 'update' %}
+        body = await request.json()
+        if not body or 'id' not in body: return {"error": "id required in body"}
+        sets = ", ".join(f"{k} = :{k}" for k in body.keys() if k != 'id')
+        if not sets: return {"error": "no fields to update"}
+        conn.execute(text(f"UPDATE data_{{ api_name }} SET {sets} WHERE id = :id"), body)
+        conn.commit()
+        return {"msg": "updated"}
+        {% elif endpoint.logic == 'delete' %}
+        body = await request.json()
+        if not body or 'id' not in body: return {"error": "id required in body"}
+        conn.execute(text("DELETE FROM data_{{ api_name }} WHERE id = :id"), {"id": body["id"]})
+        conn.commit()
+        return {"msg": "deleted"}
         {% else %}
         return {"msg": "endpoint ready"}
         {% endif %}

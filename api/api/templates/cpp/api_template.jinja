@@ -2,6 +2,7 @@
 #include <string>
 #include <sstream>
 #include <cstdlib>
+#include <vector>
 {% if db == 'postgresql' %}
 #include <libpq-fe.h>
 {% elif db in ['mysql', 'mariadb'] %}
@@ -46,6 +47,15 @@ void init_db() {
         std::cerr << "Error abriendo BD: " << sqlite3_errmsg(db_conn) << std::endl;
         std::exit(1);
     }
+}
+{% endif %}
+
+{% if db in ['mysql', 'mariadb'] %}
+/* Helper: escapar string para MySQL */
+static std::string mysql_escape(const std::string& s) {
+    std::vector<char> buf(s.size() * 2 + 1);
+    mysql_real_escape_string(db_conn, buf.data(), s.c_str(), s.size());
+    return std::string(buf.data());
 }
 {% endif %}
 
@@ -113,17 +123,184 @@ int main() {
         return crow::json::wvalue(std::move(result));
         {% endif %}
         {% elif endpoint.logic == 'insert' %}
+        auto body = crow::json::load(req.body);
+        if (!body) {
+            crow::json::wvalue err; err["error"] = "invalid json";
+            return err;
+        }
+        std::ostringstream cols_ss, vals_ss;
+        {% if db == 'postgresql' %}
+        std::vector<std::string> paramStrs;
+        int idx = 0;
+        for (auto& kv : body) {
+            if (idx > 0) { cols_ss << ", "; vals_ss << ", "; }
+            cols_ss << kv.key();
+            vals_ss << "$" << (idx + 1);
+            paramStrs.push_back(std::string(kv));
+            idx++;
+        }
+        std::string sql = "INSERT INTO data_{{ api_name }} (" + cols_ss.str() + ") VALUES (" + vals_ss.str() + ")";
+        std::vector<const char*> paramValues;
+        for (auto& s : paramStrs) paramValues.push_back(s.c_str());
+        PGresult* res = PQexecParams(db_conn, sql.c_str(), idx, nullptr, paramValues.data(), nullptr, nullptr, 0);
         crow::json::wvalue resp;
-        resp["msg"] = "inserted";
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            resp["error"] = PQerrorMessage(db_conn);
+        } else {
+            resp["msg"] = "inserted";
+        }
+        PQclear(res);
         return resp;
+        {% elif db in ['mysql', 'mariadb'] %}
+        int idx = 0;
+        for (auto& kv : body) {
+            if (idx > 0) { cols_ss << ", "; vals_ss << ", "; }
+            cols_ss << kv.key();
+            vals_ss << "'" << mysql_escape(std::string(kv)) << "'";
+            idx++;
+        }
+        std::string sql = "INSERT INTO data_{{ api_name }} (" + cols_ss.str() + ") VALUES (" + vals_ss.str() + ")";
+        crow::json::wvalue resp;
+        if (mysql_query(db_conn, sql.c_str()) != 0) {
+            resp["error"] = mysql_error(db_conn);
+        } else {
+            resp["msg"] = "inserted";
+        }
+        return resp;
+        {% elif db == 'sqlite' %}
+        int idx = 0;
+        for (auto& kv : body) {
+            if (idx > 0) { cols_ss << ", "; vals_ss << ", "; }
+            cols_ss << kv.key();
+            vals_ss << "'" << std::string(kv) << "'";
+            idx++;
+        }
+        std::string sql = "INSERT INTO data_{{ api_name }} (" + cols_ss.str() + ") VALUES (" + vals_ss.str() + ")";
+        crow::json::wvalue resp;
+        char* errmsg = nullptr;
+        if (sqlite3_exec(db_conn, sql.c_str(), nullptr, nullptr, &errmsg) != SQLITE_OK) {
+            resp["error"] = errmsg ? errmsg : "sqlite error";
+            if (errmsg) sqlite3_free(errmsg);
+        } else {
+            resp["msg"] = "inserted";
+        }
+        return resp;
+        {% endif %}
         {% elif endpoint.logic == 'update' %}
+        auto body = crow::json::load(req.body);
+        if (!body) {
+            crow::json::wvalue err; err["error"] = "invalid json";
+            return err;
+        }
+        std::string id_val;
+        if (body.has("id")) id_val = std::string(body["id"]);
+        if (id_val.empty()) {
+            crow::json::wvalue err; err["error"] = "id required";
+            return err;
+        }
+        std::ostringstream sets_ss;
+        {% if db == 'postgresql' %}
+        std::vector<std::string> paramStrs;
+        int idx = 0;
+        for (auto& kv : body) {
+            if (kv.key() == "id") continue;
+            if (idx > 0) sets_ss << ", ";
+            sets_ss << kv.key() << " = $" << (idx + 1);
+            paramStrs.push_back(std::string(kv));
+            idx++;
+        }
+        paramStrs.push_back(id_val);
+        std::string sql = "UPDATE data_{{ api_name }} SET " + sets_ss.str() + " WHERE id = $" + std::to_string(idx + 1);
+        std::vector<const char*> paramValues;
+        for (auto& s : paramStrs) paramValues.push_back(s.c_str());
+        PGresult* res = PQexecParams(db_conn, sql.c_str(), idx + 1, nullptr, paramValues.data(), nullptr, nullptr, 0);
         crow::json::wvalue resp;
-        resp["msg"] = "updated";
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            resp["error"] = PQerrorMessage(db_conn);
+        } else {
+            resp["msg"] = "updated";
+        }
+        PQclear(res);
         return resp;
+        {% elif db in ['mysql', 'mariadb'] %}
+        int idx = 0;
+        for (auto& kv : body) {
+            if (kv.key() == "id") continue;
+            if (idx > 0) sets_ss << ", ";
+            sets_ss << kv.key() << " = '" << mysql_escape(std::string(kv)) << "'";
+            idx++;
+        }
+        std::string sql = "UPDATE data_{{ api_name }} SET " + sets_ss.str() + " WHERE id = '" + mysql_escape(id_val) + "'";
+        crow::json::wvalue resp;
+        if (mysql_query(db_conn, sql.c_str()) != 0) {
+            resp["error"] = mysql_error(db_conn);
+        } else {
+            resp["msg"] = "updated";
+        }
+        return resp;
+        {% elif db == 'sqlite' %}
+        int idx = 0;
+        for (auto& kv : body) {
+            if (kv.key() == "id") continue;
+            if (idx > 0) sets_ss << ", ";
+            sets_ss << kv.key() << " = '" << std::string(kv) << "'";
+            idx++;
+        }
+        std::string sql = "UPDATE data_{{ api_name }} SET " + sets_ss.str() + " WHERE id = '" + id_val + "'";
+        crow::json::wvalue resp;
+        char* errmsg = nullptr;
+        if (sqlite3_exec(db_conn, sql.c_str(), nullptr, nullptr, &errmsg) != SQLITE_OK) {
+            resp["error"] = errmsg ? errmsg : "sqlite error";
+            if (errmsg) sqlite3_free(errmsg);
+        } else {
+            resp["msg"] = "updated";
+        }
+        return resp;
+        {% endif %}
         {% elif endpoint.logic == 'delete' %}
+        auto body = crow::json::load(req.body);
+        if (!body) {
+            crow::json::wvalue err; err["error"] = "invalid json";
+            return err;
+        }
+        std::string id_val;
+        if (body.has("id")) id_val = std::string(body["id"]);
+        if (id_val.empty()) {
+            crow::json::wvalue err; err["error"] = "id required";
+            return err;
+        }
+        {% if db == 'postgresql' %}
+        const char* paramValues[1] = { id_val.c_str() };
+        PGresult* res = PQexecParams(db_conn, "DELETE FROM data_{{ api_name }} WHERE id = $1", 1, nullptr, paramValues, nullptr, nullptr, 0);
         crow::json::wvalue resp;
-        resp["msg"] = "deleted";
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            resp["error"] = PQerrorMessage(db_conn);
+        } else {
+            resp["msg"] = "deleted";
+        }
+        PQclear(res);
         return resp;
+        {% elif db in ['mysql', 'mariadb'] %}
+        std::string sql = "DELETE FROM data_{{ api_name }} WHERE id = '" + mysql_escape(id_val) + "'";
+        crow::json::wvalue resp;
+        if (mysql_query(db_conn, sql.c_str()) != 0) {
+            resp["error"] = mysql_error(db_conn);
+        } else {
+            resp["msg"] = "deleted";
+        }
+        return resp;
+        {% elif db == 'sqlite' %}
+        std::string sql = "DELETE FROM data_{{ api_name }} WHERE id = '" + id_val + "'";
+        crow::json::wvalue resp;
+        char* errmsg = nullptr;
+        if (sqlite3_exec(db_conn, sql.c_str(), nullptr, nullptr, &errmsg) != SQLITE_OK) {
+            resp["error"] = errmsg ? errmsg : "sqlite error";
+            if (errmsg) sqlite3_free(errmsg);
+        } else {
+            resp["msg"] = "deleted";
+        }
+        return resp;
+        {% endif %}
         {% endif %}
     });
     {% endfor %}
@@ -139,3 +316,4 @@ int main() {
     {% endif %}
     return 0;
 }
+

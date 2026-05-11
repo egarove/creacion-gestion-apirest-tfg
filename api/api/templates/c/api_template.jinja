@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <microhttpd.h>
+#include <cjson/cJSON.h>
 {% if db == 'postgresql' %}
 #include <libpq-fe.h>
 {% elif db in ['mysql', 'mariadb'] %}
@@ -9,6 +10,7 @@
 {% endif %}
 
 #define PORT 8000
+#define MAX_FIELDS 64
 
 {% if db == 'postgresql' %}
 static PGconn *db_conn = NULL;
@@ -44,6 +46,190 @@ struct PostData {
     char *data;
     size_t size;
 };
+
+/* ── Helper: ejecutar INSERT desde JSON body ── */
+static char *do_insert(const char *body) {
+    if (!body || !*body) return strdup("{\"error\":\"empty body\"}");
+    cJSON *json = cJSON_Parse(body);
+    if (!json) return strdup("{\"error\":\"invalid json\"}");
+
+    int n = cJSON_GetArraySize(json);
+    if (n == 0 || n > MAX_FIELDS) { cJSON_Delete(json); return strdup("{\"error\":\"bad fields\"}"); }
+
+    char cols[2048] = "";
+    char vals[4096] = "";
+    {% if db == 'postgresql' %}
+    const char *paramValues[MAX_FIELDS];
+    char paramBufs[MAX_FIELDS][512];
+    {% endif %}
+    int idx = 0;
+
+    cJSON *item = NULL;
+    cJSON_ArrayForEach(item, json) {
+        if (idx > 0) { strcat(cols, ", "); strcat(vals, ", "); }
+        strcat(cols, item->string);
+        {% if db == 'postgresql' %}
+        char ph[16]; snprintf(ph, sizeof(ph), "$%d", idx + 1);
+        strcat(vals, ph);
+        if (cJSON_IsNumber(item)) snprintf(paramBufs[idx], 512, "%g", item->valuedouble);
+        else if (cJSON_IsString(item)) snprintf(paramBufs[idx], 512, "%s", item->valuestring);
+        else snprintf(paramBufs[idx], 512, "%s", cJSON_PrintUnformatted(item));
+        paramValues[idx] = paramBufs[idx];
+        {% elif db in ['mysql', 'mariadb'] %}
+        char escaped[1024];
+        if (cJSON_IsString(item)) {
+            char tmp[512]; mysql_real_escape_string(db_conn, tmp, item->valuestring, strlen(item->valuestring));
+            snprintf(escaped, sizeof(escaped), "'%s'", tmp);
+        } else if (cJSON_IsNumber(item)) {
+            snprintf(escaped, sizeof(escaped), "%g", item->valuedouble);
+        } else {
+            snprintf(escaped, sizeof(escaped), "NULL");
+        }
+        strcat(vals, escaped);
+        {% endif %}
+        idx++;
+    }
+
+    char sql[8192];
+    snprintf(sql, sizeof(sql), "INSERT INTO data_{{ api_name }} (%s) VALUES (%s)", cols, vals);
+
+    char *result;
+    {% if db == 'postgresql' %}
+    PGresult *res = PQexecParams(db_conn, sql, idx, NULL, paramValues, NULL, NULL, 0);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", PQerrorMessage(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"inserted\"}");
+    }
+    PQclear(res);
+    {% elif db in ['mysql', 'mariadb'] %}
+    if (mysql_query(db_conn, sql) != 0) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", mysql_error(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"inserted\"}");
+    }
+    {% endif %}
+    cJSON_Delete(json);
+    return result;
+}
+
+/* ── Helper: ejecutar UPDATE desde JSON body ── */
+static char *do_update(const char *body) {
+    if (!body || !*body) return strdup("{\"error\":\"empty body\"}");
+    cJSON *json = cJSON_Parse(body);
+    if (!json) return strdup("{\"error\":\"invalid json\"}");
+
+    cJSON *id_item = cJSON_GetObjectItem(json, "id");
+    if (!id_item) { cJSON_Delete(json); return strdup("{\"error\":\"id required\"}"); }
+
+    char id_str[64];
+    if (cJSON_IsNumber(id_item)) snprintf(id_str, sizeof(id_str), "%d", id_item->valueint);
+    else if (cJSON_IsString(id_item)) snprintf(id_str, sizeof(id_str), "%s", id_item->valuestring);
+    else { cJSON_Delete(json); return strdup("{\"error\":\"invalid id\"}"); }
+
+    char sets[4096] = "";
+    {% if db == 'postgresql' %}
+    const char *paramValues[MAX_FIELDS];
+    char paramBufs[MAX_FIELDS][512];
+    {% endif %}
+    int idx = 0;
+
+    cJSON *item = NULL;
+    cJSON_ArrayForEach(item, json) {
+        if (strcmp(item->string, "id") == 0) continue;
+        if (idx > 0) strcat(sets, ", ");
+        {% if db == 'postgresql' %}
+        char clause[256]; snprintf(clause, sizeof(clause), "%s = $%d", item->string, idx + 1);
+        strcat(sets, clause);
+        if (cJSON_IsNumber(item)) snprintf(paramBufs[idx], 512, "%g", item->valuedouble);
+        else if (cJSON_IsString(item)) snprintf(paramBufs[idx], 512, "%s", item->valuestring);
+        else snprintf(paramBufs[idx], 512, "%s", cJSON_PrintUnformatted(item));
+        paramValues[idx] = paramBufs[idx];
+        {% elif db in ['mysql', 'mariadb'] %}
+        char escaped[1024];
+        if (cJSON_IsString(item)) {
+            char tmp[512]; mysql_real_escape_string(db_conn, tmp, item->valuestring, strlen(item->valuestring));
+            snprintf(escaped, sizeof(escaped), "%s = '%s'", item->string, tmp);
+        } else if (cJSON_IsNumber(item)) {
+            snprintf(escaped, sizeof(escaped), "%s = %g", item->string, item->valuedouble);
+        } else {
+            snprintf(escaped, sizeof(escaped), "%s = NULL", item->string);
+        }
+        strcat(sets, escaped);
+        {% endif %}
+        idx++;
+    }
+
+    if (idx == 0) { cJSON_Delete(json); return strdup("{\"error\":\"no fields to update\"}"); }
+
+    char sql[8192];
+    {% if db == 'postgresql' %}
+    snprintf(sql, sizeof(sql), "UPDATE data_{{ api_name }} SET %s WHERE id = $%d", sets, idx + 1);
+    paramValues[idx] = id_str;
+    PGresult *res = PQexecParams(db_conn, sql, idx + 1, NULL, paramValues, NULL, NULL, 0);
+    char *result;
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", PQerrorMessage(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"updated\"}");
+    }
+    PQclear(res);
+    {% elif db in ['mysql', 'mariadb'] %}
+    char escaped_id[128]; mysql_real_escape_string(db_conn, escaped_id, id_str, strlen(id_str));
+    snprintf(sql, sizeof(sql), "UPDATE data_{{ api_name }} SET %s WHERE id = '%s'", sets, escaped_id);
+    char *result;
+    if (mysql_query(db_conn, sql) != 0) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", mysql_error(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"updated\"}");
+    }
+    {% endif %}
+    cJSON_Delete(json);
+    return result;
+}
+
+/* ── Helper: ejecutar DELETE desde JSON body ── */
+static char *do_delete(const char *body) {
+    if (!body || !*body) return strdup("{\"error\":\"empty body\"}");
+    cJSON *json = cJSON_Parse(body);
+    if (!json) return strdup("{\"error\":\"invalid json\"}");
+
+    cJSON *id_item = cJSON_GetObjectItem(json, "id");
+    if (!id_item) { cJSON_Delete(json); return strdup("{\"error\":\"id required\"}"); }
+
+    char id_str[64];
+    if (cJSON_IsNumber(id_item)) snprintf(id_str, sizeof(id_str), "%d", id_item->valueint);
+    else if (cJSON_IsString(id_item)) snprintf(id_str, sizeof(id_str), "%s", id_item->valuestring);
+    else { cJSON_Delete(json); return strdup("{\"error\":\"invalid id\"}"); }
+
+    char *result;
+    {% if db == 'postgresql' %}
+    const char *paramValues[1] = { id_str };
+    PGresult *res = PQexecParams(db_conn, "DELETE FROM data_{{ api_name }} WHERE id = $1", 1, NULL, paramValues, NULL, NULL, 0);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", PQerrorMessage(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"deleted\"}");
+    }
+    PQclear(res);
+    {% elif db in ['mysql', 'mariadb'] %}
+    char escaped_id[128]; mysql_real_escape_string(db_conn, escaped_id, id_str, strlen(id_str));
+    char sql[512]; snprintf(sql, sizeof(sql), "DELETE FROM data_{{ api_name }} WHERE id = '%s'", escaped_id);
+    if (mysql_query(db_conn, sql) != 0) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", mysql_error(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"deleted\"}");
+    }
+    {% endif %}
+    cJSON_Delete(json);
+    return result;
+}
 
 static enum MHD_Result handle_request(void *cls, struct MHD_Connection *connection,
     const char *url, const char *method, const char *version,
@@ -132,12 +318,11 @@ static enum MHD_Result handle_request(void *cls, struct MHD_Connection *connecti
         mysql_free_result(res);
         {% endif %}
         {% elif endpoint.logic == 'insert' %}
-        resp_str = strdup("{\"msg\":\"inserted\"}");
-        /* TODO: parse JSON body and insert */
+        resp_str = do_insert(pd->data);
         {% elif endpoint.logic == 'update' %}
-        resp_str = strdup("{\"msg\":\"updated\"}");
+        resp_str = do_update(pd->data);
         {% elif endpoint.logic == 'delete' %}
-        resp_str = strdup("{\"msg\":\"deleted\"}");
+        resp_str = do_delete(pd->data);
         {% endif %}
     }
     {% endfor %}

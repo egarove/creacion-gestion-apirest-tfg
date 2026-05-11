@@ -86,6 +86,16 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
   static const List<String> _methods = ['get', 'post', 'put', 'delete'];
   static const List<String> _logics = ['select', 'insert', 'update', 'delete'];
 
+  List<MapEntry<String, String>> get _availableDbOptions {
+    final invalidForSqlite = ['go', 'rust', 'c'];
+    return _dbOptions.entries.where((e) {
+      if (e.key == 'sqlite' && invalidForSqlite.contains(_language)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -263,7 +273,14 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                             child: Text(e.value),
                           ))
                       .toList(),
-                  onChanged: (v) => setState(() => _language = v!),
+                  onChanged: (v) {
+                    setState(() {
+                      _language = v!;
+                      if (_dbType == 'sqlite' && ['go', 'rust', 'c'].contains(_language)) {
+                        _dbType = 'postgresql';
+                      }
+                    });
+                  },
                 ),
 
                 const SizedBox(height: 24),
@@ -275,7 +292,7 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                 DropdownButtonFormField<String>(
                   value: _dbType,
                   decoration: const InputDecoration(labelText: 'Tipo de BD'),
-                  items: _dbOptions.entries
+                  items: _availableDbOptions
                       .map((e) => DropdownMenuItem(
                             value: e.key,
                             child: Text(e.value),

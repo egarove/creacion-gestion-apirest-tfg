@@ -2,6 +2,7 @@ FROM debian:bookworm-slim AS builder
 RUN apt-get update && apt-get install -y \
     gcc make \
     libmicrohttpd-dev \
+    libcjson-dev \
     {% if db == 'postgresql' %}
     libpq-dev \
     {% elif db in ['mysql', 'mariadb'] %}
@@ -17,6 +18,7 @@ RUN make
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     libmicrohttpd12 \
+    libcjson1 \
     {% if db == 'postgresql' %}
     libpq5 \
     {% elif db in ['mysql', 'mariadb'] %}
@@ -29,3 +31,4 @@ WORKDIR /api
 COPY --from=builder /app/server .
 EXPOSE 8000
 CMD ["./server"]
+

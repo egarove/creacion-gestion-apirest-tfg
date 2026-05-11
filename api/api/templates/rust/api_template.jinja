@@ -4,19 +4,14 @@ use serde_json::{json, Value};
 use std::env;
 
 {% if db == 'postgresql' %}
-use tokio_postgres::{NoTls, Client};
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use deadpool_postgres::{Manager, Pool, ManagerConfig, RecyclingMethod};
+use tokio_postgres::NoTls;
 
-async fn get_client() -> Client {
+fn get_pool() -> Pool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await.unwrap();
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("Connection error: {}", e);
-        }
-    });
-    client
+    let mgr_config = ManagerConfig { recycling_method: RecyclingMethod::Fast };
+    let mgr = Manager::from_config(database_url.parse().unwrap(), NoTls, mgr_config);
+    Pool::builder(mgr).max_size(16).build().unwrap()
 }
 {% elif db in ['mysql', 'mariadb'] %}
 use mysql_async::prelude::*;
@@ -43,14 +38,10 @@ async fn root() -> HttpResponse {
 {% for endpoint in endpoints %}
 {% if endpoint.logic == 'select' %}
 async fn {{ endpoint.function_name }}(
-    {% if db == 'postgresql' %}
-    client: web::Data<Arc<Mutex<Client>>>,
-    {% elif db in ['mysql', 'mariadb'] %}
     pool: web::Data<Pool>,
-    {% endif %}
 ) -> HttpResponse {
     {% if db == 'postgresql' %}
-    let client = client.lock().await;
+    let client = pool.get().await.unwrap();
     match client.query("SELECT * FROM data_{{ api_name }}", &[]).await {
         Ok(rows) => {
             let columns: Vec<String> = rows.first()
@@ -93,11 +84,7 @@ async fn {{ endpoint.function_name }}(
 {% elif endpoint.logic == 'insert' %}
 async fn {{ endpoint.function_name }}(
     body: web::Json<GenericBody>,
-    {% if db == 'postgresql' %}
-    client: web::Data<Arc<Mutex<Client>>>,
-    {% elif db in ['mysql', 'mariadb'] %}
     pool: web::Data<Pool>,
-    {% endif %}
 ) -> HttpResponse {
     let fields = &body.fields;
     let keys: Vec<&String> = fields.keys().collect();
@@ -105,7 +92,7 @@ async fn {{ endpoint.function_name }}(
     {% if db == 'postgresql' %}
     let placeholders: Vec<String> = (1..=keys.len()).map(|i| format!("${}", i)).collect();
     let sql = format!("INSERT INTO data_{{ api_name }} ({}) VALUES ({})", cols, placeholders.join(", "));
-    let client = client.lock().await;
+    let client = pool.get().await.unwrap();
     let values: Vec<String> = fields.values().map(|v| v.as_str().unwrap_or("").to_string()).collect();
     let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = values.iter().map(|v| v as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
     match client.execute(&sql, &params).await {
@@ -126,18 +113,14 @@ async fn {{ endpoint.function_name }}(
 {% elif endpoint.logic == 'update' %}
 async fn {{ endpoint.function_name }}(
     body: web::Json<GenericBody>,
-    {% if db == 'postgresql' %}
-    client: web::Data<Arc<Mutex<Client>>>,
-    {% elif db in ['mysql', 'mariadb'] %}
     pool: web::Data<Pool>,
-    {% endif %}
 ) -> HttpResponse {
     let mut fields = body.fields.clone();
     let id = fields.remove("id").unwrap_or(json!(0));
     {% if db == 'postgresql' %}
     let sets: Vec<String> = fields.keys().enumerate().map(|(i, k)| format!("{} = ${}", k, i + 1)).collect();
     let sql = format!("UPDATE data_{{ api_name }} SET {} WHERE id = ${}", sets.join(", "), fields.len() + 1);
-    let client = client.lock().await;
+    let client = pool.get().await.unwrap();
     let mut values: Vec<String> = fields.values().map(|v| v.as_str().unwrap_or("").to_string()).collect();
     values.push(id.to_string().trim_matches('"').to_string());
     let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = values.iter().map(|v| v as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
@@ -160,16 +143,12 @@ async fn {{ endpoint.function_name }}(
 {% elif endpoint.logic == 'delete' %}
 async fn {{ endpoint.function_name }}(
     body: web::Json<GenericBody>,
-    {% if db == 'postgresql' %}
-    client: web::Data<Arc<Mutex<Client>>>,
-    {% elif db in ['mysql', 'mariadb'] %}
     pool: web::Data<Pool>,
-    {% endif %}
 ) -> HttpResponse {
     let id = body.fields.get("id").unwrap_or(&json!(0));
     {% if db == 'postgresql' %}
     let id_str = id.to_string().trim_matches('"').to_string();
-    let client = client.lock().await;
+    let client = pool.get().await.unwrap();
     match client.execute("DELETE FROM data_{{ api_name }} WHERE id = $1", &[&id_str]).await {
         Ok(_) => HttpResponse::Ok().json(json!({"msg": "deleted"})),
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
@@ -188,22 +167,14 @@ async fn {{ endpoint.function_name }}(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    {% if db == 'postgresql' %}
-    let client = Arc::new(Mutex::new(get_client().await));
-    {% elif db in ['mysql', 'mariadb'] %}
     let pool = get_pool();
-    {% endif %}
 
     HttpServer::new(move || {
         let mut app = App::new()
             .route("/", web::get().to(root));
 
         {% for endpoint in endpoints %}
-        {% if db == 'postgresql' %}
-        app = app.app_data(web::Data::new(client.clone()));
-        {% elif db in ['mysql', 'mariadb'] %}
         app = app.app_data(web::Data::new(pool.clone()));
-        {% endif %}
         app = app.route("{{ endpoint.path }}", web::{{ endpoint.method | lower }}().to({{ endpoint.function_name }}));
         {% endfor %}
 
@@ -213,3 +184,4 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
+
