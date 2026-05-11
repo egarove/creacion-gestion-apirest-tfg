@@ -1,14 +1,12 @@
+{% if db == 'postgresql' %}{% set build_pkg = 'libpq-dev' %}{% set run_pkg = 'libpq5' %}
+{% elif db in ['mysql', 'mariadb'] %}{% set build_pkg = 'default-libmysqlclient-dev' %}{% set run_pkg = 'libmariadb3' %}
+{% elif db == 'sqlite' %}{% set build_pkg = 'libsqlite3-dev' %}{% set run_pkg = 'libsqlite3-0' %}
+{% endif %}
 FROM debian:bookworm-slim AS builder
 RUN apt-get update && apt-get install -y \
     g++ cmake git pkg-config \
     libboost-all-dev libasio-dev \
-    {% if db == 'postgresql' %}
-    libpq-dev \
-    {% elif db in ['mysql', 'mariadb'] %}
-    default-libmysqlclient-dev \
-    {% elif db == 'sqlite' %}
-    libsqlite3-dev \
-    {% endif %}
+    {{ build_pkg }} \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY CMakeLists.txt main.cpp ./
@@ -16,13 +14,7 @@ RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
-    {% if db == 'postgresql' %}
-    libpq5 \
-    {% elif db in ['mysql', 'mariadb'] %}
-    default-mysql-client \
-    {% elif db == 'sqlite' %}
-    libsqlite3-0 \
-    {% endif %}
+    {{ run_pkg }} \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /api
