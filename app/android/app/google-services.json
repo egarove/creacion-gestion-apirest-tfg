@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "181457370400-fltmrj8llnjls03d4tv6mernptc84mup.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tfg_2dama_gestion_apirest",
+            "certificate_hash": "56b00fa13b7ed880d562a92dbff441994c0b4a5e"
+          }
+        },
+        {
           "client_id": "181457370400-ea7tgjj61vn64m31lc4405jfjlg65m26.apps.googleusercontent.com",
           "client_type": 3
         }
