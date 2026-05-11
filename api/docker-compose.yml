@@ -70,13 +70,11 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
 
-
   # Luego se agregarán las demás bases de datos aquí, siguiendo el ejemplo de PostgreSQL.
 
-# !!IMPORTANTE!!: No eliminar el bloque de volúmenes, es necesario para la persistencia de datos de Postgre base de datos y si se 
+# !!IMPORTANTE!!: No eliminar el bloque de volúmenes, es necesario para la persistencia de datos de Postgre base de datos y si se
 # añaden más bases de datos se tiene que hacer su volumen.
 volumes:
   postgres_data:
   mariadb_data:
   mysql_data:
-  sqlite_data:
