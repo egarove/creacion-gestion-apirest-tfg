@@ -34,6 +34,7 @@ services:
   postgres:
     image: postgres
     restart: unless-stopped
+    command: postgres -c shared_buffers=32MB -c max_connections=50
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -42,10 +43,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+    mem_limit: 256m
 
   mariadb:
     image: mariadb
     restart: unless-stopped
+    command: --innodb-buffer-pool-size=64M --max-connections=50 --performance-schema=OFF
     environment:
       MARIADB_ROOT_USER: root
       MARIADB_ROOT_PASSWORD: password
@@ -56,10 +59,12 @@ services:
       - "5433:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
+    mem_limit: 256m
 
   mysql:
     image: mysql
     restart: unless-stopped
+    command: --innodb-buffer-pool-size=64M --innodb-log-file-size=32M --max-connections=50 --performance-schema=OFF
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: mysql
@@ -69,6 +74,7 @@ services:
       - "5434:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    mem_limit: 256m
 
   # Luego se agregarán las demás bases de datos aquí, siguiendo el ejemplo de PostgreSQL.
 
