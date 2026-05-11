@@ -2,11 +2,13 @@
 """
 Endpoints de sistema, monitorización y UI.
 """
+import httpx
 from fastapi import APIRouter, Depends, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.orm import Session
 
+from api.api.settings import APPWEB_URL
 from models import DBModel
 from events.db import get_db
 from services.docker_service import get_container_status, get_container_logs
@@ -19,9 +21,13 @@ templates = Environment(loader=FileSystemLoader("templates"))
 
 @router.get("/", response_class=HTMLResponse)
 def root_dashboard():
-    """Dashboard principal de la aplicación."""
-    template = templates.get_template("dashboard.jinja")
-    return template.render()
+    """Dashboard principal - proxy a appWeb."""
+    try:
+        with httpx.Client() as client:
+            response = client.get(APPWEB_URL)
+            return response.text
+    except Exception as e:
+        return f"<h1>Error conectando a appWeb</h1><p>{str(e)}</p>"
 
 
 @router.get("/stats")
