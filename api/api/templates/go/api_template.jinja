@@ -26,7 +26,7 @@ func main() {
 	databaseURL := os.Getenv("DATABASE_URL")
 
 	{% if db == 'postgresql' %}
-	db, err = sql.Open("postgres", databaseURL)
+	db, err = sql.Open("postgres", databaseURL+"?sslmode=disable")
 	{% elif db in ['mysql', 'mariadb'] %}
 	// Convertir URL a formato DSN de Go: user:pass@tcp(host:port)/dbname
 	dsn := convertMySQLURL(databaseURL)
