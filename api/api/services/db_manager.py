@@ -47,8 +47,8 @@ def _crear_usuario_y_bd(db_type: str, api_name: str, usr: str, paswd: str):
         cursor = conn.cursor()
         try:
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{api_name}_db`;")
-            cursor.execute(f"CREATE USER IF NOT EXISTS '{usr}'@'%' IDENTIFIED BY %s;", (paswd,))
-            cursor.execute(f"GRANT ALL PRIVILEGES ON `{api_name}_db`.* TO '{usr}'@'%';")
+            cursor.execute(f"CREATE USER IF NOT EXISTS '{usr}'@'%%' IDENTIFIED BY %s;", (paswd,))
+            cursor.execute(f"GRANT ALL PRIVILEGES ON `{api_name}_db`.* TO '{usr}'@'%%';")
             cursor.execute("FLUSH PRIVILEGES;")
         finally:
             conn.commit()
@@ -110,7 +110,7 @@ def _drop_user_database(db_type: str, api_name: str, usr: str):
         cursor = conn.cursor()
         try:
             cursor.execute(f"DROP DATABASE IF EXISTS `{db_name}`;")
-            cursor.execute(f"DROP USER IF EXISTS '{usr}'@'%';")
+            cursor.execute(f"DROP USER IF EXISTS '{usr}'@'%%';")
             cursor.execute("FLUSH PRIVILEGES;")
         except Exception:
             pass
