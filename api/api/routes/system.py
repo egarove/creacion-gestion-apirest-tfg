@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.orm import Session
 
-from api.settings import APPWEB_URL
+from settings import APPWEB_URL
 from models import DBModel
 from events.db import get_db
 from services.docker_service import get_container_status, get_container_logs
