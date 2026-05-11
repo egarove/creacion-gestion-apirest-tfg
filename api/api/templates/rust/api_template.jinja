@@ -32,6 +32,10 @@ fn get_pool() -> Pool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let path = database_url.replace("sqlite:///", "");
     let conn = Connection::open(&path).expect("Error abriendo SQLite");
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS data_{{ api_name }} (id INTEGER PRIMARY KEY AUTOINCREMENT, {% for col in columns %}{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})",
+        [],
+    ).expect("Error creando tabla");
     Arc::new(Mutex::new(conn))
 }
 {% endif %}
