@@ -72,8 +72,12 @@ int main() {
     });
 
     {% for endpoint in endpoints %}
-    CROW_ROUTE(app, "{{ endpoint.path }}").methods(crow::HTTPMethod::{{ endpoint.method | upper }})(
+    CROW_ROUTE(app, "{{ endpoint.path | replace('{id}', '<string>') }}").methods(crow::HTTPMethod::{{ endpoint.method | upper }})(
+        {% if '{id}' in endpoint.path %}
+        [](const crow::request& req, std::string path_id) {
+        {% else %}
         []({% if endpoint.logic != 'select' %}const crow::request& req{% endif %}) {
+        {% endif %}
         {% if endpoint.logic == 'select' %}
         {% if db == 'postgresql' %}
         PGresult* res = PQexec(db_conn, "SELECT * FROM data_{{ api_name }}");
@@ -194,11 +198,15 @@ int main() {
             return err;
         }
         std::string id_val;
+        {% if '{id}' in endpoint.path %}
+        id_val = path_id;
+        {% else %}
         if (body.has("id")) id_val = std::string(body["id"]);
         if (id_val.empty()) {
             crow::json::wvalue err; err["error"] = "id required";
             return err;
         }
+        {% endif %}
         std::ostringstream sets_ss;
         {% if db == 'postgresql' %}
         std::vector<std::string> paramStrs;
@@ -265,11 +273,15 @@ int main() {
             return err;
         }
         std::string id_val;
+        {% if '{id}' in endpoint.path %}
+        id_val = path_id;
+        {% else %}
         if (body.has("id")) id_val = std::string(body["id"]);
         if (id_val.empty()) {
             crow::json::wvalue err; err["error"] = "id required";
             return err;
         }
+        {% endif %}
         {% if db == 'postgresql' %}
         const char* paramValues[1] = { id_val.c_str() };
         PGresult* res = PQexecParams(db_conn, "DELETE FROM data_{{ api_name }} WHERE id = $1", 1, nullptr, paramValues, nullptr, nullptr, 0);

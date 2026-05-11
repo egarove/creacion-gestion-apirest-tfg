@@ -50,6 +50,9 @@ public class App {
     @DeleteMapping("{{ endpoint.path }}")
     {% endif %}
     public ResponseEntity<?> {{ endpoint.function_name }}(
+        {% if '{id}' in endpoint.path %}
+        @PathVariable(name = "id", required = false) String pathId,
+        {% endif %}
         {% if endpoint.logic != 'select' %}
         @RequestBody(required = false) Map<String, Object> body
         {% endif %}
@@ -74,13 +77,14 @@ public class App {
             jdbc.update(sql, values.toArray());
             return ResponseEntity.ok(Map.of("msg", "inserted"));
             {% elif endpoint.logic == 'update' %}
-            if (body == null || !body.containsKey("id")) {
+            Object id = {% if '{id}' in endpoint.path %}pathId != null ? pathId : {% endif %}(body != null ? body.get("id") : null);
+            if (id == null) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Se requiere id"));
             }
-            Object id = body.remove("id");
+            if (body != null) body.remove("id");
             StringJoiner sets = new StringJoiner(", ");
             List<Object> values = new ArrayList<>();
-            for (Map.Entry<String, Object> entry : body.entrySet()) {
+            for (Map.Entry<String, Object> entry : (body != null ? body : Map.<String,Object>of()).entrySet()) {
                 sets.add(entry.getKey() + " = ?");
                 values.add(entry.getValue());
             }
@@ -89,7 +93,7 @@ public class App {
             jdbc.update(sql, values.toArray());
             return ResponseEntity.ok(Map.of("msg", "updated"));
             {% elif endpoint.logic == 'delete' %}
-            Object id = (body != null) ? body.get("id") : null;
+            Object id = {% if '{id}' in endpoint.path %}pathId != null ? pathId : {% endif %}(body != null ? body.get("id") : null);
             if (id == null) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Se requiere id"));
             }

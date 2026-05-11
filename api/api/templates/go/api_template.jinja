@@ -56,7 +56,7 @@ func main() {
 	})
 
 	{% for endpoint in endpoints %}
-	r.{{ endpoint.method | upper }}("{{ endpoint.path }}", func(c *gin.Context) {
+	r.{{ endpoint.method | upper }}("{{ endpoint.path | replace('{', ':') | replace('}', '') }}", func(c *gin.Context) {
 		{% if endpoint.logic == 'select' %}
 		rows, err := db.Query("SELECT * FROM data_{{ api_name }}")
 		if err != nil {
