@@ -64,7 +64,7 @@ services:
   mysql:
     image: mysql
     restart: unless-stopped
-    command: --innodb-buffer-pool-size=64M --innodb-log-file-size=32M --max-connections=50 --performance-schema=OFF
+    command: --innodb-buffer-pool-size=64M --max-connections=50 --performance-schema=OFF
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: mysql
