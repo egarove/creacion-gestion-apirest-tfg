@@ -369,6 +369,30 @@ input[type=checkbox]{{width:13px;height:13px;cursor:pointer;accent-color:var(--p
 
 <div class="toasts" id="toasts"></div>
 
+<!-- Error guard: fires even if the main script has a parse error -->
+<script>
+window.__jsOk=false;
+window.onerror=function(msg,src,line,col,err){{
+  if(window.__jsOk)return false;
+  var el=document.getElementById('conn-error');
+  var ml=document.getElementById('conn-msg');
+  var tb=document.getElementById('tbody');
+  var cl=document.getElementById('cards-list');
+  if(el)el.classList.add('show');
+  if(ml)ml.textContent='Error JS (línea '+line+'): '+msg;
+  if(tb)tb.innerHTML='';
+  if(cl)cl.innerHTML='';
+  return true;
+}};
+window.addEventListener('unhandledrejection',function(e){{
+  if(window.__jsOk)return;
+  var el=document.getElementById('conn-error');
+  var ml=document.getElementById('conn-msg');
+  if(el)el.classList.add('show');
+  if(ml)ml.textContent='Error async: '+(e.reason&&e.reason.message?e.reason.message:String(e.reason));
+}});
+</script>
+
 <script>
 const COLS = {cols_js};
 const API_NAME = {name_js};
@@ -697,7 +721,9 @@ document.addEventListener('click',e=>{{
   if(!e.target.closest('.drop'))document.querySelectorAll('.dropmenu').forEach(m=>m.classList.remove('show'));
 }});
 
-init();
+window.__jsOk=true;
+(async()=>{{try{{await init();}}catch(e){{showError('Error al iniciar: '+e.message);}}
+}})();
 </script>
 </body></html>"""
 {% endraw %}

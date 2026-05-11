@@ -482,9 +482,31 @@ def rebuild_api(api: str, db: Session = Depends(get_db)):
             f"api-{api}",
         ])
 
+        _write_nginx_conf(api, port)
+        subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
+
         return {"mensaje": "API reconstruida", "puerto": port, "backup_port": backup_port}
     except Exception as e:
         return Response(status_code=500, content=str(e))
+
+@app.post("/{api}/fix-nginx")
+def fix_nginx(api: str, db: Session = Depends(get_db)):
+    """Regenera el conf de nginx para una API y recarga nginx."""
+    api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
+    if not api_data:
+        return Response(status_code=404, content=f"No se encontró la API {api}")
+    _write_nginx_conf(api, api_data.port)
+    subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
+    return {"mensaje": f"nginx conf regenerada para {api}", "puerto": api_data.port}
+
+@app.post("/fix-nginx-all")
+def fix_nginx_all(db: Session = Depends(get_db)):
+    """Regenera el conf de nginx para todas las APIs y recarga nginx."""
+    apis = db.query(DBModel).all()
+    for api_data in apis:
+        _write_nginx_conf(api_data.api_name, api_data.port)
+    subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
+    return {"mensaje": f"nginx conf regenerada para {len(apis)} APIs"}
 
 @app.post("/{api}/restore")
 def restore_api(api: str, db: Session = Depends(get_db)):
@@ -519,6 +541,9 @@ def restore_api(api: str, db: Session = Depends(get_db)):
             "-p", f"{backup_port}:8000",
             f"api-{api}"
         ])
+
+        _write_nginx_conf(api, port)
+        subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
 
         return {"mensaje": "API restaurada", "puerto": port, "backup_port": backup_port}
     except Exception as e:
@@ -618,6 +643,9 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
             "-p", f"{backup_port}:8000",
             f"api-{api}",
         ])
+
+        _write_nginx_conf(api, port)
+        subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
 
         return {"mensaje": "Endpoint añadido", "endpoint": endpoint.path}
     except Exception as e:
