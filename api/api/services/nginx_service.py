@@ -5,7 +5,7 @@ Gestor de Nginx para configurar reverse proxy de APIs.
 import os
 import subprocess
 
-from api.settings import NGINX_CONF_DIR
+from settings import NGINX_CONF_DIR
 
 
 
