@@ -40,7 +40,7 @@ def panel_web():
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panel · {_UI_API_NAME}</title>
 <style>
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
@@ -219,6 +219,18 @@ input[type=checkbox]{{width:13px;height:13px;cursor:pointer;accent-color:var(--p
 
   .toasts{{bottom:.875rem}}
   .pill-hide{{display:none}}
+  .page{{padding:.75rem .625rem}}
+  .tname{{max-width:calc(100vw - 110px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+  .si-inp{{font-size:16px}}
+  .mfi input{{font-size:16px}}
+  .fi input{{font-size:16px}}
+}}
+@media(max-width:380px){{
+  .stats{{gap:.35rem}}
+  .sc{{padding:.5rem;gap:.375rem}}
+  .sl{{display:none}}
+  .tsub{{display:none}}
+  .topbtn{{padding:.4rem .5rem}}
 }}
 @media(min-width:701px){{
   .ov{{align-items:center;padding:1rem}}
@@ -677,7 +689,7 @@ async function execDel(){{
 /* ── EXPORT ── */
 function exportCSV(){{
   const cols=['id',...COLS];
-  const csv=[cols.join(','),...filtered.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');
+  const csv=[cols.join(','),...filtered.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\\n');
   dl(API_NAME+'_export.csv',csv,'text/csv');closeDrop('exp-menu');toast('CSV exportado','ok');
 }}
 function exportJSON(){{
@@ -688,7 +700,7 @@ function exportJSON(){{
 function exportSelCSV(){{
   const sel=DATA.filter(r=>ST.sel.has(r.id));
   const cols=['id',...COLS];
-  const csv=[cols.join(','),...sel.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');
+  const csv=[cols.join(','),...sel.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\\n');
   dl(API_NAME+'_seleccion.csv',csv,'text/csv');toast('Exportado CSV','ok');
 }}
 function dl(name,content,type){{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{{type}}));a.download=name;a.click();}}

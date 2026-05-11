@@ -1,7 +1,8 @@
+from typing import Optional
 from pydantic import BaseModel
 
 
-class UpdateApiModel (BaseModel):
+class UpdateApiModel(BaseModel):
     id: int
-    name: str = None
-    description: str = None
+    name: Optional[str] = None
+    description: Optional[str] = None

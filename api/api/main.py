@@ -19,8 +19,13 @@ from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from settings import API_IP
 from events.db import engine, Base, get_db
+
+def _reload_nginx():
+    try:
+        _reload_nginx()
+    except (FileNotFoundError, OSError):
+        pass
 from models import ApiModel, DBModel, UpdateApiModel
 from models.endpoint_model import Endpoint
 
@@ -155,11 +160,11 @@ def get_all_apis(db: Session = Depends(get_db)):
     for api in apis:
         try:
             status = client.containers.get(api.api_name).status
-        except:
+        except docker.errors.NotFound:
             status = "not_found"
         try:
             backup_status = client.containers.get(f"{api.api_name}_backup").status
-        except:
+        except docker.errors.NotFound:
             backup_status = "not_found"
         result.append({
             "api_name": api.api_name,
@@ -186,7 +191,7 @@ def get_stats(db: Session = Depends(get_db)):
                 running += 1
             else:
                 stopped += 1
-        except:
+        except docker.errors.NotFound:
             stopped += 1
         total_endpoints += len(api.endpoints or [])
     return {"total": len(apis), "running": running, "stopped": stopped, "total_endpoints": total_endpoints}
@@ -483,7 +488,7 @@ def rebuild_api(api: str, db: Session = Depends(get_db)):
         ])
 
         _write_nginx_conf(api, port)
-        subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
+        _reload_nginx()
 
         return {"mensaje": "API reconstruida", "puerto": port, "backup_port": backup_port}
     except Exception as e:
@@ -543,7 +548,7 @@ def restore_api(api: str, db: Session = Depends(get_db)):
         ])
 
         _write_nginx_conf(api, port)
-        subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
+        _reload_nginx()
 
         return {"mensaje": "API restaurada", "puerto": port, "backup_port": backup_port}
     except Exception as e:
@@ -617,7 +622,7 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
                         f"No se soporta añadir endpoints dinámicamente a lenguajes compilados."
             )
 
-        subprocess.run(["docker", "build", "-t", f"api-{api}", project_path])
+        subprocess.run(["docker", "build", "-t", f"api-{api}", project_path], check=True)
         subprocess.run(["docker", "rm", "-f", api])
         subprocess.run(["docker", "rm", "-f", f"{api}_backup"])
 
@@ -645,7 +650,7 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
         ])
 
         _write_nginx_conf(api, port)
-        subprocess.run(["sudo", "nginx", "-s", "reload"], check=False)
+        _reload_nginx()
 
         return {"mensaje": "Endpoint añadido", "endpoint": endpoint.path}
     except Exception as e:
@@ -661,7 +666,7 @@ def delete_api(api: str, db: Session = Depends(get_db)):
         client = docker.from_env()
         for suffix in ["", "_backup"]:
             try: client.containers.get(f"{api}{suffix}").remove(force=True)
-            except: pass
+            except docker.errors.NotFound: pass
 
         project_path = f"deployments/{api}"
         if os.path.exists(project_path): shutil.rmtree(project_path)

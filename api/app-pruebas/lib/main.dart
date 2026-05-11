@@ -12,7 +12,7 @@ class MainApp extends StatelessWidget {
 
   Future<void> create() async {
     final response = await http.post(
-      Uri.parse('http://192.168.1.131:8000/crear-api'),
+      Uri.parse('http://tfg-dam.libertoguillen.com:8000/crear-api'),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "api_name": "pruebas",
@@ -46,7 +46,7 @@ class MainApp extends StatelessWidget {
 
   Future<void> delete() async {
     final response = await http.post(
-      Uri.parse('http://192.168.1.132:8000/pruebas/delete'),
+      Uri.parse('http://tfg-dam.libertoguillen.com:8000/pruebas/delete'),
       headers: {"Content-Type": "application/json"},
     );
     if (response.statusCode == 200) {
@@ -58,7 +58,7 @@ class MainApp extends StatelessWidget {
 
   Future<void> start() async {
     final response = await http.post(
-      Uri.parse('http://192.168.1.132:8000/contenedor-pruebas/start'),
+      Uri.parse('http://tfg-dam.libertoguillen.com:8000/contenedor-pruebas/start'),
       headers: {"Content-Type": "application/json"},
     );
     if (response.statusCode == 200) {
@@ -70,7 +70,7 @@ class MainApp extends StatelessWidget {
 
   Future<void> stop() async {
     final response = await http.post(
-      Uri.parse('http://192.168.1.132:8000/contenedor-pruebas/stop'),
+      Uri.parse('http://tfg-dam.libertoguillen.com:8000/contenedor-pruebas/stop'),
       headers: {"Content-Type": "application/json"},
     );
     if (response.statusCode == 200) {
@@ -82,7 +82,7 @@ class MainApp extends StatelessWidget {
 
   Future<void> status() async {
     final response = await http.post(
-      Uri.parse('http://192.168.1.132:8000/contenedor-pruebas/status'),
+      Uri.parse('http://tfg-dam.libertoguillen.com:8000/contenedor-pruebas/status'),
       headers: {"Content-Type": "application/json"},
     );
     if (response.statusCode == 200) {
