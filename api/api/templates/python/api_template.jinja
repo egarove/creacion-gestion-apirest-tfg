@@ -38,16 +38,19 @@ async def {{ endpoint.function_name }}({% if endpoint.logic != 'select' %}reques
         return {"msg": "inserted"}
         {% elif endpoint.logic == 'update' %}
         body = await request.json()
-        if not body or 'id' not in body: return {"error": "id required in body"}
+        row_id = request.path_params.get('id') or body.get('id')
+        body['id'] = row_id
         sets = ", ".join(f"{k} = :{k}" for k in body.keys() if k != 'id')
         if not sets: return {"error": "no fields to update"}
         conn.execute(text(f"UPDATE data_{{ api_name }} SET {sets} WHERE id = :id"), body)
         conn.commit()
         return {"msg": "updated"}
         {% elif endpoint.logic == 'delete' %}
-        body = await request.json()
-        if not body or 'id' not in body: return {"error": "id required in body"}
-        conn.execute(text("DELETE FROM data_{{ api_name }} WHERE id = :id"), {"id": body["id"]})
+        body = {}
+        try: body = await request.json()
+        except: pass
+        row_id = request.path_params.get('id') or body.get('id')
+        conn.execute(text("DELETE FROM data_{{ api_name }} WHERE id = :id"), {"id": row_id})
         conn.commit()
         return {"msg": "deleted"}
         {% endif %}
