@@ -120,6 +120,18 @@ def _drop_user_database(db_type: str, api_name: str, usr: str):
             conn.close()
 
 
+def _is_port_available(port: int) -> bool:
+    """Comprueba que el puerto no está en uso en el sistema."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind(('0.0.0.0', port))
+            return True
+        except OSError:
+            return False
+
+
 def _get_free_port(db: Session) -> int:
     used = set()
     for row in db.query(DBModel).all():

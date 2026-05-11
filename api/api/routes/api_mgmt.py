@@ -18,6 +18,7 @@ from services.db_manager import (
     _crear_usuario_y_bd,
     _crear_tabla_en_bd_usuario,
     _get_free_port,
+    _is_port_available,
 )
 from services.docker_service import (
     _build_docker_env_args,
@@ -94,7 +95,28 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         if lang not in LANG_CONFIG:
             return Response(status_code=400, content=f"Lenguaje '{lang}' no soportado")
 
-        port = project.port if project.port is not None else _get_free_port(db)
+        if project.port is not None:
+            port = project.port
+            # Comprobar que el puerto y el de backup no están ya en BD
+            used_ports = set()
+            for row in db.query(DBModel).all():
+                used_ports.add(row.port)
+                if row.backup_port:
+                    used_ports.add(row.backup_port)
+            if port in used_ports:
+                return Response(status_code=400, content=f"El puerto {port} ya está en uso por otra API.")
+            if port + 1 in used_ports:
+                return Response(status_code=400, content=f"El puerto {port + 1} (backup) ya está en uso por otra API.")
+            # Comprobar que los puertos están libres en el sistema
+            if not _is_port_available(port):
+                return Response(status_code=400, content=f"El puerto {port} ya está en uso en el sistema.")
+            if not _is_port_available(port + 1):
+                return Response(status_code=400, content=f"El puerto {port + 1} (backup) ya está en uso en el sistema.")
+        else:
+            port = _get_free_port(db)
+
+        # generar_ui solo está implementado para Python
+        generar_ui = project.generar_ui and lang == "python"
 
         # Generar proyecto desde plantillas
         generate_api_project(
@@ -102,7 +124,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
             lang,
             project.db,
             project.endpoints,
-            project.generar_ui,
+            generar_ui,
             project.columns,
         )
 
@@ -133,7 +155,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
             columns=project.columns,
             paswd=project.paswd,
             endpoints=endpoints_data,
-            generar_ui=int(project.generar_ui),
+            generar_ui=int(generar_ui),
         )
         db.add(db_data)
         db.commit()
