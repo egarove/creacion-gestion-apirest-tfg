@@ -1,6 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -O2
 {% if db == 'postgresql' %}
+CFLAGS += -I$(shell pg_config --includedir)
 LIBS = -lmicrohttpd -lpq -lcjson
 {% elif db in ['mysql', 'mariadb'] %}
 LIBS = -lmicrohttpd $(shell mysql_config --libs) -lcjson
