@@ -4,7 +4,18 @@ from sqlalchemy import create_engine, text
 import os
 
 app = FastAPI()
-engine = create_engine(os.getenv("DATABASE_URL"))
+DATABASE_URL = os.getenv("DATABASE_URL")
+connect_args = {"check_same_thread": False} if DATABASE_URL and DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+{% if db == 'sqlite' %}
+with engine.connect() as _conn:
+    _conn.execute(text(
+        "CREATE TABLE IF NOT EXISTS data_{{ api_name }} "
+        "(id INTEGER PRIMARY KEY AUTOINCREMENT, {% for col in columns %}{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})"
+    ))
+    _conn.commit()
+{% endif %}
 
 @app.get("/")
 def root():

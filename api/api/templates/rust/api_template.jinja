@@ -1,4 +1,4 @@
-use actix_web::{web, App, HttpServer, HttpResponse, middleware};
+use actix_web::{web, App, HttpServer, HttpResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::env;
@@ -19,9 +19,20 @@ use mysql_async::Pool;
 
 fn get_pool() -> Pool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    // Convertir formato pymysql a mysql nativo
     let url = database_url.replace("mysql+pymysql://", "mysql://");
     Pool::new(url.as_str())
+}
+{% elif db == 'sqlite' %}
+use rusqlite::{Connection, params};
+use std::sync::{Arc, Mutex};
+
+type Pool = Arc<Mutex<Connection>>;
+
+fn get_pool() -> Pool {
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let path = database_url.replace("sqlite:///", "");
+    let conn = Connection::open(&path).expect("Error abriendo SQLite");
+    Arc::new(Mutex::new(conn))
 }
 {% endif %}
 
@@ -79,6 +90,25 @@ async fn {{ endpoint.function_name }}(
         map
     }).collect();
     HttpResponse::Ok().json(results)
+    {% elif db == 'sqlite' %}
+    let conn = pool.lock().unwrap();
+    let mut stmt = conn.prepare("SELECT * FROM data_{{ api_name }}").unwrap();
+    let col_names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+    let results: Vec<std::collections::HashMap<String, Value>> = stmt.query_map([], |row| {
+        let mut map = std::collections::HashMap::new();
+        for (i, col) in col_names.iter().enumerate() {
+            let v: rusqlite::types::Value = row.get(i).unwrap_or(rusqlite::types::Value::Null);
+            let jv = match v {
+                rusqlite::types::Value::Integer(n) => json!(n),
+                rusqlite::types::Value::Real(f) => json!(f),
+                rusqlite::types::Value::Text(s) => json!(s),
+                _ => json!(null),
+            };
+            map.insert(col.clone(), jv);
+        }
+        Ok(map)
+    }).unwrap().filter_map(|r| r.ok()).collect();
+    HttpResponse::Ok().json(results)
     {% endif %}
 }
 {% elif endpoint.logic == 'insert' %}
@@ -105,6 +135,16 @@ async fn {{ endpoint.function_name }}(
     let mut conn = pool.get_conn().await.unwrap();
     let values: Vec<String> = fields.values().map(|v| v.as_str().unwrap_or("").to_string()).collect();
     match conn.exec_drop(&sql, values).await {
+        Ok(_) => HttpResponse::Ok().json(json!({"msg": "inserted"})),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
+    {% elif db == 'sqlite' %}
+    let placeholders = vec!["?"; keys.len()].join(", ");
+    let sql = format!("INSERT INTO data_{{ api_name }} ({}) VALUES ({})", cols, placeholders);
+    let conn = pool.lock().unwrap();
+    let values: Vec<String> = fields.values().map(|v| v.as_str().unwrap_or("").to_string()).collect();
+    let p: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v as &dyn rusqlite::types::ToSql).collect();
+    match conn.execute(&sql, p.as_slice()) {
         Ok(_) => HttpResponse::Ok().json(json!({"msg": "inserted"})),
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }
@@ -138,6 +178,17 @@ async fn {{ endpoint.function_name }}(
         Ok(_) => HttpResponse::Ok().json(json!({"msg": "updated"})),
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }
+    {% elif db == 'sqlite' %}
+    let sets: Vec<String> = fields.keys().map(|k| format!("{} = ?", k)).collect();
+    let sql = format!("UPDATE data_{{ api_name }} SET {} WHERE id = ?", sets.join(", "));
+    let conn = pool.lock().unwrap();
+    let mut values: Vec<String> = fields.values().map(|v| v.as_str().unwrap_or("").to_string()).collect();
+    values.push(id.to_string().trim_matches('"').to_string());
+    let p: Vec<&dyn rusqlite::types::ToSql> = values.iter().map(|v| v as &dyn rusqlite::types::ToSql).collect();
+    match conn.execute(&sql, p.as_slice()) {
+        Ok(_) => HttpResponse::Ok().json(json!({"msg": "updated"})),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
     {% endif %}
 }
 {% elif endpoint.logic == 'delete' %}
@@ -160,6 +211,13 @@ async fn {{ endpoint.function_name }}(
         Ok(_) => HttpResponse::Ok().json(json!({"msg": "deleted"})),
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }
+    {% elif db == 'sqlite' %}
+    let id_str = id.to_string().trim_matches('"').to_string();
+    let conn = pool.lock().unwrap();
+    match conn.execute("DELETE FROM data_{{ api_name }} WHERE id = ?1", rusqlite::params![id_str]) {
+        Ok(_) => HttpResponse::Ok().json(json!({"msg": "deleted"})),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
     {% endif %}
 }
 {% endif %}
@@ -170,14 +228,12 @@ async fn main() -> std::io::Result<()> {
     let pool = get_pool();
 
     HttpServer::new(move || {
-        let mut app = App::new()
-            .route("/", web::get().to(root));
-
-        {% for endpoint in endpoints %}
-        app = app.app_data(web::Data::new(pool.clone()));
-        app = app.route("{{ endpoint.path }}", web::{{ endpoint.method | lower }}().to({{ endpoint.function_name }}));
-        {% endfor %}
-
+        let app = App::new()
+            .app_data(web::Data::new(pool.clone()))
+            .route("/", web::get().to(root))
+            {% for endpoint in endpoints %}
+            .route("{{ endpoint.path }}", web::{{ endpoint.method | lower }}().to({{ endpoint.function_name }}))
+            {% endfor %};
         app
     })
     .bind("0.0.0.0:8000")?

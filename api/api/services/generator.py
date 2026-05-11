@@ -9,15 +9,15 @@ from settings import LANG_CONFIG
 from models.endpoint_model import Endpoint
 
 
-def generate_api_project(api_name: str, language: str, db: str, endpoints: list, generar_ui: bool):
+def generate_api_project(api_name: str, language: str, db: str, endpoints: list, generar_ui: bool, columns: list = None):
     """Genera la estructura de proyecto para una nueva API."""
     if language not in LANG_CONFIG:
         raise ValueError(f"Lenguaje '{language}' no soportado")
-    
+
     config = LANG_CONFIG[language]
     project_path = f"deployments/{api_name}"
     os.makedirs(project_path, exist_ok=True)
-    
+
     # Generar main file
     env = Environment(loader=FileSystemLoader(config["template_dir"]))
     template = env.get_template("api_template.jinja")
@@ -26,6 +26,7 @@ def generate_api_project(api_name: str, language: str, db: str, endpoints: list,
         endpoints=endpoints,
         generar_ui=generar_ui,
         db=db,
+        columns=columns or [],
     )
     
     main_file_path = os.path.join(project_path, config["main_file"])

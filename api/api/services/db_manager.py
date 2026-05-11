@@ -86,6 +86,40 @@ def _crear_tabla_en_bd_usuario(db_type: str, api_name: str, usr: str, paswd: str
         conn.close()
 
 
+def _drop_user_database(db_type: str, api_name: str, usr: str):
+    """Elimina la base de datos y el usuario creados para la API."""
+    if db_type == "sqlite":
+        db_path = f"deployments/{api_name}/{api_name}.db"
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        return
+    db_name = f"{api_name}_db"
+    if db_type == "postgresql":
+        conn = psycopg2.connect(host="postgres", port=5432, dbname="postgres", user="user", password="password")
+        conn.autocommit = True
+        cursor = conn.cursor()
+        try:
+            cursor.execute(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s;", (db_name,))
+            cursor.execute(f"DROP DATABASE IF EXISTS {quote_ident(db_name, conn)};")
+        except Exception:
+            pass
+        cursor.close()
+        conn.close()
+    elif db_type in ("mariadb", "mysql"):
+        conn = pymysql.connect(host=db_type, port=3306, user="root", password="password")
+        cursor = conn.cursor()
+        try:
+            cursor.execute(f"DROP DATABASE IF EXISTS `{db_name}`;")
+            cursor.execute(f"DROP USER IF EXISTS '{usr}'@'%';")
+            cursor.execute("FLUSH PRIVILEGES;")
+        except Exception:
+            pass
+        finally:
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+
 def _get_free_port(db: Session) -> int:
     used = set()
     for row in db.query(DBModel).all():

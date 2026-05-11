@@ -13,4 +13,6 @@ tokio-postgres = "0.7"
 deadpool-postgres = "0.14"
 {% elif db in ['mysql', 'mariadb'] %}
 mysql_async = "0.33"
+{% elif db == 'sqlite' %}
+rusqlite = { version = "0.31", features = ["bundled"] }
 {% endif %}

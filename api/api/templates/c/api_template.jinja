@@ -7,6 +7,8 @@
 #include <libpq-fe.h>
 {% elif db in ['mysql', 'mariadb'] %}
 #include <mysql/mysql.h>
+{% elif db == 'sqlite' %}
+#include <sqlite3.h>
 {% endif %}
 
 #define PORT 8000
@@ -35,6 +37,18 @@ void init_db() {
     sscanf(url, "%*[^/]//%63[^:]:%63[^@]@%127[^:]:%d/%63s", user, pass, host, &port, dbname);
     if (!mysql_real_connect(db_conn, host, user, pass, dbname, port, NULL, 0)) {
         fprintf(stderr, "Error conexion BD: %s\n", mysql_error(db_conn));
+        exit(1);
+    }
+}
+{% elif db == 'sqlite' %}
+static sqlite3 *db_conn = NULL;
+
+void init_db() {
+    const char *url = getenv("DATABASE_URL");
+    const char *path = url;
+    if (strncmp(url, "sqlite:///", 10) == 0) path = url + 10;
+    if (sqlite3_open(path, &db_conn) != SQLITE_OK) {
+        fprintf(stderr, "Error abriendo BD: %s\n", sqlite3_errmsg(db_conn));
         exit(1);
     }
 }
@@ -110,6 +124,15 @@ static char *do_insert(const char *body) {
     } else {
         result = strdup("{\"msg\":\"inserted\"}");
     }
+    {% elif db == 'sqlite' %}
+    char *errmsg = NULL;
+    if (sqlite3_exec(db_conn, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", errmsg ? errmsg : "sqlite error");
+        if (errmsg) sqlite3_free(errmsg);
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"inserted\"}");
+    }
     {% endif %}
     cJSON_Delete(json);
     return result;
@@ -165,11 +188,11 @@ static char *do_update(const char *body) {
     if (idx == 0) { cJSON_Delete(json); return strdup("{\"error\":\"no fields to update\"}"); }
 
     char sql[8192];
+    char *result;
     {% if db == 'postgresql' %}
     snprintf(sql, sizeof(sql), "UPDATE data_{{ api_name }} SET %s WHERE id = $%d", sets, idx + 1);
     paramValues[idx] = id_str;
     PGresult *res = PQexecParams(db_conn, sql, idx + 1, NULL, paramValues, NULL, NULL, 0);
-    char *result;
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
         char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", PQerrorMessage(db_conn));
         result = strdup(err);
@@ -180,9 +203,18 @@ static char *do_update(const char *body) {
     {% elif db in ['mysql', 'mariadb'] %}
     char escaped_id[128]; mysql_real_escape_string(db_conn, escaped_id, id_str, strlen(id_str));
     snprintf(sql, sizeof(sql), "UPDATE data_{{ api_name }} SET %s WHERE id = '%s'", sets, escaped_id);
-    char *result;
     if (mysql_query(db_conn, sql) != 0) {
         char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", mysql_error(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"updated\"}");
+    }
+    {% elif db == 'sqlite' %}
+    snprintf(sql, sizeof(sql), "UPDATE data_{{ api_name }} SET %s WHERE id = '%s'", sets, id_str);
+    char *errmsg = NULL;
+    if (sqlite3_exec(db_conn, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", errmsg ? errmsg : "sqlite error");
+        if (errmsg) sqlite3_free(errmsg);
         result = strdup(err);
     } else {
         result = strdup("{\"msg\":\"updated\"}");
@@ -222,6 +254,16 @@ static char *do_delete(const char *body) {
     char sql[512]; snprintf(sql, sizeof(sql), "DELETE FROM data_{{ api_name }} WHERE id = '%s'", escaped_id);
     if (mysql_query(db_conn, sql) != 0) {
         char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", mysql_error(db_conn));
+        result = strdup(err);
+    } else {
+        result = strdup("{\"msg\":\"deleted\"}");
+    }
+    {% elif db == 'sqlite' %}
+    char sql[512]; snprintf(sql, sizeof(sql), "DELETE FROM data_{{ api_name }} WHERE id = '%s'", id_str);
+    char *errmsg = NULL;
+    if (sqlite3_exec(db_conn, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
+        char err[1024]; snprintf(err, sizeof(err), "{\"error\":\"%s\"}", errmsg ? errmsg : "sqlite error");
+        if (errmsg) sqlite3_free(errmsg);
         result = strdup(err);
     } else {
         result = strdup("{\"msg\":\"deleted\"}");
@@ -316,6 +358,35 @@ static enum MHD_Result handle_request(void *cls, struct MHD_Connection *connecti
         }
         strcat(resp_str, "]");
         mysql_free_result(res);
+        {% elif db == 'sqlite' %}
+        sqlite3_stmt *stmt = NULL;
+        size_t buf_size = 4096;
+        resp_str = malloc(buf_size);
+        strcpy(resp_str, "[");
+        int first_row = 1;
+        if (sqlite3_prepare_v2(db_conn, "SELECT * FROM data_{{ api_name }}", -1, &stmt, NULL) == SQLITE_OK) {
+            int ncols = sqlite3_column_count(stmt);
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                if (!first_row) strcat(resp_str, ",");
+                first_row = 0;
+                strcat(resp_str, "{");
+                for (int j = 0; j < ncols; j++) {
+                    if (j > 0) strcat(resp_str, ",");
+                    const char *cname = sqlite3_column_name(stmt, j);
+                    const char *cval = (const char *)sqlite3_column_text(stmt, j);
+                    char field[512];
+                    snprintf(field, sizeof(field), "\"%s\":\"%s\"", cname, cval ? cval : "null");
+                    if (strlen(resp_str) + strlen(field) + 10 > buf_size) {
+                        buf_size *= 2;
+                        resp_str = realloc(resp_str, buf_size);
+                    }
+                    strcat(resp_str, field);
+                }
+                strcat(resp_str, "}");
+            }
+            sqlite3_finalize(stmt);
+        }
+        strcat(resp_str, "]");
         {% endif %}
         {% elif endpoint.logic == 'insert' %}
         resp_str = do_insert(pd->data);
@@ -365,6 +436,8 @@ int main() {
     PQfinish(db_conn);
     {% elif db in ['mysql', 'mariadb'] %}
     mysql_close(db_conn);
+    {% elif db == 'sqlite' %}
+    sqlite3_close(db_conn);
     {% endif %}
     return 0;
 }

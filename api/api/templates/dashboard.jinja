@@ -707,7 +707,7 @@ function cardHTML(api) {
       <button class="card-btn detail" onclick="openPanel('${api.api_name}')">
         <i class="fas fa-eye"></i> Detalle
       </button>
-      ${api.generar_ui?`<button class="card-btn link" title="Abrir panel UI" onclick="window.open('http://${HOST}:${api.port}/ui','_blank')"><i class="fas fa-external-link-alt"></i></button>`:'<span></span>'}
+      ${api.generar_ui?`<button class="card-btn link" title="Abrir panel UI" onclick="window.open('/app/${api.api_name}/ui','_blank')"><i class="fas fa-external-link-alt"></i></button>`:'<span></span>'}
       <button class="card-btn danger" onclick="openDeleteModal('${api.api_name}')"><i class="fas fa-trash"></i></button>
     </div>
   </div>`;
@@ -800,7 +800,7 @@ function renderPanel() {
 
   // UI URL
   const uiDiv=document.getElementById('panel-ui-url');
-  if(api.generar_ui){const u=`http://${HOST}:${api.port}/ui`;uiDiv.innerHTML=`<div class="url-row"><i class="fas fa-desktop" style="color:var(--success);flex-shrink:0"></i><span class="url-text">${u}</span><button class="icon-btn" onclick="copyText('${u}')" title="Copiar"><i class="fas fa-copy"></i></button><button class="icon-btn" onclick="window.open('${u}','_blank')" title="Abrir"><i class="fas fa-external-link-alt"></i></button></div>`;}
+  if(api.generar_ui){const u=`/app/${api.api_name}/ui`;uiDiv.innerHTML=`<div class="url-row"><i class="fas fa-desktop" style="color:var(--success);flex-shrink:0"></i><span class="url-text">${u}</span><button class="icon-btn" onclick="copyText('${u}')" title="Copiar"><i class="fas fa-copy"></i></button><button class="icon-btn" onclick="window.open('${u}','_blank')" title="Abrir"><i class="fas fa-external-link-alt"></i></button></div>`;}
   else uiDiv.innerHTML='';
 
   // cURL examples

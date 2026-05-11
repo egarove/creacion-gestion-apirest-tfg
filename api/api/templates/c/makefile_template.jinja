@@ -5,6 +5,8 @@ LIBS = -lmicrohttpd -lpq -lcjson
 {% elif db in ['mysql', 'mariadb'] %}
 LIBS = -lmicrohttpd $(shell mysql_config --libs) -lcjson
 CFLAGS += $(shell mysql_config --cflags)
+{% elif db == 'sqlite' %}
+LIBS = -lmicrohttpd -lsqlite3 -lcjson
 {% endif %}
 
 all: server

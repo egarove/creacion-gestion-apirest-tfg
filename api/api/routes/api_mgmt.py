@@ -103,6 +103,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
             project.db,
             project.endpoints,
             project.generar_ui,
+            project.columns,
         )
 
         # Construir imagen Docker
@@ -299,7 +300,14 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
         port = api_data.port
         backup_port = api_data.backup_port or (port + 1)
 
-        env_args = ["-e", f"DATABASE_URL={url}"]
+        env_args = _build_docker_env_args(
+            api_data.language or "python",
+            api_data.db,
+            url,
+            api_data.usr,
+            api_data.paswd,
+            api,
+        )
         start_api_containers(api, port, backup_port, env_args)
 
         _write_nginx_conf(api, port)
@@ -328,8 +336,14 @@ def delete_api(api: str, db: Session = Depends(get_db)):
 
         # Eliminar registro de BD
         db.delete(reg)
-        db.execute(text(f"DROP TABLE IF EXISTS data_{api}"))
         db.commit()
+
+        # Limpiar la BD del usuario de la API
+        from services.db_manager import _drop_user_database
+        try:
+            _drop_user_database(reg.db, api, reg.usr)
+        except Exception:
+            pass
 
         # Eliminar configuración de nginx
         try:
