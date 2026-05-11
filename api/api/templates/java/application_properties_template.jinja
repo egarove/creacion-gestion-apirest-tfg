@@ -11,6 +11,8 @@ spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 {% elif db == 'sqlite' %}
 spring.datasource.url=jdbc:sqlite:{{ api_name }}.db
 spring.datasource.driver-class-name=org.sqlite.JDBC
+spring.datasource.username=
+spring.datasource.password=
 {% endif %}
 server.port=8000
 
