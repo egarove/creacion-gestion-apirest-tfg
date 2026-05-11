@@ -45,6 +45,10 @@ func main() {
 		log.Fatalf("Error ping a la BD: %v", err)
 	}
 
+	{% if db == 'sqlite' %}
+	db.Exec("CREATE TABLE IF NOT EXISTS data_{{ api_name }} (id INTEGER PRIMARY KEY AUTOINCREMENT, {% for col in columns %}{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})")
+	{% endif %}
+
 	r := gin.Default()
 
 	r.GET("/", func(c *gin.Context) {

@@ -6,8 +6,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.ResponseEntity;
+{% if db == 'sqlite' %}
+import jakarta.annotation.PostConstruct;
+{% endif %}
 
 import java.util.*;
+import java.util.StringJoiner;
 
 @SpringBootApplication
 @RestController
@@ -19,6 +23,13 @@ public class App {
     public static void main(String[] args) {
         SpringApplication.run(App.class, args);
     }
+
+    {% if db == 'sqlite' %}
+    @PostConstruct
+    public void initDb() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS data_{{ api_name }} (id INTEGER PRIMARY KEY AUTOINCREMENT, {% for col in columns %}{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})");
+    }
+    {% endif %}
 
     @GetMapping("/")
     public Map<String, String> root() {

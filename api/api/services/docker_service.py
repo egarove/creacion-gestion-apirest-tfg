@@ -32,7 +32,12 @@ def _build_docker_env_args(lang: str, db_type: str, url: str, usr: str, paswd: s
 
 def build_docker_image(api_name: str, project_path: str):
     """Construye la imagen Docker para una API."""
-    subprocess.run(["docker", "build", "-t", f"api-{api_name}", project_path], check=True)
+    result = subprocess.run(
+        ["docker", "build", "-t", f"api-{api_name}", project_path],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Docker build failed:\n{result.stderr[-3000:]}")
 
 
 def start_api_containers(api_name: str, port: int, backup_port: int, env_args: list):

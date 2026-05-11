@@ -47,6 +47,7 @@ void init_db() {
         std::cerr << "Error abriendo BD: " << sqlite3_errmsg(db_conn) << std::endl;
         std::exit(1);
     }
+    sqlite3_exec(db_conn, "CREATE TABLE IF NOT EXISTS data_{{ api_name }} (id INTEGER PRIMARY KEY AUTOINCREMENT, {% for col in columns %}{{ col }}{% if not loop.last %}, {% endif %}{% endfor %})", nullptr, nullptr, nullptr);
 }
 {% endif %}
 
