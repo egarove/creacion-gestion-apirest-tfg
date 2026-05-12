@@ -1,7 +1,3 @@
-# Variables de entorno (contienen IPs y contraseñas)
-.env
-**/.env
-
 # APIs generadas dinámicamente
 api/api/deployments/
 
