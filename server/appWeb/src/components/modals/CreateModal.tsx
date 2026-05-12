@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import type { Endpoint, Toast } from '../types';
-import { LANG_OPTS, DB_OPTS } from '../constants';
-import { createApi } from '../services/apiService';
+import type { Endpoint, Toast } from '../../types';
+import { LANG_OPTS, DB_OPTS } from '../../constants';
+import { createApi } from '../../services/apiService';
 
 interface CreateModalProps {
   close: () => void;

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { Api, Toast } from "../types";
 import { LANG_OPTS, DB_OPTS } from "../constants";
 import * as ApiService from "../services/apiService";
@@ -6,18 +6,26 @@ import Sidebar from "../components/Sidebar";
 import StatCard from "../components/StatCard";
 import ApiCard from "../components/ApiCard";
 import Panel from "../components/Panel";
-import CreateModal from "../components/CreateModal";
-import DeleteModal from "../components/DeleteModal";
-import ToastList from "../components/ToastList";
+import CreateModal from "../components/modals/CreateModal";
+import DeleteModal from "../components/modals/DeleteModal";
 import LoadingOverlay from "../components/LoadingOverlay";
-import { auth } from "../services/LogInService";
+import { auth } from "../FirebaseConfig";
 import { useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from 'uuid';
+import { useContextStore } from "../contextZustand";
+
 
 export default function App() {
-    // if (!auth.currentUser) {
-    //     const navigate = useNavigate();
-    //     navigate("/login");
-    // }
+    const navigate = useNavigate();
+    const context = useContextStore();
+    const user = context.user;
+    useEffect(() => {
+        if (!user) {
+            navigate("/login");
+        }
+    }, [user, navigate]);
+    if (!user) return null;
+
     const [apis, setApis] = useState<Api[]>([]);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
@@ -26,8 +34,6 @@ export default function App() {
     const [sortParam, setSortParam] = useState('name');
 
     const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
-    const [toasts, setToasts] = useState<Toast[]>([]);
-    const toastIdSeq = useRef<number>(0);
 
     const [panelApi, setPanelApi] = useState<Api | null>(null);
     const [showCreate, setShowCreate] = useState(false);
@@ -37,21 +43,24 @@ export default function App() {
     const stopCount = apis.length - runCount;
     const epsCount = apis.reduce((s, x) => s + (x.endpoints || []).length, 0);
 
+
     const showToast = (msg: string, type: Toast['type'] = 'info') => {
-        const id = toastIdSeq.current++;
-        setToasts(prev => [...prev, { id, msg, type }]);
-        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+        context.addToast({ id: uuidv4(), msg, type });
     };
 
     const showLoading = (msg: string) => setLoadingMsg(msg);
     const hideLoading = () => setLoadingMsg(null);
 
+
     const fetchApis = async (manual = false) => {
         try {
             const data = await ApiService.getAllApis();
-            setApis(data);
+            console.log(user?.apis);
+            //const myApis = user?.role === "admin" ? data : user?.apis ? data.filter(a => user?.apis?.map((api) => api.api_name).includes(a.api_name)) : [];
+            const myApis = data;
+            setApis(myApis);
             if (panelApi) {
-                const updated = data.find(a => a.api_name === panelApi.api_name);
+                const updated = myApis.find(a => a.api_name === panelApi.api_name);
                 if (updated) setPanelApi(updated);
             }
             if (manual) showToast('APIs actualizadas', 'success');
@@ -235,8 +244,6 @@ export default function App() {
                     confirm={handleDeleteApi}
                 />
             )}
-
-            <ToastList toasts={toasts} />
             {loadingMsg && <LoadingOverlay message={loadingMsg} />}
         </div>
     );

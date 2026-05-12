@@ -1,7 +1,12 @@
 import { useState } from 'react';
-import { auth, firebaseAuth } from '../services/LogInService';
+import { firebaseAuth } from '../services/LogInService';
 import type { Api } from '../types';
-import { UserModal } from './UserModal';
+import { UserModal } from './modals/UserModal';
+import { auth } from '../FirebaseConfig';
+import { useNavigate } from 'react-router-dom';
+import AlertModal from './modals/AlertModal';
+import { useContextStore } from '../contextZustand';
+import { firebaseServiceUser } from '../services/FireStoreService';
 
 interface SidebarProps {
   apis: Api[];
@@ -14,6 +19,18 @@ interface SidebarProps {
 
 export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh, onNewApi }: SidebarProps) {
   const [userModal, setUserModal] = useState(false);
+  const navigate = useNavigate();
+  const [alertModal, setAlertModal] = useState(false);
+  const context = useContextStore();
+  const handleLogout = async () => {
+    await firebaseAuth.logOut();
+    context.addToast({ msg: 'Sesión cerrada correctamente', type: 'success', id: crypto.randomUUID() })
+    context.clearUser();
+    context.clearApis();
+    firebaseServiceUser.setCollection("");
+    setUserModal(false);
+    navigate("/");
+  };
   return (
     <aside className="fixed top-0 left-0 w-[270px] h-screen bg-surface border-r border-borderNormal flex flex-col z-50">
       {/* Logo */}
@@ -23,7 +40,7 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
         </div>
         <div>
           <div className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300">APIGen Master</div>
-          <div className="text-xs text-textMuted mt-0.5">Console v2.0</div>
+          <div className="text-xs text-textMuted mt-0.5">{context.user?.role === 'admin' ? 'Admin' : 'User'} Console v1.0</div>
         </div>
       </div>
 
@@ -60,13 +77,14 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
           <span><i className="fas fa-code-branch text-[10px] text-primary mr-2"></i>Endpoints</span>
           <span className="font-bold text-textMain">{epsCount}</span>
         </div>
+        {alertModal && <AlertModal message="¿Estás seguro de que quieres cerrar sesión?" onConfirm={() => { handleLogout(); setAlertModal(false); }} onCancel={() => setAlertModal(false)} />}
+        {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={() => setUserModal(false)} />}
         <div className='flex flex-row w-full gap-4 py-2 mt-2'>
-          {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={() => setUserModal(false)} />}
-          <button onClick={firebaseAuth.logOut} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
+          <button onClick={() => setAlertModal(true)} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
             <i className="fas fa-sign-out-alt w-5 text-center text-red-500"></i> Salir
           </button>
-          <button onClick={() => setUserModal(true)} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
-            <i className="fas fa-user w-5 text-center"></i> Usuario 
+          <button onClick={() => setUserModal(true)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
+            <i className="fas fa-user w-5 text-center"></i>
           </button>
         </div>
       </div>

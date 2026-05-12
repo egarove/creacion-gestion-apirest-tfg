@@ -1,5 +1,5 @@
 import { persist } from "zustand/middleware";
-import { Api, UserData } from "./types";
+import { Api, Toast, UserData } from "./types";
 import { create } from "zustand";
 
 export type State = {
@@ -9,9 +9,12 @@ export type State = {
     apis: Api[];
     setApis: (apis: Api[]) => void;
     clearApis: () => void;
+    toastList: Toast[];
+    addToast: (newToast: Toast) => void;
+    clearToast: () => void;
 }
 
-export const useStore = create<State>()(
+export const useContextStore = create<State>()(
     persist(
         (set) => ({
             user: null,
@@ -20,6 +23,14 @@ export const useStore = create<State>()(
             apis: [],
             setApis: (apis: Api[]) => set({ apis }),
             clearApis: () => set({ apis: [] }),
+            toastList: [],
+            addToast: (newToast: Toast) => {
+                set((state) => ({ toastList: [...state.toastList, newToast] }))
+                setTimeout(() => {
+                    set((state) => ({ toastList: state.toastList.filter(t => t.id !== newToast.id) }))
+                }, 4000);
+            },
+            clearToast: () => set({ toastList: [] }),
         }),
         {
             name: "storage",
