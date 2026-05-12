@@ -65,6 +65,8 @@ Este enfoque garantiza que cada usuario solo pueda acceder y gestionar sus propi
 
 ---
 
-Para generar un APK en modo release (ejecutarlo en la raiz del proyecto):
+##Para generar un APK en modo release 
 
 flutter build apk --release
+
+(ejecutarlo en la raiz del proyecto)
