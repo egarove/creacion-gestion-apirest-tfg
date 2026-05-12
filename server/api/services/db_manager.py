@@ -17,7 +17,7 @@ from models import DBModel
 
 def _build_database_url(motor: str, usr: str, paswd: str, api_name: str) -> str:
     if motor == "sqlite":
-        return f"sqlite:///{api_name}.db"
+        return f"sqlite:////data/{api_name}.db"
     elif motor in DB_CONFIGS:
         config = DB_CONFIGS[motor]
         return f"{config['driver']}://{usr}:{paswd}@{config['host']}:{config['port']}/{api_name}_db"
