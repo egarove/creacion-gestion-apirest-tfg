@@ -1,62 +1,58 @@
 # API Generator Mobile + Docker Backend
 
-Aplicación móvil desarrollada con Flutter que permite generar APIs dinámicamente a través de un backend ejecutado en Docker.  
-El objetivo del proyecto es simplificar la creación automática de servicios API desde una interfaz móvil intuitiva.
+Aplicación móvil desarrollada con Flutter que permite generar y administrar APIs REST dinámicamente mediante un backend desarrollado en Python y desplegado en contenedores Docker.  
+El objetivo principal del proyecto es simplificar la creación automática de servicios backend desde una interfaz móvil intuitiva y centralizada.
 
 ---
 
 ## Descripción del proyecto
 
-Este proyecto está compuesto por dos partes principales:
+El directorio del proyecto está dividido en dos partes principales:
 
 ### Aplicación móvil Flutter
-- Interfaz para crear y eliminar APIs
-- Comunicación con el backend
-- Gestión del flujo desde el dispositivo móvil
+- Registro e inicio de sesión mediante Firebase Authentication  
+- Gestión de APIs creadas por cada usuario  
+- Creación dinámica de endpoints REST  
+- Comunicación HTTP con el backend  
+- Almacenamiento de datos en Cloud Firestore  
 
-### Backend en Docker
-- Recibe la configuración enviada desde la app
-- Genera automáticamente la API
-- Levanta el servicio en contenedores Docker
-
----
-
-## Requisitos previos
-
-Antes de ejecutar el proyecto necesitas tener instalado:
-
-- Docker Desktop
-- Flutter SDK
-- Visual Studio Code
+### Backend Python + Docker
+- Recepción de configuraciones enviadas desde la app  
+- Generación automática de APIs REST  
+- Despliegue dinámico de servicios mediante Docker  
+- Administración de endpoints y estructuras de datos  
 
 ---
 
-## Cómo ejecutar el backend
+## Tecnologías utilizadas
 
-### 1. Instalar Docker Desktop
+### Frontend
+- Flutter  
+- Dart  
+- Firebase Authentication  
+- Cloud Firestore  
 
-Descarga e instala Docker Desktop desde la web oficial y asegúrate de que Docker esté en ejecución antes de continuar.
-
----
-
-### 2. Configurar la IP del servidor
-
-En la ruta 'api/api/.env' modifica la variable 'API_IP' y sustituyela por tu IP.
-Puedes obtener tu IP ejecutando en una terminal: 'ipconfig'
-
----
-
-### 3. Levantar el servicio Docker
-
-Abre una terminal y navega hasta la carpeta 'api' en la raíz del proyecto. 
-Ahí ejecuta: 'docker-compose up -d' para iniciar el servicio docker con la IP indicada en el paso anterior.
+### Backend
+- Python  
+- Docker  
+- Docker Compose  
 
 ---
 
-### 4. Lanzaer la APP Flutter
+## Funcionamiento general
 
-Una vez iniciado el servicio Docker ya podemos generar el APK de nuestra APP Flutter y gestionar desde ahí las APIS. 
-Para ello vamos a la carpeta ‘app’ de raíz del proyecto y ejecutamos:	
-flutter build apk (esto nos genera el APK en build/app/outputs/flutter-apk/app-release.apk)
+La aplicación permite que cada usuario genere sus propias APIs REST desde el dispositivo móvil.
+Durante la creación de una API, el usuario puede definir endpoints HTTP de tipo GET, POST, PUT y DELETE, además de personalizar las rutas (paths) asociadas a cada endpoint.
 
+---
 
+## Infraestructura del servidor
+
+A diferencia de versiones anteriores del proyecto, actualmente el backend y los contenedores Docker se encuentran desplegados permanentemente en un servidor remoto dedicado.
+Esto significa que los usuarios no necesitan instalar Docker ni ejecutar contenedores localmente para utilizar la aplicación, ya que toda la infraestructura backend permanece activa en el servidor.
+
+---
+
+Para generar un APK en modo release (ejecutarlo en la raiz del proyecto):
+
+flutter build apk --release
