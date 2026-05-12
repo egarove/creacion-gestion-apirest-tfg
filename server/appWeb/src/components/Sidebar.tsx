@@ -1,4 +1,7 @@
+import { useState } from 'react';
+import { auth, firebaseAuth } from '../services/LogInService';
 import type { Api } from '../types';
+import { UserModal } from './UserModal';
 
 interface SidebarProps {
   apis: Api[];
@@ -10,6 +13,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh, onNewApi }: SidebarProps) {
+  const [userModal, setUserModal] = useState(false);
   return (
     <aside className="fixed top-0 left-0 w-[270px] h-screen bg-surface border-r border-borderNormal flex flex-col z-50">
       {/* Logo */}
@@ -55,6 +59,15 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
         <div className="flex justify-between py-1.5 text-xs text-textSoft">
           <span><i className="fas fa-code-branch text-[10px] text-primary mr-2"></i>Endpoints</span>
           <span className="font-bold text-textMain">{epsCount}</span>
+        </div>
+        <div className='flex flex-row w-full gap-4 py-2 mt-2'>
+          {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={() => setUserModal(false)} />}
+          <button onClick={firebaseAuth.logOut} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
+            <i className="fas fa-sign-out-alt w-5 text-center text-red-500"></i> Salir
+          </button>
+          <button onClick={() => setUserModal(true)} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
+            <i className="fas fa-user w-5 text-center"></i> Usuario 
+          </button>
         </div>
       </div>
     </aside>

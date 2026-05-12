@@ -1,3 +1,5 @@
+import { User } from "firebase/auth";
+
 export interface LangOption {
   icon: string;
   label: string;
@@ -36,3 +38,11 @@ export interface Toast {
   msg: string;
   type: 'success' | 'error' | 'info';
 }
+
+export interface UserData {
+  user: User | undefined;
+  role: Roles;
+  uid: string;
+  apis: Api[];
+}
+export type Roles = "admin" | "usuario";
