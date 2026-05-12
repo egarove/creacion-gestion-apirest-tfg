@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from models import ApiModel, DBModel
 from models.endpoint_model import Endpoint
-from settings import LANG_CONFIG
+from settings import LANG_CONFIG, HOST_API_PATH
 from events.db import get_db
 from services.db_manager import (
     _build_database_url,
@@ -140,7 +140,11 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         env_args = _build_docker_env_args(lang, project.db, url, project.usr, project.paswd, project.api_name)
 
         # Arrancar contenedores
-        start_api_containers(project.api_name, port, backup_port, env_args)
+        volume_args = []
+        if project.db == "sqlite":
+            host_db = f"{HOST_API_PATH}/deployments/{project.api_name}/{project.api_name}.db"
+            volume_args = ["-v", f"{host_db}:/data/{project.api_name}.db"]
+        start_api_containers(project.api_name, port, backup_port, env_args, volume_args)
 
         # Guardar en base de datos
         endpoints_data = [ep.model_dump() for ep in project.endpoints]
@@ -250,7 +254,11 @@ def rebuild_api(api: str, db: Session = Depends(get_db)):
         backup_port = api_data.backup_port or (port + 1)
         env_args = _build_docker_env_args(lang, api_data.db, url, api_data.usr, api_data.paswd, api)
 
-        start_api_containers(api, port, backup_port, env_args)
+        volume_args = []
+        if api_data.db == "sqlite":
+            host_db = f"{HOST_API_PATH}/deployments/{api}/{api}.db"
+            volume_args = ["-v", f"{host_db}:/data/{api}.db"]
+        start_api_containers(api, port, backup_port, env_args, volume_args)
 
         _write_nginx_conf(api, port)
         _reload_nginx()
@@ -282,7 +290,11 @@ def restore_api(api: str, db: Session = Depends(get_db)):
             api
         )
 
-        start_api_containers(api, port, backup_port, env_args)
+        volume_args = []
+        if api_data.db == "sqlite":
+            host_db = f"{HOST_API_PATH}/deployments/{api}/{api}.db"
+            volume_args = ["-v", f"{host_db}:/data/{api}.db"]
+        start_api_containers(api, port, backup_port, env_args, volume_args)
 
         _write_nginx_conf(api, port)
         _reload_nginx()
@@ -329,7 +341,11 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
             api_data.paswd,
             api,
         )
-        start_api_containers(api, port, backup_port, env_args)
+        volume_args = []
+        if api_data.db == "sqlite":
+            host_db = f"{HOST_API_PATH}/deployments/{api}/{api}.db"
+            volume_args = ["-v", f"{host_db}:/data/{api}.db"]
+        start_api_containers(api, port, backup_port, env_args, volume_args)
 
         _write_nginx_conf(api, port)
         _reload_nginx()

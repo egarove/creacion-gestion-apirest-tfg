@@ -40,7 +40,7 @@ def build_docker_image(api_name: str, project_path: str):
         raise RuntimeError(f"Docker build failed:\n{result.stderr[-3000:]}")
 
 
-def start_api_containers(api_name: str, port: int, backup_port: int, env_args: list):
+def start_api_containers(api_name: str, port: int, backup_port: int, env_args: list, volume_args: list = []):
     """Arranca el contenedor principal y de backup de una API."""
     subprocess.Popen([
         "docker", "run", "-d",
@@ -48,6 +48,7 @@ def start_api_containers(api_name: str, port: int, backup_port: int, env_args: l
         "--restart", "unless-stopped",
         "--network", "api_default",
         *env_args,
+        *volume_args,
         "-p", f"{port}:8000",
         f"api-{api_name}"
     ])
@@ -57,6 +58,7 @@ def start_api_containers(api_name: str, port: int, backup_port: int, env_args: l
         "--restart", "unless-stopped",
         "--network", "api_default",
         *env_args,
+        *volume_args,
         "-p", f"{backup_port}:8000",
         f"api-{api_name}"
     ])
