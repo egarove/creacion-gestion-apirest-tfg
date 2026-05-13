@@ -1,11 +1,11 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tfg_2dama_gestion_apirest/services/api_service.dart';
 import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
 
-// Métodos HTTP que envían body
 const _bodyMethods = {'POST', 'PUT'};
-// Métodos que reciben params en query string
 const _paramMethods = {'GET', 'DELETE'};
 
 class EndpointTesterScreen extends StatefulWidget {
@@ -21,14 +21,29 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
   List<Map<String, dynamic>> _apis = [];
   bool _loadingApis = true;
 
-  Map<String, dynamic>? _selectedApi;
-  Map<String, dynamic>? _selectedEndpoint;
+  // Index-based selection avoids Dart Map reference-equality issues in DropdownButton
+  int? _selectedApiIdx;
+  int? _selectedEndpointIdx;
 
-  // Dynamic form fields (key → TextEditingController)
   final Map<String, TextEditingController> _fieldCtrls = {};
-
   bool _executing = false;
   Map<String, dynamic>? _result;
+
+  Map<String, dynamic>? get _selectedApi =>
+      (_selectedApiIdx != null && _selectedApiIdx! < _apis.length)
+          ? _apis[_selectedApiIdx!]
+          : null;
+
+  List<Map<String, dynamic>> get _endpoints =>
+      (_selectedApi?['endpoints'] as List<dynamic>?)
+          ?.map((e) => Map<String, dynamic>.from(e as Map))
+          .toList() ??
+      [];
+
+  Map<String, dynamic>? get _selectedEndpoint =>
+      (_selectedEndpointIdx != null && _selectedEndpointIdx! < _endpoints.length)
+          ? _endpoints[_selectedEndpointIdx!]
+          : null;
 
   @override
   void initState() {
@@ -46,36 +61,88 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
 
   Future<void> _loadApis() async {
     setState(() => _loadingApis = true);
-    final apis = await _apiService.getAllApis();
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      setState(() => _loadingApis = false);
+      return;
+    }
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(uid)
+        .get();
+    final isAdmin = userDoc.data()?['role'] == 'admin';
+
+    List<Map<String, dynamic>> apis;
+
+    if (isAdmin) {
+      apis = await _apiService.getAllApis();
+    } else {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uid)
+          .collection('apis')
+          .get();
+
+      apis = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return <String, dynamic>{
+          'api_name': data['api_name'] as String? ?? '',
+          'port': data['port'] ?? 0,
+          'backup_port': data['backup_port'],
+          'db': data['db'] as String? ?? '',
+          'columns':
+              (data['columns'] as List<dynamic>?)?.cast<String>() ?? [],
+          'endpoints': (data['endpoints'] as List<dynamic>?)
+                  ?.map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList() ??
+              [],
+          'status': 'unknown',
+        };
+      }).toList();
+
+      // Check running status for each API
+      for (final api in apis) {
+        try {
+          final s = await _apiService.getStatus(api['api_name'] as String);
+          api['status'] = s['status'] ?? 'unknown';
+        } catch (_) {}
+      }
+    }
+
+    _clearFields();
     setState(() {
       _apis = apis;
+      _selectedApiIdx = null;
+      _selectedEndpointIdx = null;
+      _result = null;
       _loadingApis = false;
     });
   }
 
-  void _selectApi(Map<String, dynamic>? api) {
+  void _selectApi(int? idx) {
+    _clearFields();
     setState(() {
-      _selectedApi = api;
-      _selectedEndpoint = null;
+      _selectedApiIdx = idx;
+      _selectedEndpointIdx = null;
       _result = null;
-      _clearFields();
     });
   }
 
-  void _selectEndpoint(Map<String, dynamic>? ep) {
+  void _selectEndpoint(int? idx) {
     _clearFields();
     setState(() {
-      _selectedEndpoint = ep;
+      _selectedEndpointIdx = idx;
       _result = null;
     });
-    if (ep == null) return;
-    // Build form fields from API columns
+    if (idx == null) return;
+    final ep = _endpoints[idx];
     final columns = (_selectedApi?['columns'] as List<dynamic>?)
             ?.map((c) => (c as String).split(' ').first)
             .toList() ??
         [];
     final method = (ep['method'] as String? ?? '').toUpperCase();
-    // For body methods use column names; for param methods use 'id'
     final fields = _bodyMethods.contains(method) ? columns : ['id'];
     for (final f in fields) {
       _fieldCtrls[f] = TextEditingController();
@@ -91,15 +158,17 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
   }
 
   Future<void> _execute() async {
-    if (_selectedApi == null || _selectedEndpoint == null) return;
+    final api = _selectedApi;
+    final ep = _selectedEndpoint;
+    if (api == null || ep == null) return;
     setState(() {
       _executing = true;
       _result = null;
     });
 
-    final port = _selectedApi!['port'] as int? ?? 0;
-    final method = (_selectedEndpoint!['method'] as String? ?? 'GET').toUpperCase();
-    final path = _selectedEndpoint!['path'] as String? ?? '/';
+    final port = api['port'] as int? ?? 0;
+    final method = (ep['method'] as String? ?? 'GET').toUpperCase();
+    final path = ep['path'] as String? ?? '/';
 
     final Map<String, String> fields = {
       for (final e in _fieldCtrls.entries)
@@ -127,26 +196,26 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     return Colors.red;
   }
 
-  String _methodLabel(String method) => method.toUpperCase();
-
   Color _methodColor(String method) {
     switch (method.toLowerCase()) {
-      case 'get': return const Color(0xFF4CAF50);
-      case 'post': return const Color(0xFF2196F3);
-      case 'put': return const Color(0xFFFF9800);
-      case 'delete': return const Color(0xFFF44336);
-      default: return AppTheme.secondaryColor;
+      case 'get':
+        return const Color(0xFF4CAF50);
+      case 'post':
+        return const Color(0xFF2196F3);
+      case 'put':
+        return const Color(0xFFFF9800);
+      case 'delete':
+        return const Color(0xFFF44336);
+      default:
+        return AppTheme.secondaryColor;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final endpoints = (_selectedApi?['endpoints'] as List<dynamic>?)
-            ?.map((e) => Map<String, dynamic>.from(e as Map))
-            .toList() ??
-        [];
-
-    final method = (_selectedEndpoint?['method'] as String? ?? '').toUpperCase();
+    final endpoints = _endpoints;
+    final ep = _selectedEndpoint;
+    final method = (ep?['method'] as String? ?? '').toUpperCase();
     final needsBody = _bodyMethods.contains(method);
     final needsParams = _paramMethods.contains(method);
 
@@ -179,44 +248,48 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                   const SizedBox(height: 8),
                   _apis.isEmpty
                       ? const Text(
-                          'No hay APIs disponibles.',
+                          'No tienes APIs disponibles.',
                           style: TextStyle(color: AppTheme.secondaryColor),
                         )
-                      : DropdownButtonFormField<Map<String, dynamic>>(
-                          value: _selectedApi,
+                      : DropdownButtonFormField<int>(
+                          value: _selectedApiIdx,
                           decoration: const InputDecoration(
                             labelText: 'API',
                             hintText: 'Selecciona una API',
                           ),
-                          items: _apis
-                              .map((api) => DropdownMenuItem(
-                                    value: api,
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: api['status'] == 'running'
-                                                ? const Color(0xFF4CAF50)
-                                                : Colors.red,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(api['api_name'] as String? ?? ''),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          ':${api['port']}',
-                                          style: const TextStyle(
-                                            color: AppTheme.secondaryColor,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
+                          items: List.generate(
+                            _apis.length,
+                            (i) {
+                              final api = _apis[i];
+                              return DropdownMenuItem<int>(
+                                value: i,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: api['status'] == 'running'
+                                            ? const Color(0xFF4CAF50)
+                                            : Colors.red,
+                                      ),
                                     ),
-                                  ))
-                              .toList(),
+                                    const SizedBox(width: 8),
+                                    Text(api['api_name'] as String? ?? ''),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      ':${api['port']}',
+                                      style: const TextStyle(
+                                        color: AppTheme.secondaryColor,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                           onChanged: _selectApi,
                         ),
 
@@ -231,48 +304,52 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                             'Esta API no tiene endpoints definidos.',
                             style: TextStyle(color: AppTheme.secondaryColor),
                           )
-                        : DropdownButtonFormField<Map<String, dynamic>>(
-                            value: _selectedEndpoint,
+                        : DropdownButtonFormField<int>(
+                            value: _selectedEndpointIdx,
                             decoration: const InputDecoration(
                               labelText: 'Endpoint',
                               hintText: 'Selecciona un endpoint',
                             ),
-                            items: endpoints
-                                .map((ep) => DropdownMenuItem(
-                                      value: ep,
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: _methodColor(
-                                                  ep['method'] as String? ?? ''),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              _methodLabel(
-                                                  ep['method'] as String? ??
-                                                      ''),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
+                            items: List.generate(
+                              endpoints.length,
+                              (i) {
+                                final epItem = endpoints[i];
+                                return DropdownMenuItem<int>(
+                                  value: i,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: _methodColor(
+                                              epItem['method'] as String? ??
+                                                  ''),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          (epItem['method'] as String? ?? '')
+                                              .toUpperCase(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Text(ep['path'] as String? ?? ''),
-                                        ],
+                                        ),
                                       ),
-                                    ))
-                                .toList(),
+                                      const SizedBox(width: 8),
+                                      Text(epItem['path'] as String? ?? ''),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                             onChanged: _selectEndpoint,
                           ),
                   ],
 
-                  if (_selectedEndpoint != null) ...[
+                  if (ep != null) ...[
                     const SizedBox(height: 20),
 
                     // ── FORMULARIO DINÁMICO ──
@@ -291,7 +368,8 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.surfaceColor,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.secondaryColor.withOpacity(0.3)),
+                          border: Border.all(
+                              color: AppTheme.secondaryColor.withOpacity(0.3)),
                         ),
                         child: const Text(
                           'Sin campos adicionales para este endpoint',
@@ -327,8 +405,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                             : 'Contenido de ${e.key}',
                                         suffixIcon: needsBody
                                             ? const Tooltip(
-                                                message:
-                                                    'Campo del body JSON',
+                                                message: 'Campo del body JSON',
                                                 child: Icon(
                                                   Icons.data_object,
                                                   size: 16,
@@ -362,7 +439,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                               onPressed: _execute,
                               icon: const Icon(Icons.send),
                               label: Text(
-                                'Ejecutar ${_methodLabel(method)} ${_selectedEndpoint!['path']}',
+                                'Ejecutar $method ${ep['path']}',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold),
                               ),
@@ -426,10 +503,12 @@ class _ResultPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
               children: [

@@ -17,9 +17,12 @@ router = APIRouter()
 
 
 def _get_engine(api_data: DBModel):
+    if api_data.db == "sqlite":
+        # Management API container has the file at deployments/{name}/{name}.db (WORKDIR=/api)
+        db_path = f"deployments/{api_data.api_name}/{api_data.api_name}.db"
+        return create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
     url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api_data.api_name)
-    connect_args = {"check_same_thread": False} if api_data.db == "sqlite" else {}
-    return create_engine(url, connect_args=connect_args)
+    return create_engine(url)
 
 
 def _build_ui_html(api_name: str, cols: list) -> str:

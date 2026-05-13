@@ -287,34 +287,45 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
                   ) : null}
 
                   {/* Add FK inline */}
-                  {addFkFor === t.table ? (
-                    <div className="bg-bg rounded-lg p-3 space-y-2 border border-borderNormal">
-                      <p className="text-[10px] font-bold text-textMuted uppercase">Añadir FK</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="text-[9px] text-textMuted block mb-1">Columna origen</label>
-                          <input value={fkCol} onChange={e => setFkCol(e.target.value)} className={cls.input} placeholder="col" />
+                  {addFkFor === t.table ? (() => {
+                    const srcCols = t.columns.filter(c => !c.pk).map(c => c.name);
+                    const refTable = tables.find(x => x.table === fkRefTable);
+                    const refCols = refTable ? refTable.columns.map(c => c.name) : [];
+                    return (
+                      <div className="bg-bg rounded-lg p-3 space-y-2 border border-borderNormal">
+                        <p className="text-[10px] font-bold text-textMuted uppercase">Añadir FK</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[9px] text-textMuted block mb-1">Columna origen</label>
+                            <select value={fkCol} onChange={e => setFkCol(e.target.value)} className={cls.select}>
+                              <option value="">—</option>
+                              {srcCols.map(n => <option key={n}>{n}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-textMuted block mb-1">Tabla referencia</label>
+                            <select value={fkRefTable} onChange={e => { setFkRefTable(e.target.value); setFkRefCol(""); }} className={cls.select}>
+                              <option value="">—</option>
+                              {otherTables.filter(n => n !== t.table).map(n => <option key={n}>{n}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-textMuted block mb-1">Columna referencia</label>
+                            <select value={fkRefCol} onChange={e => setFkRefCol(e.target.value)} className={cls.select} disabled={!fkRefTable}>
+                              <option value="">—</option>
+                              {refCols.map(n => <option key={n}>{n}</option>)}
+                            </select>
+                          </div>
                         </div>
-                        <div>
-                          <label className="text-[9px] text-textMuted block mb-1">Tabla referencia</label>
-                          <select value={fkRefTable} onChange={e => setFkRefTable(e.target.value)} className={cls.select}>
-                            <option value="">—</option>
-                            {otherTables.filter(n => n !== t.table).map(n => <option key={n}>{n}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[9px] text-textMuted block mb-1">Columna referencia</label>
-                          <input value={fkRefCol} onChange={e => setFkRefCol(e.target.value)} className={cls.input} placeholder="id" />
+                        <div className="flex gap-2">
+                          <button onClick={() => setAddFkFor(null)} className={`${cls.btn} ${cls.btnGhost} flex-1 text-xs`}>Cancelar</button>
+                          <button onClick={() => handleAddFK(t.table)} disabled={saving} className={`${cls.btn} ${cls.btnPrimary} flex-1 text-xs`}>
+                            {saving ? "..." : "Añadir FK"}
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setAddFkFor(null)} className={`${cls.btn} ${cls.btnGhost} flex-1 text-xs`}>Cancelar</button>
-                        <button onClick={() => handleAddFK(t.table)} disabled={saving} className={`${cls.btn} ${cls.btnPrimary} flex-1 text-xs`}>
-                          {saving ? "..." : "Añadir FK"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
+                    );
+                  })() : null}
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-2 pt-1">
