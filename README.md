@@ -1,7 +1,7 @@
 # Sistema de Creación y Gestión de APIs REST
 
 Trabajo Final de Grado — Desarrollo de Aplicaciones Multiplataforma  
-IES · Curso 2024/2025
+IES Zaidín Vergeles · Curso 2025/2026
 
 ---
 
