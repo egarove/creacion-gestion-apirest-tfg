@@ -1,3 +1,4 @@
+import { useContextStore } from '../contextZustand';
 import type { Toast } from '../types';
 
 interface ToastListProps {
@@ -5,6 +6,7 @@ interface ToastListProps {
 }
 
 export default function ToastList({ toasts }: ToastListProps) {
+  const context = useContextStore();
   return (
     <div className="fixed bottom-6 right-6 z-[500] flex flex-col-reverse gap-2 pointer-events-none">
       {toasts.map(t => (
@@ -20,6 +22,14 @@ export default function ToastList({ toasts }: ToastListProps) {
             {t.type === 'info'    && <i className="fas fa-info-circle text-info"></i>}
           </div>
           <div className="flex-1 text-textMain">{t.msg}</div>
+          <button
+            onClick={() => {
+              context.removeToast(t.id);
+            }}
+            className="text-textSoft hover:text-textMain transition-colors"
+          >
+            <i className="fas fa-times"></i>
+          </button>
         </div>
       ))}
     </div>

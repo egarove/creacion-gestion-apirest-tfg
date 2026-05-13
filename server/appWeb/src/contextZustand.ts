@@ -13,6 +13,7 @@ export type State = {
   clearApis: () => void;
   toastList: Toast[];
   addToast: (newToast: Toast) => void;
+  removeToast: (delToastId: string) => void;
   clearToast: () => void;
 };
 
@@ -37,6 +38,12 @@ export const useContextStore = create<State>()(
           }));
         }, 4000);
       },
+      removeToast: (delToast) =>
+        set((state) => ({
+          toastList: [
+            ...state.toastList.filter((toast) => toast.id !== delToast),
+          ],
+        })),
       clearToast: () => set({ toastList: [] }),
     }),
     {
