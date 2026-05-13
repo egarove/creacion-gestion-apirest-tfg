@@ -69,4 +69,4 @@ Este enfoque garantiza que cada usuario solo pueda acceder y gestionar sus propi
 
 flutter build apk --release
 
-(ejecutarlo en la raiz del proyecto)
+(ejecutarlo dentro del directorio app de la raíz del proyecto)
