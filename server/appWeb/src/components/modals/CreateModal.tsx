@@ -23,19 +23,20 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
   const [showPass, setShowPass] = useState(false);
   const [generarUi, setGenerarUi] = useState<boolean>(false);
   const [columns, setColumns] = useState<{ name: string; type: string }[]>([{ name: '', type: 'VARCHAR(255)' }]);
-  const [endpoints, setEndpoints] = useState<Endpoint[]>([{ method: 'get', path: '/', function_name: 'get_items', logic: 'select' }]);
+  const [endpoints, setEndpoints] = useState<Endpoint[]>([{ method: 'get', path: '/', function_name: 'get_items', logic: 'select', table: '', is_public: false }]);
 
   const addCol = () => setColumns(c => [...c, { name: '', type: 'VARCHAR(255)' }]);
   const removeCol = (i: number) => setColumns(c => c.filter((_, idx) => idx !== i));
   const updateCol = (i: number, field: string, val: string) => setColumns(c => c.map((col, idx) => idx === i ? { ...col, [field]: val } : col));
 
-  const addEp = () => setEndpoints(e => [...e, { method: 'get', path: '/', function_name: 'get_items', logic: 'select' }]);
+  const addEp = () => setEndpoints(e => [...e, { method: 'get', path: '/', function_name: 'get_items', logic: 'select', table: '', is_public: false }]);
   const removeEp = (i: number) => setEndpoints(e => e.filter((_, idx) => idx !== i));
   const updateEp = (i: number, field: string, val: string) => setEndpoints(e => e.map((ep, idx) => {
     if (idx !== i) return ep;
     if (field === 'method') return { ...ep, method: val, logic: autoLogic(val) };
     return { ...ep, [field]: val };
   }));
+  const toggleEpPublic = (i: number) => setEndpoints(e => e.map((ep, idx) => idx !== i ? ep : { ...ep, is_public: !ep.is_public }));
 
   const handleCreate = async () => {
     if (!name || !/^[a-z0-9_]+$/.test(name)) { showToast('Nombre: solo letras minúsculas, números y _', 'error'); return; }
@@ -50,6 +51,10 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
     }
     showLoading('Creando API...');
     try {
+      const cleanedEndpoints = endpoints.map(ep => ({
+        ...ep,
+        table: ep.table?.trim() || undefined,
+      }));
       const data = await createApi({
         api_name: name,
         language: lang,
@@ -57,7 +62,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
         usr: db === 'sqlite' ? 'user' : dbUser,
         paswd: db === 'sqlite' ? 'password' : dbPass,
         columns: columns.map(c => `${c.name} ${c.type}`),
-        endpoints,
+        endpoints: cleanedEndpoints,
         generar_ui: generarUi,
       });
       await firebaseServiceUser.saveApi(name, {
@@ -206,6 +211,18 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
                     <div>
                       <div className="text-[10px] text-textMuted font-bold uppercase mb-1">Nombre función</div>
                       <input value={ep.function_name} onChange={e => updateEp(i, 'function_name', e.target.value.replace(/\s/g, ''))} className={inputCls} placeholder="get_usuarios" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <div className="text-[10px] text-textMuted font-bold uppercase mb-1">Tabla (opcional)</div>
+                      <input value={ep.table ?? ''} onChange={e => updateEp(i, 'table', e.target.value.replace(/\s/g, ''))} className={inputCls} placeholder="tabla_por_defecto" />
+                    </div>
+                    <div className="flex items-center justify-between bg-bg border border-borderNormal rounded-xl px-3 py-2 mt-4">
+                      <span className="text-xs text-textSoft font-semibold">Público</span>
+                      <button onClick={() => toggleEpPublic(i)} className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${ep.is_public ? 'bg-primary' : 'bg-borderNormal'}`}>
+                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${ep.is_public ? 'left-4' : 'left-0.5'}`}></span>
+                      </button>
                     </div>
                   </div>
                 </div>

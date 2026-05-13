@@ -60,6 +60,8 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
           .toList() ??
       [];
 
+  List<String> get _filterColumns => ['id', ..._columns];
+
   @override
   void initState() {
     super.initState();
@@ -149,17 +151,16 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
 
     final ep = _endpoints[idx];
     final method = (ep['method'] as String? ?? '').toUpperCase();
-    final cols = _columns;
 
     if (_bodyMethods.contains(method)) {
-      for (final col in cols) {
+      for (final col in _columns) {
         _bodyCtrls[col] = TextEditingController();
       }
     } else {
-      // Start with one empty filter row
-      if (cols.isNotEmpty) {
+      final filterCols = _filterColumns;
+      if (filterCols.isNotEmpty) {
         _filterRows.add(
-          _FilterRow(col: cols.first, ctrl: TextEditingController()),
+          _FilterRow(col: filterCols.first, ctrl: TextEditingController()),
         );
       }
     }
@@ -174,11 +175,11 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
   }
 
   void _addFilter() {
-    final cols = _columns;
-    if (cols.isEmpty) return;
+    final filterCols = _filterColumns;
+    if (filterCols.isEmpty) return;
     setState(() {
       _filterRows.add(
-        _FilterRow(col: cols.first, ctrl: TextEditingController()),
+        _FilterRow(col: filterCols.first, ctrl: TextEditingController()),
       );
     });
   }
@@ -262,7 +263,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final method = (ep?['method'] as String? ?? '').toUpperCase();
     final needsBody = _bodyMethods.contains(method);
     final needsParams = _paramMethods.contains(method);
-    final cols = _columns;
+    final cols = _filterColumns;
 
     return Scaffold(
       appBar: AppBar(

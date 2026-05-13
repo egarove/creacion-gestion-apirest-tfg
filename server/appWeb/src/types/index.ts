@@ -16,6 +16,8 @@ export interface Endpoint {
   path: string;
   function_name: string;
   logic: string;
+  table?: string;
+  is_public?: boolean;
 }
 
 export interface Api {

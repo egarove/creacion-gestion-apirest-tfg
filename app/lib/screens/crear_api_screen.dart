@@ -16,11 +16,14 @@ class _EndpointEntry {
   String method = 'get';
   final TextEditingController pathCtrl = TextEditingController();
   final TextEditingController funcCtrl = TextEditingController();
+  final TextEditingController tableCtrl = TextEditingController();
   String logic = 'select';
+  bool isPublic = false;
 
   void dispose() {
     pathCtrl.dispose();
     funcCtrl.dispose();
+    tableCtrl.dispose();
   }
 }
 
@@ -166,6 +169,8 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                 'path': e.pathCtrl.text.trim(),
                 'function_name': e.funcCtrl.text.trim(),
                 'logic': e.logic,
+                if (e.tableCtrl.text.trim().isNotEmpty) 'table': e.tableCtrl.text.trim(),
+                'is_public': e.isPublic,
               })
           .toList();
 
@@ -528,6 +533,39 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                               }
                               return null;
                             },
+                          ),
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: ep.tableCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Tabla (opcional)',
+                              hintText: 'Deja vacío para usar la tabla por defecto',
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return null;
+                              if (!RegExp(r'^[a-z_][a-z0-9_]*$').hasMatch(v)) {
+                                return 'Solo letras a-z, números y _ (snake_case)';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Endpoint público',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              Switch(
+                                value: ep.isPublic,
+                                activeColor: AppTheme.primaryColor,
+                                onChanged: (v) => setState(() => ep.isPublic = v),
+                              ),
+                            ],
                           ),
                         ],
                       ),

@@ -330,6 +330,12 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
                         f"No se soporta añadir endpoints dinámicamente a lenguajes compilados."
             )
 
+        # Persist endpoint in DB
+        current_endpoints = list(api_data.endpoints or [])
+        current_endpoints.append(endpoint.model_dump())
+        api_data.endpoints = current_endpoints
+        db.commit()
+
         # Reconstruir imagen y contenedores
         project_path = f"deployments/{api}"
         build_docker_image(api, project_path)

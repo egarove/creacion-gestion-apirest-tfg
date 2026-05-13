@@ -15,3 +15,5 @@ class Endpoint(BaseModel):
     path: str
     function_name: str
     logic: Literal["select", "insert", "update", "delete"]
+    table: str | None = None
+    is_public: bool = False
