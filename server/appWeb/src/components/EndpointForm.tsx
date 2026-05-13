@@ -99,6 +99,30 @@ export default function EndpointForm({
           placeholder="get_usuarios"
         />
       </div>
+      <div className="grid grid-cols-2 gap-2 items-center">
+        <div>
+          <div className="text-[10px] text-textMuted font-bold uppercase mb-1">
+            Tabla (opcional)
+          </div>
+          <input
+            value={newEndpoint.table ?? ''}
+            onChange={(e) =>
+              onEndpointChange({ ...newEndpoint, table: e.target.value.replace(/\s/g, '') || undefined })
+            }
+            className={inpCls}
+            placeholder="tabla_por_defecto"
+          />
+        </div>
+        <div className="flex items-center justify-between bg-bg border border-borderNormal rounded-lg px-3 py-2 mt-4">
+          <span className="text-xs text-textSoft font-semibold">Público</span>
+          <button
+            onClick={() => onEndpointChange({ ...newEndpoint, is_public: !newEndpoint.is_public })}
+            className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${newEndpoint.is_public ? 'bg-primary' : 'bg-borderNormal'}`}
+          >
+            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${newEndpoint.is_public ? 'left-4' : 'left-0.5'}`}></span>
+          </button>
+        </div>
+      </div>
       <div className="flex gap-2">
         <button
           onClick={onCancel}

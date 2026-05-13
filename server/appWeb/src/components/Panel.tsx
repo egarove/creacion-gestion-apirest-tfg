@@ -34,6 +34,8 @@ export default function Panel({
     path: "/",
     function_name: "get_items",
     logic: "select",
+    table: undefined,
+    is_public: false,
   });
   const [savingEp, setSavingEp] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -74,6 +76,8 @@ export default function Panel({
         path: "/",
         function_name: "get_items",
         logic: "select",
+        table: undefined,
+        is_public: false,
       });
       setTimeout(reload, 5000);
     } catch (e) {

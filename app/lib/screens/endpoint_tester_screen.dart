@@ -14,6 +14,13 @@ class _FilterRow {
   _FilterRow({required this.col, required this.ctrl});
 }
 
+List<String> _extractPathParams(String path) {
+  return RegExp(r'\{([^}]+)\}')
+      .allMatches(path)
+      .map((m) => m.group(1)!)
+      .toList();
+}
+
 class EndpointTesterScreen extends StatefulWidget {
   const EndpointTesterScreen({super.key});
 
@@ -30,7 +37,9 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
   int? _selectedApiIdx;
   int? _selectedEndpointIdx;
 
-  // POST/PUT body fields: column → controller
+  // Path params like {id}
+  final Map<String, TextEditingController> _pathParamCtrls = {};
+  // POST/PUT body fields
   final Map<String, TextEditingController> _bodyCtrls = {};
   // GET/DELETE query filters
   final List<_FilterRow> _filterRows = [];
@@ -50,7 +59,8 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
       [];
 
   Map<String, dynamic>? get _selectedEndpoint =>
-      (_selectedEndpointIdx != null && _selectedEndpointIdx! < _endpoints.length)
+      (_selectedEndpointIdx != null &&
+              _selectedEndpointIdx! < _endpoints.length)
           ? _endpoints[_selectedEndpointIdx!]
           : null;
 
@@ -76,7 +86,6 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
 
   Future<void> _loadApis() async {
     setState(() => _loadingApis = true);
-
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       setState(() => _loadingApis = false);
@@ -151,12 +160,21 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
 
     final ep = _endpoints[idx];
     final method = (ep['method'] as String? ?? '').toUpperCase();
+    final path = ep['path'] as String? ?? '/';
+    final pathParams = _extractPathParams(path);
+
+    // Always create controllers for path params
+    for (final p in pathParams) {
+      _pathParamCtrls[p] = TextEditingController();
+    }
 
     if (_bodyMethods.contains(method)) {
+      // POST/PUT: body fields from API columns
       for (final col in _columns) {
         _bodyCtrls[col] = TextEditingController();
       }
-    } else {
+    } else if (pathParams.isEmpty) {
+      // GET/DELETE without path params: query filters
       final filterCols = _filterColumns;
       if (filterCols.isNotEmpty) {
         _filterRows.add(
@@ -168,6 +186,8 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
   }
 
   void _clearFields() {
+    for (final c in _pathParamCtrls.values) c.dispose();
+    _pathParamCtrls.clear();
     for (final c in _bodyCtrls.values) c.dispose();
     _bodyCtrls.clear();
     for (final f in _filterRows) f.ctrl.dispose();
@@ -195,14 +215,21 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final api = _selectedApi;
     final ep = _selectedEndpoint;
     if (api == null || ep == null) return;
+
+    final apiName = api['api_name'] as String? ?? '';
+    final method = (ep['method'] as String? ?? 'GET').toUpperCase();
+    String path = ep['path'] as String? ?? '/';
+
+    // Substitute path params
+    for (final entry in _pathParamCtrls.entries) {
+      final val = entry.value.text.trim();
+      path = path.replaceAll('{${entry.key}}', val.isNotEmpty ? val : '0');
+    }
+
     setState(() {
       _executing = true;
       _result = null;
     });
-
-    final apiName = api['api_name'] as String? ?? '';
-    final method = (ep['method'] as String? ?? 'GET').toUpperCase();
-    final path = ep['path'] as String? ?? '/';
 
     Map<String, String>? body;
     Map<String, String>? queryParams;
@@ -212,7 +239,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
         for (final e in _bodyCtrls.entries)
           if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
       };
-    } else {
+    } else if (_filterRows.isNotEmpty) {
       queryParams = {
         for (final f in _filterRows)
           if (f.col.isNotEmpty && f.ctrl.text.trim().isNotEmpty)
@@ -261,9 +288,13 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final endpoints = _endpoints;
     final ep = _selectedEndpoint;
     final method = (ep?['method'] as String? ?? '').toUpperCase();
+    final path = ep?['path'] as String? ?? '/';
+    final pathParams = _extractPathParams(path);
     final needsBody = _bodyMethods.contains(method);
-    final needsParams = _paramMethods.contains(method);
+    final needsQueryFilters =
+        _paramMethods.contains(method) && pathParams.isEmpty;
     final cols = _filterColumns;
+    final isPublic = ep?['is_public'] as bool? ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -355,6 +386,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                             ),
                             items: List.generate(endpoints.length, (i) {
                               final epItem = endpoints[i];
+                              final pub = epItem['is_public'] as bool? ?? false;
                               return DropdownMenuItem<int>(
                                 value: i,
                                 child: Row(
@@ -378,7 +410,33 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(epItem['path'] as String? ?? ''),
+                                    Expanded(
+                                      child: Text(
+                                        epItem['path'] as String? ?? '',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (pub)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          border: Border.all(
+                                              color: Colors.green, width: 0.5),
+                                        ),
+                                        child: const Text(
+                                          'PUB',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               );
@@ -388,14 +446,136 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                   ],
 
                   if (ep != null) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    // ── 3. Parámetros / Body ──
+                    // ── Endpoint info badge ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceColor,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: AppTheme.secondaryColor.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _methodColor(method),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              method,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              path,
+                              style: const TextStyle(
+                                  fontFamily: 'monospace', fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isPublic)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border:
+                                    Border.all(color: Colors.green, width: 0.8),
+                              ),
+                              child: const Text(
+                                'Público',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: Colors.orange, width: 0.8),
+                              ),
+                              child: const Text(
+                                'Privado',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── 3. Path params ──
+                    if (pathParams.isNotEmpty) ...[
+                      _SectionHeader('3. Parámetros de ruta'),
+                      const SizedBox(height: 8),
+                      Card(
+                        elevation: 0,
+                        color: AppTheme.surfaceColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                              color: _methodColor(method).withOpacity(0.3)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            children: pathParams
+                                .map((param) => Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10),
+                                      child: TextFormField(
+                                        controller: _pathParamCtrls[param],
+                                        keyboardType: param == 'id'
+                                            ? TextInputType.number
+                                            : TextInputType.text,
+                                        decoration: InputDecoration(
+                                          labelText: '{$param}',
+                                          hintText: 'Valor de $param',
+                                          prefixIcon: Icon(
+                                            param == 'id'
+                                                ? Icons.tag
+                                                : Icons.label_outline,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // ── 4. Body (POST/PUT) ──
                     if (needsBody) ...[
-                      _SectionHeader('3. Body (JSON)'),
+                      _SectionHeader(
+                          pathParams.isNotEmpty ? '4. Body (JSON)' : '3. Body (JSON)'),
                       const SizedBox(height: 8),
                       _bodyCtrls.isEmpty
-                          ? _emptyFieldsCard()
+                          ? _emptyFieldsCard(
+                              'Sin columnas configuradas para el body')
                           : Card(
                               elevation: 0,
                               color: AppTheme.surfaceColor,
@@ -406,23 +586,18 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                         .withOpacity(0.2)),
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(14),
                                 child: Column(
                                   children: _bodyCtrls.entries
                                       .map((e) => Padding(
                                             padding: const EdgeInsets.only(
-                                                bottom: 12),
+                                                bottom: 10),
                                             child: TextFormField(
                                               controller: e.value,
                                               decoration: InputDecoration(
                                                 labelText: e.key,
                                                 hintText:
-                                                    'Contenido de ${e.key}',
-                                                suffixIcon: const Tooltip(
-                                                  message: 'Campo del body JSON',
-                                                  child: Icon(Icons.data_object,
-                                                      size: 16),
-                                                ),
+                                                    'Valor de ${e.key}',
                                               ),
                                             ),
                                           ))
@@ -430,10 +605,12 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                 ),
                               ),
                             ),
-                    ] else if (needsParams) ...[
+                    ],
+
+                    // ── 4/3. Query filters (GET/DELETE without path params) ──
+                    if (needsQueryFilters) ...[
                       _SectionHeader('3. Filtros (query params)'),
                       const SizedBox(height: 8),
-                      // Filter rows
                       ..._filterRows.asMap().entries.map((entry) {
                         final i = entry.key;
                         final f = entry.value;
@@ -441,7 +618,6 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
                             children: [
-                              // Column selector
                               Container(
                                 decoration: BoxDecoration(
                                   color: AppTheme.surfaceColor,
@@ -478,10 +654,12 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              // Value field
                               Expanded(
                                 child: TextFormField(
                                   controller: f.ctrl,
+                                  keyboardType: f.col == 'id'
+                                      ? TextInputType.number
+                                      : TextInputType.text,
                                   decoration: InputDecoration(
                                     hintText: 'Valor de ${f.col}',
                                     isDense: true,
@@ -491,7 +669,6 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                   ),
                                 ),
                               ),
-                              // Remove button
                               IconButton(
                                 icon: const Icon(Icons.remove_circle_outline,
                                     color: Colors.red, size: 20),
@@ -507,7 +684,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                         );
                       }),
                       TextButton.icon(
-                        onPressed: cols.isNotEmpty ? _addFilter : null,
+                        onPressed: _addFilter,
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text(
                           'Añadir filtro',
@@ -519,13 +696,21 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                               horizontal: 8, vertical: 4),
                         ),
                       ),
-                    ] else ...[
-                      _SectionHeader('3. Sin parámetros requeridos'),
-                      const SizedBox(height: 8),
-                      _emptyFieldsCard(),
                     ],
 
-                    const SizedBox(height: 16),
+                    // No params note for GET with path params (no query filters)
+                    if (_paramMethods.contains(method) &&
+                        pathParams.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Rellena el parámetro de ruta para identificar el recurso.',
+                        style: TextStyle(
+                            color: AppTheme.secondaryColor.withOpacity(0.7),
+                            fontSize: 12),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
 
                     // ── Botón ejecutar ──
                     SizedBox(
@@ -567,7 +752,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     );
   }
 
-  Widget _emptyFieldsCard() {
+  Widget _emptyFieldsCard(String msg) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -576,9 +761,9 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
         border:
             Border.all(color: AppTheme.secondaryColor.withOpacity(0.3)),
       ),
-      child: const Text(
-        'Sin campos adicionales para este endpoint',
-        style: TextStyle(color: AppTheme.secondaryColor, fontSize: 13),
+      child: Text(
+        msg,
+        style: const TextStyle(color: AppTheme.secondaryColor, fontSize: 13),
       ),
     );
   }
@@ -614,7 +799,8 @@ class _ResultPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius:

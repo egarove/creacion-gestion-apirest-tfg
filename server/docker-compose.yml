@@ -44,6 +44,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     mem_limit: 256m
+    networks:
+      - default
+      - api_default
 
   mariadb:
     image: mariadb
@@ -60,6 +63,9 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
     mem_limit: 256m
+    networks:
+      - default
+      - api_default
 
   mysql:
     image: mysql
@@ -75,6 +81,9 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     mem_limit: 256m
+    networks:
+      - default
+      - api_default
 
   # Luego se agregarán las demás bases de datos aquí, siguiendo el ejemplo de PostgreSQL.
 
@@ -84,3 +93,7 @@ volumes:
   postgres_data:
   mariadb_data:
   mysql_data:
+
+networks:
+  api_default:
+    external: true
