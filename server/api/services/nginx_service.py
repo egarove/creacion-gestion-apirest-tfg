@@ -24,6 +24,7 @@ def _write_nginx_conf(api_name: str, port: int):
         f"    proxy_set_header X-Forwarded-Proto $scheme;\n"
         f"}}\n"
         f"location /app/{api_name}/ {{\n"
+        f"    auth_request /internal/auth;\n"
         f"    proxy_pass http://localhost:{port}/;\n"
         f"    proxy_set_header Host $host;\n"
         f"    proxy_set_header X-Real-IP $remote_addr;\n"

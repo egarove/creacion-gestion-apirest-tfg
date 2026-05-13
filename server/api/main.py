@@ -15,8 +15,17 @@ from models.endpoint_model import STRICT_MATRIX
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Inicializa las tablas de BD al arrancar la app."""
+    """Inicializa tablas y regenera configs nginx con auth_request al arrancar."""
     Base.metadata.create_all(bind=engine)
+    # Regenerate nginx configs so auth_request is applied to all existing APIs.
+    from sqlalchemy.orm import sessionmaker
+    from services.nginx_service import _write_nginx_conf, _reload_nginx
+    from models import DBModel as _DBModel
+    _Session = sessionmaker(bind=engine)
+    with _Session() as _s:
+        for _api in _s.query(_DBModel).all():
+            _write_nginx_conf(_api.api_name, _api.puerto)
+    _reload_nginx()
     yield
     engine.dispose()
 

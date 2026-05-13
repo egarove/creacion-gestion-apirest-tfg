@@ -1,4 +1,5 @@
 import type { Api, ApiSchema, Endpoint } from '../types';
+import { auth } from '../FirebaseConfig';
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -148,10 +149,11 @@ export async function executeEndpoint(
   path: string,
   body: Record<string, string> | null,
 ): Promise<{ status: number; data: unknown }> {
-  const opts: RequestInit = {
-    method: method.toUpperCase(),
-    headers: { 'Content-Type': 'application/json' },
-  };
+  const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+  const opts: RequestInit = { method: method.toUpperCase(), headers };
   if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
     opts.body = JSON.stringify(body);
   }

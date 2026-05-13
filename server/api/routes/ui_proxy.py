@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from models import DBModel
 from events.db import get_db
+from routes.auth import firebase_dep
 from services.db_manager import _build_database_url, _get_user_schema
 
 router = APIRouter()
@@ -258,6 +259,7 @@ input[type=checkbox]{{width:13px;height:13px;cursor:pointer;accent-color:var(--p
 <div class="toasts" id="toasts"></div>
 <script>
 window.__jsOk=false;
+window.__fbToken=null;
 window.onerror=function(msg,src,line,col,err){{
   if(window.__jsOk)return false;
   var el=document.getElementById('conn-error'),ml=document.getElementById('conn-msg'),tb=document.getElementById('tbody'),cl=document.getElementById('cards-list');
@@ -268,6 +270,37 @@ window.addEventListener('unhandledrejection',function(e){{
   var el=document.getElementById('conn-error'),ml=document.getElementById('conn-msg');
   if(el)el.classList.add('show');if(ml)ml.textContent='Error async: '+(e.reason&&e.reason.message?e.reason.message:String(e.reason));
 }});
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script>
+(function(){{
+  var _app=firebase.initializeApp({{
+    apiKey:"AIzaSyC-l4wevzwLNuoeuUrv8gWqnqbbkUBt0-M",
+    authDomain:"gestion-api-rest-dam.firebaseapp.com",
+    projectId:"gestion-api-rest-dam",
+    storageBucket:"gestion-api-rest-dam.firebasestorage.app",
+    messagingSenderId:"181457370400",
+    appId:"1:181457370400:web:dc460dc4f9c86cbef82b45"
+  }});
+  var _auth=firebase.auth(_app);
+  _auth.onAuthStateChanged(async function(user){{
+    if(!user){{
+      var ce=document.getElementById('conn-error'),cm=document.getElementById('conn-msg');
+      if(ce)ce.classList.add('show');
+      if(cm)cm.textContent='Debes iniciar sesión en el panel web para acceder a este panel.';
+      document.getElementById('tbody').innerHTML='';
+      document.getElementById('cards-list').innerHTML='';
+      return;
+    }}
+    window.__fbToken=await user.getIdToken();
+    setInterval(async function(){{
+      if(_auth.currentUser)window.__fbToken=await _auth.currentUser.getIdToken(true);
+    }},50*60*1000);
+    window.__jsOk=true;
+    try{{await init();}}catch(e){{showError('Error al iniciar: '+e.message);}}
+  }});
+}})();
 </script>
 <script>
 const TABLES = {tables_js};
@@ -280,8 +313,10 @@ const FETCH_TIMEOUT = 8000;
 let DATA=[], filtered=[], editId=null, delTarget=null, retryTimer=null;
 let ST={{q:'',cf:{{}},idMin:'',idMax:'',sc:'id',sd:'asc',page:1,ps:25,sel:new Set(),hid:new Set()}};
 async function fetchT(url,opts={{}}){{
+  const hdrs={{...(opts.headers||{{}})}};
+  if(window.__fbToken)hdrs['Authorization']='Bearer '+window.__fbToken;
   const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),FETCH_TIMEOUT);
-  try{{const r=await fetch(url,{{...opts,signal:ctrl.signal}});clearTimeout(timer);return r;}}
+  try{{const r=await fetch(url,{{...opts,headers:hdrs,signal:ctrl.signal}});clearTimeout(timer);return r;}}
   catch(e){{clearTimeout(timer);throw e;}}
 }}
 async function init(){{initTableSel();buildAddForm();buildFilters();await loadData();}}
@@ -415,8 +450,7 @@ document.addEventListener('keydown',e=>{{
 document.addEventListener('click',e=>{{if(!e.target.closest('.drop'))document.querySelectorAll('.dropmenu').forEach(m=>m.classList.remove('show'));}});
 function initTableSel(){{const sel=document.getElementById('tsel');if(!sel)return;TABLES.forEach(t=>{{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===CURRENT_TABLE)o.selected=true;sel.appendChild(o);}});if(TABLES.length<=1)sel.style.display='none';}}
 function changeTable(t){{CURRENT_TABLE=t;COLS=TABLE_SCHEMA[t]||[];DATA=[];filtered=[];ST={{q:'',cf:{{}},idMin:'',idMax:'',sc:'id',sd:'asc',page:1,ps:25,sel:new Set(),hid:new Set()}};buildAddForm();buildFilters();loadData();}}
-window.__jsOk=true;
-(async()=>{{try{{await init();}}catch(e){{showError('Error al iniciar: '+e.message);}}}})();
+// init() se llama desde el bloque de Firebase auth cuando el usuario está autenticado
 </script>
 </body></html>"""
 
@@ -439,7 +473,7 @@ def ui_proxy_panel(api_name: str, db: Session = Depends(get_db)):
 
 
 @router.get("/ui-proxy/{api_name}/data")
-def ui_proxy_data(api_name: str, table: str | None = None, db: Session = Depends(get_db)):
+def ui_proxy_data(api_name: str, table: str | None = None, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
@@ -457,7 +491,7 @@ def ui_proxy_data(api_name: str, table: str | None = None, db: Session = Depends
 
 
 @router.post("/ui-proxy/{api_name}/add")
-def ui_proxy_add(api_name: str, data: dict = Body(...), table: str | None = None, db: Session = Depends(get_db)):
+def ui_proxy_add(api_name: str, data: dict = Body(...), table: str | None = None, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
@@ -475,7 +509,7 @@ def ui_proxy_add(api_name: str, data: dict = Body(...), table: str | None = None
 
 
 @router.put("/ui-proxy/{api_name}/update/{row_id}")
-def ui_proxy_update(api_name: str, row_id: int, data: dict = Body(...), table: str | None = None, db: Session = Depends(get_db)):
+def ui_proxy_update(api_name: str, row_id: int, data: dict = Body(...), table: str | None = None, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
@@ -494,7 +528,7 @@ def ui_proxy_update(api_name: str, row_id: int, data: dict = Body(...), table: s
 
 
 @router.delete("/ui-proxy/{api_name}/delete/{row_id}")
-def ui_proxy_delete(api_name: str, row_id: int, table: str | None = None, db: Session = Depends(get_db)):
+def ui_proxy_delete(api_name: str, row_id: int, table: str | None = None, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
@@ -510,7 +544,7 @@ def ui_proxy_delete(api_name: str, row_id: int, table: str | None = None, db: Se
 
 
 @router.post("/ui-proxy/{api_name}/bulk-delete")
-def ui_proxy_bulk_delete(api_name: str, ids: list = Body(...), table: str | None = None, db: Session = Depends(get_db)):
+def ui_proxy_bulk_delete(api_name: str, ids: list = Body(...), table: str | None = None, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -143,7 +144,12 @@ class ApiService {
       uri = uri.replace(queryParameters: queryParams);
     }
 
-    final headers = {'Content-Type': 'application/json'};
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : null;
+
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+
     http.Response response;
 
     try {
