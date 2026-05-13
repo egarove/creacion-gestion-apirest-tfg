@@ -86,6 +86,17 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
   static const List<String> _methods = ['get', 'post', 'put', 'delete'];
   static const List<String> _logics = ['select', 'insert', 'update', 'delete'];
 
+  // Strict matrix: qué lógicas permite cada método
+  static const Map<String, List<String>> _strictMatrix = {
+    'get':    ['select'],
+    'post':   ['insert'],
+    'put':    ['update'],
+    'delete': ['update', 'delete'],
+  };
+
+  static String _defaultLogic(String method) =>
+      (_strictMatrix[method] ?? ['select']).first;
+
   List<MapEntry<String, String>> get _availableDbOptions {
     final invalidForSqlite = ['go', 'rust', 'c'];
     return _dbOptions.entries.where((e) {
@@ -451,20 +462,37 @@ class _CrearApiScreenState extends State<CrearApiScreen> {
                                             child: Text(m.toUpperCase()),
                                           ))
                                       .toList(),
-                                  onChanged: (v) => setState(() => ep.method = v!),
+                                  onChanged: (v) {
+                                    if (v == null) return;
+                                    setState(() {
+                                      ep.method = v;
+                                      // Auto-selecciona la lógica según la matriz estricta
+                                      ep.logic = _defaultLogic(v);
+                                    });
+                                  },
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: DropdownButtonFormField<String>(
                                   value: ep.logic,
-                                  decoration: const InputDecoration(labelText: 'Lógica'),
-                                  items: _logics
-                                      .map((l) => DropdownMenuItem(
-                                            value: l,
-                                            child: Text(l),
-                                          ))
-                                      .toList(),
+                                  decoration: const InputDecoration(labelText: 'Lógica DB'),
+                                  items: _logics.map((l) {
+                                    final allowed = _strictMatrix[ep.method] ?? [];
+                                    final disabled = !allowed.contains(l);
+                                    return DropdownMenuItem(
+                                      value: l,
+                                      enabled: !disabled,
+                                      child: Text(
+                                        disabled ? '$l ✗' : l,
+                                        style: TextStyle(
+                                          color: disabled
+                                              ? Colors.grey
+                                              : null,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
                                   onChanged: (v) => setState(() => ep.logic = v!),
                                 ),
                               ),

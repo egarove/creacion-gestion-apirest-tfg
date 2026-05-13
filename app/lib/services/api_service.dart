@@ -114,6 +114,74 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getAllApis() async {
+    final uri = Uri.parse('$_baseUrl/get-all-apis');
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body) as List;
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Ejecuta una petición arbitraria contra un endpoint de una API generada.
+  Future<Map<String, dynamic>> executeRequest({
+    required int port,
+    required String method,
+    required String path,
+    Map<String, String>? body,
+    Map<String, String>? queryParams,
+  }) async {
+    var uri = Uri.parse('$_baseUrl/app').replace(
+      port: port,
+      path: path,
+      queryParameters: queryParams?.isNotEmpty == true ? queryParams : null,
+    );
+    // Usa siempre el dominio base con el path de nginx que enruta por puerto
+    // En producción el nginx mapea /app/<api_name>/* al puerto correspondiente
+    // Aquí construimos la URL usando el dominio base directamente con el puerto
+    uri = Uri.parse('https://tfg-dam.libertoguillen.com:$port$path');
+    if (queryParams != null && queryParams.isNotEmpty) {
+      uri = uri.replace(queryParameters: queryParams);
+    }
+
+    final headers = {'Content-Type': 'application/json'};
+    http.Response response;
+
+    try {
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await http.get(uri, headers: headers);
+        case 'POST':
+          response = await http.post(uri, headers: headers,
+              body: body != null ? jsonEncode(body) : null);
+        case 'PUT':
+          response = await http.put(uri, headers: headers,
+              body: body != null ? jsonEncode(body) : null);
+        case 'DELETE':
+          response = await http.delete(uri, headers: headers);
+        default:
+          response = await http.get(uri, headers: headers);
+      }
+
+      dynamic data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (_) {
+        data = response.body;
+      }
+      return {'status': response.statusCode, 'data': data};
+    } on http.ClientException catch (e) {
+      return {'status': 0, 'data': 'Error de conexión: ${e.message}'};
+    } catch (e) {
+      return {'status': 0, 'data': e.toString()};
+    }
+  }
+
   // Returns null on network/server error (don't clean up), empty list if server has 0 APIs
   Future<List<String>?> syncApiNames() async {
     final uri = Uri.parse('$_baseUrl/sync');

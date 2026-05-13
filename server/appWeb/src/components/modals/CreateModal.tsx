@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Endpoint, Toast } from '../../types';
 import { LANG_OPTS, DB_OPTS } from '../../constants';
-import { createApi } from '../../services/apiService';
+import { createApi, STRICT_MATRIX, autoLogic } from '../../services/apiService';
 
 interface CreateModalProps {
   close: () => void;
@@ -30,7 +30,11 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
 
   const addEp = () => setEndpoints(e => [...e, { method: 'get', path: '/', function_name: 'get_items', logic: 'select' }]);
   const removeEp = (i: number) => setEndpoints(e => e.filter((_, idx) => idx !== i));
-  const updateEp = (i: number, field: string, val: string) => setEndpoints(e => e.map((ep, idx) => idx === i ? { ...ep, [field]: val } : ep));
+  const updateEp = (i: number, field: string, val: string) => setEndpoints(e => e.map((ep, idx) => {
+    if (idx !== i) return ep;
+    if (field === 'method') return { ...ep, method: val, logic: autoLogic(val) };
+    return { ...ep, [field]: val };
+  }));
 
   const handleCreate = async () => {
     if (!name || !/^[a-z0-9_]+$/.test(name)) { showToast('Nombre: solo letras minúsculas, números y _', 'error'); return; }
@@ -172,10 +176,15 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
                       </select>
                     </div>
                     <div>
-                      <div className="text-[10px] text-textMuted font-bold uppercase mb-1">Lógica</div>
+                      <div className="text-[10px] text-textMuted font-bold uppercase mb-1">Lógica DB</div>
                       <select value={ep.logic} onChange={e => updateEp(i, 'logic', e.target.value)} className={selectCls}>
-                        {['select', 'insert', 'update', 'delete'].map(l => <option key={l} value={l}>{l}</option>)}
+                        {['select', 'insert', 'update', 'delete'].map(l => {
+                          const allowed = STRICT_MATRIX[ep.method] ?? [];
+                          const disabled = !allowed.includes(l);
+                          return <option key={l} value={l} disabled={disabled}>{l}{disabled ? ' ✗' : ''}</option>;
+                        })}
                       </select>
+                      <p className="text-[9px] text-textMuted mt-1">{ep.method.toUpperCase()} → {(STRICT_MATRIX[ep.method] ?? []).join(', ')}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">

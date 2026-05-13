@@ -1,4 +1,5 @@
-import type { Endpoint, Toast } from "../types";
+import type { Endpoint } from "../types";
+import { STRICT_MATRIX, autoLogic } from "../services/apiService";
 
 interface EndpointFormProps {
   newEndpoint: Endpoint;
@@ -7,6 +8,8 @@ interface EndpointFormProps {
   onCancel: () => void;
   onSubmit: () => void;
 }
+
+const ALL_LOGICS = ["select", "insert", "update", "delete"];
 
 export default function EndpointForm({
   newEndpoint,
@@ -20,6 +23,12 @@ export default function EndpointForm({
   const inpCls =
     "w-full bg-bg border border-borderNormal rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary text-textMain font-mono";
 
+  const allowed = STRICT_MATRIX[newEndpoint.method.toLowerCase()] ?? [];
+
+  const handleMethodChange = (method: string) => {
+    onEndpointChange({ ...newEndpoint, method, logic: autoLogic(method) });
+  };
+
   return (
     <div className="bg-card border border-borderNormal rounded-xl p-4 mb-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">
@@ -29,9 +38,7 @@ export default function EndpointForm({
           </div>
           <select
             value={newEndpoint.method}
-            onChange={(e) =>
-              onEndpointChange({ ...newEndpoint, method: e.target.value })
-            }
+            onChange={(e) => handleMethodChange(e.target.value)}
             className={selCls}
           >
             {["get", "post", "put", "delete"].map((m) => (
@@ -43,7 +50,7 @@ export default function EndpointForm({
         </div>
         <div>
           <div className="text-[10px] text-textMuted font-bold uppercase mb-1">
-            Lógica
+            Lógica DB
           </div>
           <select
             value={newEndpoint.logic}
@@ -52,12 +59,15 @@ export default function EndpointForm({
             }
             className={selCls}
           >
-            {["select", "insert", "update", "delete"].map((l) => (
-              <option key={l} value={l}>
-                {l}
+            {ALL_LOGICS.map((l) => (
+              <option key={l} value={l} disabled={!allowed.includes(l)}>
+                {l}{!allowed.includes(l) ? " ✗" : ""}
               </option>
             ))}
           </select>
+          <p className="text-[9px] text-textMuted mt-1">
+            {newEndpoint.method.toUpperCase()} permite: {allowed.join(", ")}
+          </p>
         </div>
       </div>
       <div>

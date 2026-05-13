@@ -6,6 +6,7 @@ import PanelTabs from "./tabs/PanelTabs";
 import InfoTab from "./tabs/InfoTab";
 import EndpointsTab from "./EndpointsTab";
 import LogsTab from "./tabs/LogsTab";
+import SchemaTab from "./tabs/SchemaTab";
 
 interface PanelProps {
   api: Api;
@@ -129,6 +130,14 @@ export default function Panel({
 
           {tab === "logs" && (
             <LogsTab logs={logs} loading={logsLoading} onRefresh={fetchLogs} />
+          )}
+
+          {tab === "schema" && (
+            <SchemaTab
+              apiName={api.api_name}
+              dbType={api.db}
+              showToast={showToast}
+            />
           )}
         </div>
       </div>

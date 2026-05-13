@@ -44,4 +44,29 @@ export interface UserData {
 }
 export type Roles = "admin" | "usuario";
 
-export type Tabs = "info" | "endpoints" | "logs"
+export type Tabs = "info" | "endpoints" | "logs" | "schema"
+
+export interface SchemaColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
+  pk?: boolean;
+}
+
+export interface SchemaFK {
+  column: string;
+  ref_table: string;
+  ref_column: string;
+}
+
+export interface SchemaTable {
+  table: string;
+  columns: SchemaColumn[];
+  foreign_keys: SchemaFK[];
+}
+
+export interface ApiSchema {
+  api: string;
+  db_type: string;
+  tables: SchemaTable[];
+}

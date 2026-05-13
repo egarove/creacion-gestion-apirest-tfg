@@ -73,6 +73,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.science_outlined),
+            tooltip: 'Laboratorio de Endpoints',
+            onPressed: () => Navigator.pushNamed(context, 'endpoint-tester'),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
             onPressed: () async {

@@ -12,5 +12,6 @@ class AppRoutes {
     'dashboard': (BuildContext context) => const DashboardScreen(),
     'crear-api': (BuildContext context) => const CrearApiScreen(),
     'api-detail': (BuildContext context) => const ApiDetailScreen(),
+    'endpoint-tester': (BuildContext context) => const EndpointTesterScreen(),
   };
 }

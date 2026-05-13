@@ -116,6 +116,13 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
     );
   }
 
+  static const Map<String, List<String>> _strictMatrix = {
+    'get':    ['select'],
+    'post':   ['insert'],
+    'put':    ['update'],
+    'delete': ['update', 'delete'],
+  };
+
   void _openAddEndpointSheet() {
     final formKey = GlobalKey<FormState>();
     final pathCtrl = TextEditingController();
@@ -181,7 +188,15 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                                       child: Text(m.toUpperCase()),
                                     ))
                                 .toList(),
-                            onChanged: (v) => setSheetState(() => method = v!),
+                            onChanged: (v) {
+                              if (v == null) return;
+                              final defaultLogic =
+                                  (_strictMatrix[v] ?? ['select']).first;
+                              setSheetState(() {
+                                method = v;
+                                logic = defaultLogic;
+                              });
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -189,14 +204,24 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                           child: DropdownButtonFormField<String>(
                             value: logic,
                             decoration:
-                                const InputDecoration(labelText: 'Lógica'),
+                                const InputDecoration(labelText: 'Lógica DB'),
                             items: ['select', 'insert', 'update', 'delete']
-                                .map((l) => DropdownMenuItem(
-                                      value: l,
-                                      child: Text(l),
-                                    ))
-                                .toList(),
-                            onChanged: (v) => setSheetState(() => logic = v!),
+                                .map((l) {
+                              final allowed = _strictMatrix[method] ?? [];
+                              final disabled = !allowed.contains(l);
+                              return DropdownMenuItem(
+                                value: l,
+                                enabled: !disabled,
+                                child: Text(
+                                  disabled ? '$l ✗' : l,
+                                  style: TextStyle(
+                                    color: disabled ? Colors.grey : null,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (v) =>
+                                setSheetState(() => logic = v!),
                           ),
                         ),
                       ],
@@ -340,6 +365,13 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.science_outlined),
+            tooltip: 'Laboratorio de Endpoints',
+            onPressed: () => Navigator.pushNamed(context, 'endpoint-tester'),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

@@ -136,6 +136,12 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         backup_port = port + 1
         _crear_usuario_y_bd(project.db, project.api_name, project.usr, project.paswd)
 
+        # Para SQLite: crear el fichero .db ANTES de arrancar contenedores
+        # (Docker crearía un directorio si el path no existe en el host)
+        sql_columns = ", ".join(project.columns)
+        if project.db == "sqlite":
+            _crear_tabla_en_bd_usuario(project.db, project.api_name, project.usr, project.paswd, sql_columns)
+
         # Generar argumentos de entorno para Docker
         env_args = _build_docker_env_args(lang, project.db, url, project.usr, project.paswd, project.api_name)
 
@@ -163,9 +169,9 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         db.add(db_data)
         db.commit()
 
-        # Crear tabla en base de datos
-        sql_columns = ", ".join(project.columns)
-        _crear_tabla_en_bd_usuario(project.db, project.api_name, project.usr, project.paswd, sql_columns)
+        # Crear tabla para motores distintos de SQLite (ya hecho arriba para sqlite)
+        if project.db != "sqlite":
+            _crear_tabla_en_bd_usuario(project.db, project.api_name, project.usr, project.paswd, sql_columns)
 
         # Configurar nginx
         try:
