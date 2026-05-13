@@ -49,7 +49,7 @@ def start_api_containers(api_name: str, port: int, backup_port: int, env_args: l
         "--network", "api_default",
         *env_args,
         *volume_args,
-        "-p", f"{port}:8000",
+        "-p", f"127.0.0.1:{port}:8000",
         f"api-{api_name}"
     ])
     subprocess.Popen([
@@ -59,7 +59,7 @@ def start_api_containers(api_name: str, port: int, backup_port: int, env_args: l
         "--network", "api_default",
         *env_args,
         *volume_args,
-        "-p", f"{backup_port}:8000",
+        "-p", f"127.0.0.1:{backup_port}:8000",
         f"api-{api_name}"
     ])
 
