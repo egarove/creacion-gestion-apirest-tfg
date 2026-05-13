@@ -64,17 +64,15 @@ export default function App() {
   const fetchApis = async (manual = false) => {
     try {
       const data = await ApiService.getAllApis();
-      const userApis = await firebaseServiceUser.getUserApis(data);
-      context.setUserApis(userApis);
-      console.log(user);
-      const myApis =
-        user?.role === "admin"
-          ? data
-          : user?.apis
-            ? data.filter((a) =>
-                user?.apis?.map((api) => api.api_name).includes(a.api_name),
-              )
-            : [];
+      let myApis: Api[];
+      if (user?.role === "admin") {
+        myApis = data;
+      } else {
+        // Get this user's API names from Firestore, then keep server data (has status)
+        const userApiEntries = await firebaseServiceUser.getUserApis(data);
+        const userApiNames = new Set(userApiEntries.map((a) => (a as Api).api_name));
+        myApis = data.filter((a) => userApiNames.has(a.api_name));
+      }
       setApis(myApis);
       if (panelApi) {
         const updated = myApis.find((a) => a.api_name === panelApi.api_name);
@@ -130,6 +128,7 @@ export default function App() {
     showLoading(`Eliminando ${deleteTarget}...`);
     try {
       await ApiService.deleteApi(deleteTarget);
+      await firebaseServiceUser.deleteApiDoc(deleteTarget);
       showToast(`API ${deleteTarget} eliminada`, "success");
       setDeleteTarget(null);
       if (panelApi?.api_name === deleteTarget) setPanelApi(null);

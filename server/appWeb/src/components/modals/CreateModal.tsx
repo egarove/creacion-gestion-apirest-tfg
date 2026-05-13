@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Endpoint, Toast } from '../../types';
 import { LANG_OPTS, DB_OPTS } from '../../constants';
 import { createApi, STRICT_MATRIX, autoLogic } from '../../services/apiService';
+import { firebaseServiceUser } from '../../services/FireStoreService';
 
 interface CreateModalProps {
   close: () => void;
@@ -55,6 +56,16 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
         db,
         usr: db === 'sqlite' ? 'user' : dbUser,
         paswd: db === 'sqlite' ? 'password' : dbPass,
+        columns: columns.map(c => `${c.name} ${c.type}`),
+        endpoints,
+        generar_ui: generarUi,
+      });
+      await firebaseServiceUser.saveApi(name, {
+        api_name: name,
+        port: data.puerto,
+        backup_port: data.puerto + 1,
+        db,
+        language: lang,
         columns: columns.map(c => `${c.name} ${c.type}`),
         endpoints,
         generar_ui: generarUi,

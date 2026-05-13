@@ -9,6 +9,7 @@ import {
     deleteDoc,
     doc,
     updateDoc,
+    setDoc,
 } from "firebase/firestore";
 import { Api } from "../types";
 import { fireStore } from "../FirebaseConfig";
@@ -129,6 +130,24 @@ export class FirebaseService {
         try {
             const docRef = doc(fireStore, this.userCollectionRef, uid);
             await updateDoc(docRef, updated);
+        } catch (e) {
+            console.log(e);
+        }
+    };
+
+    saveApi = async (name: string, data: any) => {
+        try {
+            const docRef = doc(fireStore, this.userCollectionRef, name);
+            await setDoc(docRef, data);
+        } catch (e) {
+            console.log(e);
+        }
+    };
+
+    deleteApiDoc = async (name: string) => {
+        try {
+            const docRef = doc(fireStore, this.userCollectionRef, name);
+            await deleteDoc(docRef);
         } catch (e) {
             console.log(e);
         }
