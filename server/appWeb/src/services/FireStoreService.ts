@@ -26,13 +26,13 @@ export class FirebaseService {
                 : `usuarios`;
     }
 
-    setCollection = (uid: string) => {
-        this.userCollectionRef = `usuarios/${uid}`;
+    setCollection = (path: string) => {
+        this.userCollectionRef = `usuarios/${path}`;
     };
 
     getAllUserApis = async () => {
         try {
-            const colRef = collection(fireStore, `${this.userCollectionRef}/apis`);
+            const colRef = collection(fireStore, `${this.userCollectionRef}`);
             const snapshot = await getDocs(colRef);
             return snapshot.empty ? null : this.getData<Api>(snapshot);
         } catch (e: any) {
@@ -139,4 +139,3 @@ export class FirebaseService {
  * Constante creada para gestionar los usuarios de la app.
  */
 export const firebaseServiceUser = new FirebaseService();
-

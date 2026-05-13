@@ -28,6 +28,7 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
     context.clearUser();
     context.clearApis();
     firebaseServiceUser.setCollection("");
+    context.setUserApisPath("");
     setUserModal(false);
     navigate("/");
   };

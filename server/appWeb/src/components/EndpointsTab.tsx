@@ -1,4 +1,4 @@
-import type { Endpoint, Toast } from "../types";
+import type { Endpoint } from "../types";
 import EndpointCard from "./EndpointCard";
 import EndpointForm from "./EndpointForm";
 

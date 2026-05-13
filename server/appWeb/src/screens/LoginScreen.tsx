@@ -26,7 +26,10 @@ export default function LoginScreen() {
                 const userData = await firebaseServiceUser.getByIdentifier<UserData>("email", user.email!);
                 if (userData != null) {
                     context.setUser(userData);
-                    firebaseServiceUser.setCollection(userData.uid);
+                    const path = `${userData.uid}/apis`;
+                    firebaseServiceUser.setCollection(path);
+                    context.setUserApisPath(path);
+                    console.log(firebaseServiceUser.userCollectionRef);
                     navigate("/main");
                     context.addToast({ msg: "Usuario logueado correctamente", type: "success", id: uuidv4() });
                 } else {
