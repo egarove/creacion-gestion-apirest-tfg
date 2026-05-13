@@ -2,8 +2,7 @@
 ## Sistema de Creación y Gestión de APIs REST
 
 **Ciclo formativo:** Desarrollo de Aplicaciones Multiplataforma  
-**Curso:** 2024/2025  
-**Alumno:** Liberto Guillén  
+**Curso:** 2025/2026  
 **Despliegue:** https://tfg-dam.libertoguillen.com
 
 ---
