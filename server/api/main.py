@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     _Session = sessionmaker(bind=engine)
     with _Session() as _s:
         for _api in _s.query(_DBModel).all():
-            _write_nginx_conf(_api.api_name, _api.puerto)
+            _write_nginx_conf(_api.api_name, _api.port)
     _reload_nginx()
     yield
     engine.dispose()
