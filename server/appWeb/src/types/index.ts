@@ -43,3 +43,5 @@ export interface UserData {
   apis: Api[];
 }
 export type Roles = "admin" | "usuario";
+
+export type Tabs = "info" | "endpoints" | "logs"

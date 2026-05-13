@@ -1,6 +1,8 @@
 # APIs generadas dinámicamente
 api/api/deployments/
 
+sqlite_data/
+
 # Python
 __pycache__/
 *.pyc

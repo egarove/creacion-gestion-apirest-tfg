@@ -9,7 +9,6 @@ import Panel from "../components/Panel";
 import CreateModal from "../components/modals/CreateModal";
 import DeleteModal from "../components/modals/DeleteModal";
 import LoadingOverlay from "../components/LoadingOverlay";
-import { auth } from "../FirebaseConfig";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
 import { useContextStore } from "../contextZustand";

@@ -31,6 +31,22 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
     setUserModal(false);
     navigate("/");
   };
+
+  const handleChangePassword = async (current: string, newPass: string, confirm: string) => {
+    try {
+      const result = await firebaseAuth.changePasswdWithLastPasswd(auth.currentUser, newPass, current, confirm);
+      if (result) {
+        context.addToast({ msg: 'Contraseña actualizada correctamente', type: 'success', id: crypto.randomUUID() });
+        setUserModal(false);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+  };
+
   return (
     <aside className="fixed top-0 left-0 w-[270px] h-screen bg-surface border-r border-borderNormal flex flex-col z-50">
       {/* Logo */}
@@ -78,7 +94,7 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
           <span className="font-bold text-textMain">{epsCount}</span>
         </div>
         {alertModal && <AlertModal message="¿Estás seguro de que quieres cerrar sesión?" onConfirm={() => { handleLogout(); setAlertModal(false); }} onCancel={() => setAlertModal(false)} />}
-        {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={() => setUserModal(false)} />}
+        {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={handleChangePassword} />}
         <div className='flex flex-row w-full gap-4 py-2 mt-2'>
           <button onClick={() => setAlertModal(true)} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
             <i className="fas fa-sign-out-alt w-5 text-center text-red-500"></i> Salir

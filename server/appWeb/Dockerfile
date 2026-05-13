@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /appWeb
 
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci --silent
 
 COPY . .
 

@@ -1,33 +1,148 @@
 import { User } from "firebase/auth";
+import { useState } from "react";
+import CustomTextField from "../CustomTextField";
 
 interface UserModalProps {
-    user: User | null;
-    onClose: () => void;
-    onConfirm: () => void;
+  user: User | null;
+  onClose: () => void;
+  onConfirm: (
+    current: string,
+    newPass: string,
+    confirm: string,
+  ) => Promise<boolean>;
 }
 
 export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-md">
-                <h1 className="mb-4 text-2xl font-bold">Usuario</h1>
-                <p className="mb-4 text-lg">{user?.email}</p>
-                <p className="mb-4 text-lg">{user?.uid}</p>
-                <div className="mt-6 flex justify-end gap-2">
-                    <button
-                        onClick={onConfirm}
-                        className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-50"
-                    >
-                        Aceptar
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
-                    >
-                        Cancelar
-                    </button>
-                </div>
-            </div>
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const isPasswordValid =
+    currentPassword.length > 0 &&
+    newPassword.length >= 6 &&
+    confirmPassword.length >= 6 &&
+    newPassword === confirmPassword &&
+    currentPassword !== newPassword;
+
+  const handleConfirm = async () => {
+    if (isPasswordValid) {
+      const result = await onConfirm(
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      );
+      if (result) {
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        setIsError(true);
+        setErrorMsg("Error al actualizar la contraseña. Inténtalo de nuevo.");
+      }
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+      <div className="w-full max-w-md rounded-xl bg-surface border border-borderNormal p-6 shadow-2xl">
+        <h1 className="text-xl font-bold text-textMain mb-6">
+          Cambiar Contraseña
+        </h1>
+
+        <div className="bg-card border border-borderNormal rounded-lg p-3 mb-6">
+          <div className="text-[10px] text-textMuted uppercase font-bold mb-1">
+            Email
+          </div>
+          <p className="text-sm text-textSoft font-mono break-all">
+            {user?.email}
+          </p>
         </div>
-    );
+
+        <div className="space-y-4 mb-6">
+          <CustomTextField
+            label="Contraseña Actual"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => {
+              setCurrentPassword(e);
+              setIsError(false);
+            }}
+            placeholder="Ingresa tu contraseña actual"
+          />
+
+          <CustomTextField
+            label="Nueva Contraseña"
+            type="password"
+            value={newPassword}
+            onChange={(e) => {
+                setNewPassword(e)
+                setIsError(false);
+            }}
+            placeholder="Ingresa tu nueva contraseña"
+          />
+
+          <CustomTextField
+            label="Confirmar Nueva Contraseña"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => {
+              setConfirmPassword(e);
+              setIsError(false);
+            }}
+            placeholder="Confirma tu nueva contraseña"
+          />
+
+          {newPassword &&
+            confirmPassword &&
+            newPassword !== confirmPassword && (
+              <div className="text-[11px] text-danger bg-dangerBg border border-danger/20 rounded-lg p-2">
+                Las contraseñas no coinciden
+              </div>
+            )}
+
+          {newPassword && newPassword.length < 6 && (
+            <div className="text-[11px] text-warning bg-warningBg border border-warning/20 rounded-lg p-2">
+              La contraseña debe tener mínimo 6 caracteres
+            </div>
+          )}
+
+          {isError && (
+            <div className="text-[11px] text-danger bg-dangerBg border border-danger/20 rounded-lg p-2">
+              {errorMsg}
+            </div>
+          )}
+
+          {currentPassword &&
+            newPassword &&
+            currentPassword === newPassword && (
+              <div className="text-[11px] text-warning bg-warningBg border border-warning/20 rounded-lg p-2">
+                La nueva contraseña debe ser diferente a la actual
+              </div>
+            )}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-lg border border-borderLight text-textSoft text-xs font-semibold hover:text-textMain hover:border-borderNormal transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!isPasswordValid}
+            className={`flex-1 py-2.5 rounded-lg text-white text-xs font-bold transition-all ${
+              isPasswordValid
+                ? "bg-success hover:bg-opacity-90 shadow-lg shadow-success/30"
+                : "bg-borderNormal text-textMuted cursor-not-allowed opacity-50"
+            }`}
+          >
+            Actualizar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
