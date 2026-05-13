@@ -56,7 +56,10 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
     }
     setSaving(true);
     try {
-      await ApiService.createTable(apiName, newTableName, newCols);
+      await ApiService.createTable(apiName, newTableName, newCols.map(c => ({
+        name: c.name, type: c.type, nullable: c.nullable,
+        ref_table: c.refTable || undefined, ref_col: c.refCol || undefined,
+      })));
       showToast(`Tabla '${newTableName}' creada`, "success");
       setShowAddTable(false);
       setNewTableName("");
@@ -172,27 +175,71 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
             <label className="text-[10px] text-textMuted font-bold uppercase mb-1 block">Columnas</label>
             <div className="space-y-2">
               {newCols.map((col, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <input
-                    value={col.name}
-                    onChange={e => setNewCols(c => c.map((x, i) => i === idx ? { ...x, name: e.target.value.replace(/\s/g, "") } : x))}
-                    className={cls.input + " flex-1"}
-                    placeholder="nombre_col"
-                  />
-                  <select
-                    value={col.type}
-                    onChange={e => setNewCols(c => c.map((x, i) => i === idx ? { ...x, type: e.target.value } : x))}
-                    className={cls.select + " !w-[140px] flex-shrink-0"}
-                  >
-                    {COL_TYPES.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                  <button
-                    onClick={() => setNewCols(c => c.filter((_, i) => i !== idx))}
-                    disabled={newCols.length === 1}
-                    className="text-danger hover:bg-danger/10 rounded px-2 py-1 text-xs disabled:opacity-30"
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
+                <div key={idx} className="space-y-1">
+                  <div className="flex gap-2 items-center">
+                    <input
+                      value={col.name}
+                      onChange={e => setNewCols(c => c.map((x, i) => i === idx ? { ...x, name: e.target.value.replace(/\s/g, "") } : x))}
+                      className={cls.input + " flex-1"}
+                      placeholder="nombre_col"
+                    />
+                    <select
+                      value={col.type}
+                      onChange={e => setNewCols(c => c.map((x, i) => i === idx ? { ...x, type: e.target.value } : x))}
+                      className={cls.select + " !w-[130px] flex-shrink-0"}
+                    >
+                      {COL_TYPES.map(t => <option key={t}>{t}</option>)}
+                    </select>
+                    {col.refTable === undefined ? (
+                      <button
+                        onClick={() => setNewCols(c => c.map((x, i) => i === idx ? { ...x, refTable: "", refCol: "" } : x))}
+                        className="text-[10px] border border-borderNormal text-textMuted hover:text-primary hover:border-primary rounded px-1.5 py-1 whitespace-nowrap"
+                        title="Añadir FK"
+                      >FK</button>
+                    ) : (
+                      <button
+                        onClick={() => setNewCols(c => c.map((x, i) => i === idx ? { ...x, refTable: undefined, refCol: undefined } : x))}
+                        className="text-[10px] border border-primary/50 text-primary rounded px-1.5 py-1 whitespace-nowrap"
+                        title="Quitar FK"
+                      >FK ✓</button>
+                    )}
+                    <button
+                      onClick={() => setNewCols(c => c.filter((_, i) => i !== idx))}
+                      disabled={newCols.length === 1}
+                      className="text-danger hover:bg-danger/10 rounded px-2 py-1 text-xs disabled:opacity-30"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                  {col.refTable !== undefined && (
+                    <div className="flex gap-2 ml-1 pl-2 border-l-2 border-primary/30">
+                      <div className="flex-1">
+                        <label className="text-[9px] text-textMuted block mb-0.5">Tabla ref.</label>
+                        <select
+                          value={col.refTable}
+                          onChange={e => setNewCols(c => c.map((x, i) => i === idx ? { ...x, refTable: e.target.value, refCol: "" } : x))}
+                          className={cls.select + " !text-[11px]"}
+                        >
+                          <option value="">— Tabla —</option>
+                          {tables.map(t => <option key={t.table} value={t.table}>{t.table}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[9px] text-textMuted block mb-0.5">Columna ref.</label>
+                        <select
+                          value={col.refCol}
+                          onChange={e => setNewCols(c => c.map((x, i) => i === idx ? { ...x, refCol: e.target.value } : x))}
+                          className={cls.select + " !text-[11px]"}
+                          disabled={!col.refTable}
+                        >
+                          <option value="">— Col —</option>
+                          {col.refTable && tables.find(t => t.table === col.refTable)?.columns.map(cx => (
+                            <option key={cx.name} value={cx.name}>{cx.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

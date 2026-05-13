@@ -8,6 +8,12 @@ import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
 const _bodyMethods = {'POST', 'PUT'};
 const _paramMethods = {'GET', 'DELETE'};
 
+class _FilterRow {
+  String col;
+  final TextEditingController ctrl;
+  _FilterRow({required this.col, required this.ctrl});
+}
+
 class EndpointTesterScreen extends StatefulWidget {
   const EndpointTesterScreen({super.key});
 
@@ -21,11 +27,14 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
   List<Map<String, dynamic>> _apis = [];
   bool _loadingApis = true;
 
-  // Index-based selection avoids Dart Map reference-equality issues in DropdownButton
   int? _selectedApiIdx;
   int? _selectedEndpointIdx;
 
-  final Map<String, TextEditingController> _fieldCtrls = {};
+  // POST/PUT body fields: column → controller
+  final Map<String, TextEditingController> _bodyCtrls = {};
+  // GET/DELETE query filters
+  final List<_FilterRow> _filterRows = [];
+
   bool _executing = false;
   Map<String, dynamic>? _result;
 
@@ -45,6 +54,12 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
           ? _endpoints[_selectedEndpointIdx!]
           : null;
 
+  List<String> get _columns =>
+      (_selectedApi?['columns'] as List<dynamic>?)
+          ?.map((c) => (c as String).split(' ').first)
+          .toList() ??
+      [];
+
   @override
   void initState() {
     super.initState();
@@ -53,9 +68,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
 
   @override
   void dispose() {
-    for (final c in _fieldCtrls.values) {
-      c.dispose();
-    }
+    _clearFields();
     super.dispose();
   }
 
@@ -75,7 +88,6 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final isAdmin = userDoc.data()?['role'] == 'admin';
 
     List<Map<String, dynamic>> apis;
-
     if (isAdmin) {
       apis = await _apiService.getAllApis();
     } else {
@@ -84,7 +96,6 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
           .doc(uid)
           .collection('apis')
           .get();
-
       apis = snapshot.docs.map((doc) {
         final data = doc.data();
         return <String, dynamic>{
@@ -101,8 +112,6 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
           'status': 'unknown',
         };
       }).toList();
-
-      // Check running status for each API
       for (final api in apis) {
         try {
           final s = await _apiService.getStatus(api['api_name'] as String);
@@ -137,24 +146,48 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
       _result = null;
     });
     if (idx == null) return;
+
     final ep = _endpoints[idx];
-    final columns = (_selectedApi?['columns'] as List<dynamic>?)
-            ?.map((c) => (c as String).split(' ').first)
-            .toList() ??
-        [];
     final method = (ep['method'] as String? ?? '').toUpperCase();
-    final fields = _bodyMethods.contains(method) ? columns : ['id'];
-    for (final f in fields) {
-      _fieldCtrls[f] = TextEditingController();
+    final cols = _columns;
+
+    if (_bodyMethods.contains(method)) {
+      for (final col in cols) {
+        _bodyCtrls[col] = TextEditingController();
+      }
+    } else {
+      // Start with one empty filter row
+      if (cols.isNotEmpty) {
+        _filterRows.add(
+          _FilterRow(col: cols.first, ctrl: TextEditingController()),
+        );
+      }
     }
     setState(() {});
   }
 
   void _clearFields() {
-    for (final c in _fieldCtrls.values) {
-      c.dispose();
-    }
-    _fieldCtrls.clear();
+    for (final c in _bodyCtrls.values) c.dispose();
+    _bodyCtrls.clear();
+    for (final f in _filterRows) f.ctrl.dispose();
+    _filterRows.clear();
+  }
+
+  void _addFilter() {
+    final cols = _columns;
+    if (cols.isEmpty) return;
+    setState(() {
+      _filterRows.add(
+        _FilterRow(col: cols.first, ctrl: TextEditingController()),
+      );
+    });
+  }
+
+  void _removeFilter(int i) {
+    setState(() {
+      _filterRows[i].ctrl.dispose();
+      _filterRows.removeAt(i);
+    });
   }
 
   Future<void> _execute() async {
@@ -166,21 +199,32 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
       _result = null;
     });
 
-    final port = api['port'] as int? ?? 0;
+    final apiName = api['api_name'] as String? ?? '';
     final method = (ep['method'] as String? ?? 'GET').toUpperCase();
     final path = ep['path'] as String? ?? '/';
 
-    final Map<String, String> fields = {
-      for (final e in _fieldCtrls.entries)
-        if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim()
-    };
+    Map<String, String>? body;
+    Map<String, String>? queryParams;
+
+    if (_bodyMethods.contains(method)) {
+      body = {
+        for (final e in _bodyCtrls.entries)
+          if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
+      };
+    } else {
+      queryParams = {
+        for (final f in _filterRows)
+          if (f.col.isNotEmpty && f.ctrl.text.trim().isNotEmpty)
+            f.col: f.ctrl.text.trim(),
+      };
+    }
 
     final result = await _apiService.executeRequest(
-      port: port,
+      apiName: apiName,
       method: method,
       path: path,
-      body: _bodyMethods.contains(method) ? fields : null,
-      queryParams: _paramMethods.contains(method) ? fields : null,
+      body: body,
+      queryParams: queryParams,
     );
 
     setState(() {
@@ -218,6 +262,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final method = (ep?['method'] as String? ?? '').toUpperCase();
     final needsBody = _bodyMethods.contains(method);
     final needsParams = _paramMethods.contains(method);
+    final cols = _columns;
 
     return Scaffold(
       appBar: AppBar(
@@ -243,7 +288,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── SELECCIÓN DE API ──
+                  // ── 1. Selecciona API ──
                   _SectionHeader('1. Selecciona una API'),
                   const SizedBox(height: 8),
                   _apis.isEmpty
@@ -257,46 +302,43 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                             labelText: 'API',
                             hintText: 'Selecciona una API',
                           ),
-                          items: List.generate(
-                            _apis.length,
-                            (i) {
-                              final api = _apis[i];
-                              return DropdownMenuItem<int>(
-                                value: i,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: api['status'] == 'running'
-                                            ? const Color(0xFF4CAF50)
-                                            : Colors.red,
-                                      ),
+                          items: List.generate(_apis.length, (i) {
+                            final api = _apis[i];
+                            return DropdownMenuItem<int>(
+                              value: i,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: api['status'] == 'running'
+                                          ? const Color(0xFF4CAF50)
+                                          : Colors.red,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(api['api_name'] as String? ?? ''),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      ':${api['port']}',
-                                      style: const TextStyle(
-                                        color: AppTheme.secondaryColor,
-                                        fontSize: 12,
-                                      ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(api['api_name'] as String? ?? ''),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    ':${api['port']}',
+                                    style: const TextStyle(
+                                      color: AppTheme.secondaryColor,
+                                      fontSize: 12,
                                     ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
                           onChanged: _selectApi,
                         ),
 
                   if (_selectedApi != null) ...[
                     const SizedBox(height: 20),
 
-                    // ── SELECCIÓN DE ENDPOINT ──
+                    // ── 2. Selecciona endpoint ──
                     _SectionHeader('2. Selecciona un endpoint'),
                     const SizedBox(height: 8),
                     endpoints.isEmpty
@@ -310,41 +352,36 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                               labelText: 'Endpoint',
                               hintText: 'Selecciona un endpoint',
                             ),
-                            items: List.generate(
-                              endpoints.length,
-                              (i) {
-                                final epItem = endpoints[i];
-                                return DropdownMenuItem<int>(
-                                  value: i,
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: _methodColor(
-                                              epItem['method'] as String? ??
-                                                  ''),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          (epItem['method'] as String? ?? '')
-                                              .toUpperCase(),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                            items: List.generate(endpoints.length, (i) {
+                              final epItem = endpoints[i];
+                              return DropdownMenuItem<int>(
+                                value: i,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _methodColor(
+                                            epItem['method'] as String? ?? ''),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        (epItem['method'] as String? ?? '')
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(epItem['path'] as String? ?? ''),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(epItem['path'] as String? ?? ''),
+                                  ],
+                                ),
+                              );
+                            }),
                             onChanged: _selectEndpoint,
                           ),
                   ],
@@ -352,84 +389,144 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                   if (ep != null) ...[
                     const SizedBox(height: 20),
 
-                    // ── FORMULARIO DINÁMICO ──
-                    _SectionHeader(
-                      needsBody
-                          ? '3. Body (JSON)'
-                          : needsParams
-                              ? '3. Parámetros'
-                              : '3. Sin parámetros requeridos',
-                    ),
-                    const SizedBox(height: 8),
-
-                    if (_fieldCtrls.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceColor,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: AppTheme.secondaryColor.withOpacity(0.3)),
-                        ),
-                        child: const Text(
-                          'Sin campos adicionales para este endpoint',
-                          style: TextStyle(
-                            color: AppTheme.secondaryColor,
-                            fontSize: 13,
-                          ),
-                        ),
-                      )
-                    else
-                      Card(
-                        elevation: 0,
-                        color: AppTheme.surfaceColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                              color: AppTheme.secondaryColor.withOpacity(0.2)),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: _fieldCtrls.entries
-                                .map(
-                                  (e) => Padding(
-                                    padding:
-                                        const EdgeInsets.only(bottom: 12),
-                                    child: TextFormField(
-                                      controller: e.value,
-                                      decoration: InputDecoration(
-                                        labelText: e.key,
-                                        hintText: needsParams
-                                            ? 'Valor para ${e.key}'
-                                            : 'Contenido de ${e.key}',
-                                        suffixIcon: needsBody
-                                            ? const Tooltip(
-                                                message: 'Campo del body JSON',
-                                                child: Icon(
-                                                  Icons.data_object,
-                                                  size: 16,
-                                                ),
-                                              )
-                                            : const Tooltip(
-                                                message: 'Query parameter',
-                                                child: Icon(
-                                                  Icons.link,
-                                                  size: 16,
+                    // ── 3. Parámetros / Body ──
+                    if (needsBody) ...[
+                      _SectionHeader('3. Body (JSON)'),
+                      const SizedBox(height: 8),
+                      _bodyCtrls.isEmpty
+                          ? _emptyFieldsCard()
+                          : Card(
+                              elevation: 0,
+                              color: AppTheme.surfaceColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                    color: AppTheme.secondaryColor
+                                        .withOpacity(0.2)),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  children: _bodyCtrls.entries
+                                      .map((e) => Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 12),
+                                            child: TextFormField(
+                                              controller: e.value,
+                                              decoration: InputDecoration(
+                                                labelText: e.key,
+                                                hintText:
+                                                    'Contenido de ${e.key}',
+                                                suffixIcon: const Tooltip(
+                                                  message: 'Campo del body JSON',
+                                                  child: Icon(Icons.data_object,
+                                                      size: 16),
                                                 ),
                                               ),
-                                      ),
-                                    ),
+                                            ),
+                                          ))
+                                      .toList(),
+                                ),
+                              ),
+                            ),
+                    ] else if (needsParams) ...[
+                      _SectionHeader('3. Filtros (query params)'),
+                      const SizedBox(height: 8),
+                      // Filter rows
+                      ..._filterRows.asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final f = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              // Column selector
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surfaceColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: AppTheme.secondaryColor
+                                          .withOpacity(0.3)),
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: DropdownButton<String>(
+                                  value: cols.contains(f.col)
+                                      ? f.col
+                                      : (cols.isNotEmpty ? cols.first : null),
+                                  underline: const SizedBox(),
+                                  isDense: true,
+                                  items: cols
+                                      .map((col) => DropdownMenuItem(
+                                            value: col,
+                                            child: Text(
+                                              col,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: AppTheme.primaryColor,
+                                              ),
+                                            ),
+                                          ))
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => f.col = val);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Value field
+                              Expanded(
+                                child: TextFormField(
+                                  controller: f.ctrl,
+                                  decoration: InputDecoration(
+                                    hintText: 'Valor de ${f.col}',
+                                    isDense: true,
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 10),
                                   ),
-                                )
-                                .toList(),
+                                ),
+                              ),
+                              // Remove button
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline,
+                                    color: Colors.red, size: 20),
+                                onPressed: _filterRows.length > 1
+                                    ? () => _removeFilter(i)
+                                    : null,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 32, minHeight: 32),
+                              ),
+                            ],
                           ),
+                        );
+                      }),
+                      TextButton.icon(
+                        onPressed: cols.isNotEmpty ? _addFilter : null,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text(
+                          'Añadir filtro',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                         ),
                       ),
+                    ] else ...[
+                      _SectionHeader('3. Sin parámetros requeridos'),
+                      const SizedBox(height: 8),
+                      _emptyFieldsCard(),
+                    ],
 
                     const SizedBox(height: 16),
 
-                    // ── BOTÓN EJECUTAR ──
+                    // ── Botón ejecutar ──
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -454,7 +551,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                     ),
                   ],
 
-                  // ── RESULTADO ──
+                  // ── Resultado ──
                   if (_result != null) ...[
                     const SizedBox(height: 24),
                     _SectionHeader('Resultado'),
@@ -468,13 +565,26 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
             ),
     );
   }
+
+  Widget _emptyFieldsCard() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(10),
+        border:
+            Border.all(color: AppTheme.secondaryColor.withOpacity(0.3)),
+      ),
+      child: const Text(
+        'Sin campos adicionales para este endpoint',
+        style: TextStyle(color: AppTheme.secondaryColor, fontSize: 13),
+      ),
+    );
+  }
 }
 
 class _ResultPanel extends StatelessWidget {
-  const _ResultPanel({
-    required this.result,
-    required this.statusColor,
-  });
+  const _ResultPanel({required this.result, required this.statusColor});
 
   final Map<String, dynamic> result;
   final Color Function(int?) statusColor;
@@ -503,8 +613,7 @@ class _ResultPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius:
@@ -515,19 +624,16 @@ class _ResultPanel extends StatelessWidget {
                 Container(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color,
-                  ),
+                  decoration:
+                      BoxDecoration(shape: BoxShape.circle, color: color),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'HTTP $status',
                   style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14),
                 ),
                 const Spacer(),
                 if (status > 0)

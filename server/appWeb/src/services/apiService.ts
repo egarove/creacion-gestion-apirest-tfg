@@ -100,7 +100,7 @@ export async function getSchema(apiName: string): Promise<ApiSchema> {
 export async function createTable(
   apiName: string,
   name: string,
-  columns: { name: string; type: string; nullable: boolean }[],
+  columns: { name: string; type: string; nullable: boolean; ref_table?: string; ref_col?: string }[],
 ): Promise<void> {
   const res = await fetch(`/schema/${apiName}/tables`, {
     method: 'POST',

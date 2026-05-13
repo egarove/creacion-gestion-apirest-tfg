@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from models import DBModel
 from events.db import get_db
-from services.db_manager import _build_database_url
+from services.db_manager import _build_database_url, _get_user_schema
 
 router = APIRouter()
 
@@ -25,10 +25,13 @@ def _get_engine(api_data: DBModel):
     return create_engine(url)
 
 
-def _build_ui_html(api_name: str, cols: list) -> str:
-    cols_js = json.dumps(cols)
+def _build_ui_html(api_name: str, table_schema: dict, tables: list, default_table: str) -> str:
+    tables_js = json.dumps(tables)
+    table_schema_js = json.dumps(table_schema)
+    default_table_js = json.dumps(default_table)
     name_js = json.dumps(api_name)
-    ncols = len(cols)
+    cols_js = json.dumps(table_schema.get(default_table, []))
+    ncols = len(table_schema.get(default_table, []))
     return f"""<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -182,6 +185,7 @@ input[type=checkbox]{{width:13px;height:13px;cursor:pointer;accent-color:var(--p
   <div class="tright">
     <span class="pill pill-g" id="tb-total">● …</span>
     <span class="pill pill-b pill-hide" id="tb-cols">{ncols} col</span>
+    <select id="tsel" class="topbtn" onchange="changeTable(this.value)" style="cursor:pointer;padding:.4rem .5rem" title="Seleccionar tabla"></select>
     <button class="topbtn" onclick="loadData()" title="Recargar">↻</button>
   </div>
 </div>
@@ -266,7 +270,10 @@ window.addEventListener('unhandledrejection',function(e){{
 }});
 </script>
 <script>
-const COLS = {cols_js};
+const TABLES = {tables_js};
+const TABLE_SCHEMA = {table_schema_js};
+let CURRENT_TABLE = {default_table_js};
+let COLS = TABLE_SCHEMA[CURRENT_TABLE] || {cols_js};
 const API_NAME = {name_js};
 const BASE = window.location.pathname.replace(/\/ui.*$/, '');
 const FETCH_TIMEOUT = 8000;
@@ -277,7 +284,7 @@ async function fetchT(url,opts={{}}){{
   try{{const r=await fetch(url,{{...opts,signal:ctrl.signal}});clearTimeout(timer);return r;}}
   catch(e){{clearTimeout(timer);throw e;}}
 }}
-async function init(){{buildAddForm();buildFilters();await loadData();}}
+async function init(){{initTableSel();buildAddForm();buildFilters();await loadData();}}
 function showError(msg){{
   const el=document.getElementById('conn-error');document.getElementById('conn-msg').textContent=msg;el.classList.add('show');
   document.getElementById('tinfo-txt').textContent='Error';document.getElementById('tbody').innerHTML='';document.getElementById('cards-list').innerHTML='';
@@ -290,7 +297,7 @@ async function loadData(){{
   document.getElementById('tbody').innerHTML='<tr><td colspan="99" style="text-align:center;padding:3rem"><div class="loading-spin"></div></td></tr>';
   document.getElementById('cards-list').innerHTML='<div style="text-align:center;padding:3rem"><div class="loading-spin"></div></div>';
   try{{
-    const r=await fetchT(BASE+'/ui/data');
+    const r=await fetchT(BASE+'/ui/data?table='+encodeURIComponent(CURRENT_TABLE));
     if(!r.ok)throw new Error('HTTP '+r.status);
     DATA=await r.json();applyFilters();renderAll();
   }}catch(e){{
@@ -358,7 +365,7 @@ async function submitAdd(){{
   const body={{}};let ok=true;COLS.forEach(c=>{{const v=(document.getElementById('add-'+c)?.value??'').trim();if(!v)ok=false;body[c]=v;}});
   if(!ok){{toast('Rellena todos los campos','wrn');return;}}
   const btn=document.querySelector('#ov-add .btn-p');btn.disabled=true;btn.textContent='Añadiendo…';
-  try{{const r=await fetchT(BASE+'/ui/add',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-add');toast('Registro añadido','ok');await loadData();}}else toast('Error al añadir','err');}}
+  try{{const r=await fetchT(BASE+'/ui/add?table='+encodeURIComponent(CURRENT_TABLE),{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-add');toast('Registro añadido','ok');await loadData();}}else toast('Error al añadir','err');}}
   catch(e){{toast('Error de conexión','err');}}
   btn.disabled=false;btn.innerHTML='＋ Añadir';
 }}
@@ -371,7 +378,7 @@ function openEdit(id){{
 async function submitEdit(){{
   if(editId===null)return;const body={{}};COLS.forEach(c=>{{body[c]=document.getElementById('edit-'+c)?.value??'';}});
   const btn=document.querySelector('#ov-edit .btn-p');btn.disabled=true;btn.textContent='Guardando…';
-  try{{const r=await fetchT(BASE+'/ui/update/'+editId,{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-edit');toast('Cambios guardados','ok');await loadData();}}else toast('Error al guardar','err');}}
+  try{{const r=await fetchT(BASE+'/ui/update/'+editId+'?table='+encodeURIComponent(CURRENT_TABLE),{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-edit');toast('Cambios guardados','ok');await loadData();}}else toast('Error al guardar','err');}}
   catch(e){{toast('Error de conexión','err');}}
   btn.disabled=false;btn.innerHTML='✓ Guardar';
 }}
@@ -380,8 +387,8 @@ function bulkDelete(){{if(!ST.sel.size)return;delTarget={{ids:[...ST.sel]}};docu
 async function execDel(){{
   if(!delTarget)return;const btn=document.getElementById('del-btn');btn.disabled=true;btn.textContent='Eliminando…';
   try{{
-    if(delTarget.ids.length===1){{await fetchT(BASE+'/ui/delete/'+delTarget.ids[0],{{method:'DELETE'}});}}
-    else{{await fetchT(BASE+'/ui/bulk-delete',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(delTarget.ids)}});}}
+    if(delTarget.ids.length===1){{await fetchT(BASE+'/ui/delete/'+delTarget.ids[0]+'?table='+encodeURIComponent(CURRENT_TABLE),{{method:'DELETE'}});}}
+    else{{await fetchT(BASE+'/ui/bulk-delete?table='+encodeURIComponent(CURRENT_TABLE),{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(delTarget.ids)}});}}
     closeOv('ov-del');ST.sel.clear();toast(delTarget.ids.length===1?'Registro eliminado':delTarget.ids.length+' eliminados','ok');await loadData();
   }}catch(e){{toast('Error al eliminar','err');}}
   btn.disabled=false;btn.innerHTML='🗑 Eliminar';
@@ -406,6 +413,8 @@ document.addEventListener('keydown',e=>{{
   if(e.key==='n'||e.key==='N')openAddModal();if(e.key==='f'||e.key==='F')toggleFilters();if(e.key==='r'||e.key==='R')loadData();
 }});
 document.addEventListener('click',e=>{{if(!e.target.closest('.drop'))document.querySelectorAll('.dropmenu').forEach(m=>m.classList.remove('show'));}});
+function initTableSel(){{const sel=document.getElementById('tsel');if(!sel)return;TABLES.forEach(t=>{{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===CURRENT_TABLE)o.selected=true;sel.appendChild(o);}});if(TABLES.length<=1)sel.style.display='none';}}
+function changeTable(t){{CURRENT_TABLE=t;COLS=TABLE_SCHEMA[t]||[];DATA=[];filtered=[];ST={{q:'',cf:{{}},idMin:'',idMax:'',sc:'id',sd:'asc',page:1,ps:25,sel:new Set(),hid:new Set()}};buildAddForm();buildFilters();loadData();}}
 window.__jsOk=true;
 (async()=>{{try{{await init();}}catch(e){{showError('Error al iniciar: '+e.message);}}}})();
 </script>
@@ -417,70 +426,101 @@ def ui_proxy_panel(api_name: str, db: Session = Depends(get_db)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404, content="API no encontrada")
-    cols = [c.split()[0] for c in (api_data.columns or [])]
-    return _build_ui_html(api_name, cols)
+    try:
+        schema = _get_user_schema(api_data.db, api_data.api_name, api_data.usr, api_data.paswd)
+    except Exception:
+        schema = []
+    table_schema = {t["table"]: [c["name"] for c in t["columns"] if not c.get("pk")] for t in schema}
+    tables = [t["table"] for t in schema]
+    default_table = f"data_{api_name}"
+    if tables and default_table not in tables:
+        default_table = tables[0]
+    return _build_ui_html(api_name, table_schema, tables, default_table)
 
 
 @router.get("/ui-proxy/{api_name}/data")
-def ui_proxy_data(api_name: str, db: Session = Depends(get_db)):
+def ui_proxy_data(api_name: str, table: str | None = None, db: Session = Depends(get_db)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
+    import re as _re
+    tname = table if table else f"data_{api_name}"
+    if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
+        return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
-    with engine.connect() as conn:
-        rows = conn.execute(text(f"SELECT * FROM data_{api_name}")).fetchall()
-        return [dict(r._mapping) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(f"SELECT * FROM {tname}")).fetchall()
+            return [dict(r._mapping) for r in rows]
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
 
 
 @router.post("/ui-proxy/{api_name}/add")
-def ui_proxy_add(api_name: str, data: dict = Body(...), db: Session = Depends(get_db)):
+def ui_proxy_add(api_name: str, data: dict = Body(...), table: str | None = None, db: Session = Depends(get_db)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
+    import re as _re
+    tname = table if table else f"data_{api_name}"
+    if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
+        return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
     with engine.connect() as conn:
         cols = ", ".join(data.keys())
         vals = ", ".join(f":{k}" for k in data.keys())
-        conn.execute(text(f"INSERT INTO data_{api_name} ({cols}) VALUES ({vals})"), data)
+        conn.execute(text(f"INSERT INTO {tname} ({cols}) VALUES ({vals})"), data)
         conn.commit()
     return {"ok": True}
 
 
 @router.put("/ui-proxy/{api_name}/update/{row_id}")
-def ui_proxy_update(api_name: str, row_id: int, data: dict = Body(...), db: Session = Depends(get_db)):
+def ui_proxy_update(api_name: str, row_id: int, data: dict = Body(...), table: str | None = None, db: Session = Depends(get_db)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
+    import re as _re
+    tname = table if table else f"data_{api_name}"
+    if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
+        return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
     with engine.connect() as conn:
         sets = ", ".join(f"{k} = :{k}" for k in data.keys())
         params = dict(data)
         params["id"] = row_id
-        conn.execute(text(f"UPDATE data_{api_name} SET {sets} WHERE id = :id"), params)
+        conn.execute(text(f"UPDATE {tname} SET {sets} WHERE id = :id"), params)
         conn.commit()
     return {"ok": True}
 
 
 @router.delete("/ui-proxy/{api_name}/delete/{row_id}")
-def ui_proxy_delete(api_name: str, row_id: int, db: Session = Depends(get_db)):
+def ui_proxy_delete(api_name: str, row_id: int, table: str | None = None, db: Session = Depends(get_db)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
+    import re as _re
+    tname = table if table else f"data_{api_name}"
+    if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
+        return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
     with engine.connect() as conn:
-        conn.execute(text(f"DELETE FROM data_{api_name} WHERE id = :id"), {"id": row_id})
+        conn.execute(text(f"DELETE FROM {tname} WHERE id = :id"), {"id": row_id})
         conn.commit()
     return {"ok": True}
 
 
 @router.post("/ui-proxy/{api_name}/bulk-delete")
-def ui_proxy_bulk_delete(api_name: str, ids: list = Body(...), db: Session = Depends(get_db)):
+def ui_proxy_bulk_delete(api_name: str, ids: list = Body(...), table: str | None = None, db: Session = Depends(get_db)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404)
+    import re as _re
+    tname = table if table else f"data_{api_name}"
+    if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
+        return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
     with engine.connect() as conn:
         for id_val in ids:
-            conn.execute(text(f"DELETE FROM data_{api_name} WHERE id = :id"), {"id": id_val})
+            conn.execute(text(f"DELETE FROM {tname} WHERE id = :id"), {"id": id_val})
         conn.commit()
     return {"ok": True, "deleted": len(ids)}

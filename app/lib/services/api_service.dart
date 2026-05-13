@@ -129,22 +129,16 @@ class ApiService {
   }
 
   /// Ejecuta una petición arbitraria contra un endpoint de una API generada.
+  /// Usa el proxy nginx: /app/{apiName}{path} en lugar del puerto directo.
   Future<Map<String, dynamic>> executeRequest({
-    required int port,
+    required String apiName,
     required String method,
     required String path,
     Map<String, String>? body,
     Map<String, String>? queryParams,
   }) async {
-    var uri = Uri.parse('$_baseUrl/app').replace(
-      port: port,
-      path: path,
-      queryParameters: queryParams?.isNotEmpty == true ? queryParams : null,
-    );
-    // Usa siempre el dominio base con el path de nginx que enruta por puerto
-    // En producción el nginx mapea /app/<api_name>/* al puerto correspondiente
-    // Aquí construimos la URL usando el dominio base directamente con el puerto
-    uri = Uri.parse('https://tfg-dam.libertoguillen.com:$port$path');
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    var uri = Uri.parse('$_baseUrl/app/$apiName$cleanPath');
     if (queryParams != null && queryParams.isNotEmpty) {
       uri = uri.replace(queryParameters: queryParams);
     }

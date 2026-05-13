@@ -24,6 +24,8 @@ class ColumnDef(BaseModel):
     name: str
     type: str
     nullable: bool = True
+    ref_table: str | None = None
+    ref_col: str | None = None
 
 
 class TableCreate(BaseModel):
@@ -67,7 +69,8 @@ def create_table(api: str, body: TableCreate, db: Session = Depends(get_db)):
     """Crea una nueva tabla en la BD de usuario."""
     try:
         record = _get_api_or_404(api, db)
-        cols = [{"name": c.name, "type": c.type, "nullable": c.nullable} for c in body.columns]
+        cols = [{"name": c.name, "type": c.type, "nullable": c.nullable,
+                  "ref_table": c.ref_table, "ref_col": c.ref_col} for c in body.columns]
         _ddl_create_table(record.db, api, record.usr, record.paswd, body.name, cols)
         return {"ok": True, "table": body.name}
     except ValueError as e:

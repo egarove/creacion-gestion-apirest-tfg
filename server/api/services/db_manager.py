@@ -206,14 +206,31 @@ def _safe_identifier(name: str) -> str:
 
 def _ddl_create_table(db_type: str, api_name: str, usr: str, paswd: str,
                        table_name: str, columns: list[dict]) -> None:
-    """Crea una nueva tabla en la BD de usuario."""
+    """Crea una nueva tabla en la BD de usuario, con soporte de FK inline."""
     table_name = _safe_identifier(table_name)
     col_parts = []
+    fk_clauses = []  # For MySQL/MariaDB: separate FOREIGN KEY clauses
+
     for col in columns:
         col_name = _safe_identifier(col["name"])
         col_type = col["type"]
         nullable = "" if col.get("nullable", True) else " NOT NULL"
-        col_parts.append(f"{col_name} {col_type}{nullable}")
+        ref_table = col.get("ref_table")
+        ref_col = col.get("ref_col")
+
+        if ref_table and ref_col:
+            ref_table = _safe_identifier(ref_table)
+            ref_col = _safe_identifier(ref_col)
+            if db_type in ("sqlite", "postgresql"):
+                col_parts.append(f"{col_name} {col_type}{nullable} REFERENCES {ref_table}({ref_col})")
+            else:  # mysql / mariadb
+                col_parts.append(f"`{col_name}` {col_type}{nullable}")
+                fk_clauses.append(f"FOREIGN KEY (`{col_name}`) REFERENCES `{ref_table}`(`{ref_col}`)")
+        else:
+            if db_type in ("mariadb", "mysql"):
+                col_parts.append(f"`{col_name}` {col_type}{nullable}")
+            else:
+                col_parts.append(f"{col_name} {col_type}{nullable}")
 
     db_name = f"{api_name}_db"
 
@@ -222,6 +239,7 @@ def _ddl_create_table(db_type: str, api_name: str, usr: str, paswd: str,
         cols_sql = ", ".join(col_parts)
         sql = f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY AUTOINCREMENT, {cols_sql});"
         conn = sqlite3_lib.connect(db_path)
+        conn.execute("PRAGMA foreign_keys = ON;")
         conn.execute(sql)
         conn.commit()
         conn.close()
@@ -236,7 +254,8 @@ def _ddl_create_table(db_type: str, api_name: str, usr: str, paswd: str,
     elif db_type in ("mariadb", "mysql"):
         conn = pymysql.connect(host=db_type, port=3306, user=usr, password=paswd, database=db_name)
         cursor = conn.cursor()
-        cols_sql = ", ".join(col_parts)
+        all_parts = col_parts + fk_clauses
+        cols_sql = ", ".join(all_parts)
         cursor.execute(f"CREATE TABLE IF NOT EXISTS `{table_name}` (id INT AUTO_INCREMENT PRIMARY KEY, {cols_sql});")
         conn.commit()
         cursor.close()
