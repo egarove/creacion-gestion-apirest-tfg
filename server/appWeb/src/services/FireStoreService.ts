@@ -81,8 +81,8 @@ export class FirebaseService {
         }
     };
 
-    createDoc = (name: string) => {
-        return doc(fireStore, this.userCollectionRef, name);
+    createDoc = () => {
+        return doc(fireStore, this.userCollectionRef);
     };
 
     exists = async () => {
@@ -139,8 +139,10 @@ export class FirebaseService {
         try {
             const docRef = doc(fireStore, this.userCollectionRef, name);
             await setDoc(docRef, data);
+            return true;
         } catch (e) {
             console.log(e);
+            return false;
         }
     };
 

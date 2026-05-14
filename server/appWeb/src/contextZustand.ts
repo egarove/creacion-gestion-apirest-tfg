@@ -1,11 +1,13 @@
 import { persist } from "zustand/middleware";
-import { Api, Toast, UserData } from "./types";
+import { Api, Panels, Toast, UserData } from "./types";
 import { create } from "zustand";
 
 export type State = {
   user: UserData | null;
   setUser: (user: UserData) => void;
   clearUser: () => void;
+  selectedView: Panels;
+  setSelectedView: (selection: Panels) => void;
   userApisPath: string;
   setUserApisPath: (newPath: string) => void;
   apis: Api[];
@@ -28,7 +30,10 @@ export const useContextStore = create<State>()(
       setUserApisPath: (newPath: string) => set({ userApisPath: newPath }),
       setUserApis: (apis: Api[]) =>
         set((state) => ({ ...state.user, apis: apis })),
+      
       clearApis: () => set({ apis: [] }),
+      selectedView: "dashboard",
+      setSelectedView: (newSelection) => set({ selectedView: newSelection }),
       toastList: [],
       addToast: (newToast: Toast) => {
         set((state) => ({ toastList: [...state.toastList, newToast] }));

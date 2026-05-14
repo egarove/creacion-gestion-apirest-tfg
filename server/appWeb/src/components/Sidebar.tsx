@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { firebaseAuth } from '../services/LogInService';
-import type { Api } from '../types';
+import type { Api, Panels } from '../types';
 import { UserModal } from './modals/UserModal';
 import { auth } from '../FirebaseConfig';
 import { useNavigate } from 'react-router-dom';
@@ -18,10 +18,14 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh, onNewApi }: SidebarProps) {
+  const context = useContextStore();
   const [userModal, setUserModal] = useState(false);
   const navigate = useNavigate();
   const [alertModal, setAlertModal] = useState(false);
-  const context = useContextStore();
+
+  const handleSectionChange = (section: Panels) => {
+    context.setSelectedView(section);
+  };
   const handleLogout = async () => {
     await firebaseAuth.logOut();
     context.addToast({ msg: 'Sesión cerrada correctamente', type: 'success', id: crypto.randomUUID() })
@@ -64,13 +68,34 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3 no-scrollbar">
         <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-2">Principal</div>
-        <button className="flex items-center w-full gap-3 px-4 py-3 rounded-xl bg-primaryGlow text-white mb-1 transition-colors text-sm font-medium text-left">
-          <i className="fas fa-th-large w-5 text-center text-primary"></i> Dashboard
+        <button
+          onClick={() => handleSectionChange('dashboard')}
+          className={`flex items-center w-full gap-3 px-4 py-3 rounded-xl mb-1 transition-all text-sm font-medium text-left ${context.selectedView === 'dashboard'
+            ? 'bg-primaryGlow text-white shadow-lg shadow-primary/30'
+            : 'text-textSoft hover:bg-white/5 hover:text-textMain'
+            }`}
+        >
+          <i className={`fas fa-th-large w-5 text-center ${context.selectedView === 'dashboard' ? 'text-white' : 'text-textMuted'
+            }`}></i> Dashboard
           <span className="ml-auto bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{apis.length}</span>
         </button>
         <a href="/docs" target="_blank" className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
           <i className="fas fa-book-open w-5 text-center"></i> Swagger UI
         </a>
+        {context.user?.role === 'admin' && (
+          <button
+            onClick={() => handleSectionChange('userPanel')}
+            className={`flex items-center w-full gap-3 px-4 py-3 rounded-xl mb-1 transition-all text-sm font-medium text-left ${context.selectedView === 'userPanel'
+              ? 'bg-primaryGlow text-white shadow-lg shadow-primary/30'
+              : 'text-textSoft hover:bg-white/5 hover:text-textMain'
+              }`}
+          >
+            <i className={`fas fa-users w-5 text-center ${context.selectedView === 'userPanel' ? 'text-white' : 'text-textMuted'
+              }`}></i> Gestor de Usuarios
+          </button>
+        )
+
+        }
         <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-4">Herramientas</div>
         <button onClick={onRefresh} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
           <i className="fas fa-sync-alt w-5 text-center"></i> Refrescar todo
