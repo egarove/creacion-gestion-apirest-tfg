@@ -1,6 +1,8 @@
 import { User } from "firebase/auth";
 import { useState } from "react";
 import CustomTextField from "../CustomTextField";
+import DeleteModal from "./DeleteModal";
+import { useContextStore } from "../../contextZustand";
 
 interface UserModalProps {
   user: User | null;
@@ -18,6 +20,8 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [deleteAccount, setIsDeleting] = useState(false);
+  const context = useContextStore();
 
   const isPasswordValid =
     currentPassword.length > 0 &&
@@ -44,13 +48,41 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
     }
   };
 
+  const handleDelete = () => {
+    try {
+
+      context.clearUser();
+      onClose();
+    } catch (e) {
+      context.addToast({ id: crypto.randomUUID(), msg: "Error al eliminar la cuenta. Inténtalo de nuevo.", type: "error" });
+      return;
+    }
+  };
+
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
       <div className="w-full max-w-md rounded-xl bg-surface border border-borderNormal p-6 shadow-2xl">
-        <h1 className="text-xl font-bold text-textMain mb-6">
-          Cambiar Contraseña
-        </h1>
+        <div className="flex flex-row items-center mb-3 gap-4">
+          <h1 className="text-xl font-bold text-textMain">
+            Cambiar Contraseña
+          </h1>
 
+          <button
+            onClick={() => setIsDeleting(true)}
+            className="ml-auto text-danger hover:text-danger/80 hover:underline transition-colors"
+          >
+            darse de baja
+          </button>
+        </div>
+        {deleteAccount && (
+          <DeleteModal
+            target="cuenta"
+            close={() => setIsDeleting(false)}
+            confirm={handleDelete}
+          />
+        )
+        }
         <div className="bg-card border border-borderNormal rounded-lg p-3 mb-6">
           <div className="text-[10px] text-textMuted uppercase font-bold mb-1">
             Email
@@ -77,8 +109,8 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
             type="password"
             value={newPassword}
             onChange={(e) => {
-                setNewPassword(e)
-                setIsError(false);
+              setNewPassword(e)
+              setIsError(false);
             }}
             placeholder="Ingresa tu nueva contraseña"
           />
@@ -133,11 +165,10 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           <button
             onClick={handleConfirm}
             disabled={!isPasswordValid}
-            className={`flex-1 py-2.5 rounded-lg text-white text-xs font-bold transition-all ${
-              isPasswordValid
-                ? "bg-success hover:bg-opacity-90 shadow-lg shadow-success/30"
-                : "bg-borderNormal text-textMuted cursor-not-allowed opacity-50"
-            }`}
+            className={`flex-1 py-2.5 rounded-lg text-white text-xs font-bold transition-all ${isPasswordValid
+              ? "bg-success hover:bg-opacity-90 shadow-lg shadow-success/30"
+              : "bg-borderNormal text-textMuted cursor-not-allowed opacity-50"
+              }`}
           >
             Actualizar
           </button>
