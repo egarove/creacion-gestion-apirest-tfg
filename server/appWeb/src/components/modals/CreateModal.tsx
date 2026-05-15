@@ -3,6 +3,7 @@ import type { Endpoint, Toast } from '../../types';
 import { LANG_OPTS, DB_OPTS } from '../../constants';
 import { createApi, STRICT_MATRIX, autoLogic } from '../../services/apiService';
 import { firebaseServiceUser } from '../../services/FireStoreService';
+import { useContextStore } from '../../contextZustand';
 
 interface CreateModalProps {
   close: () => void;
@@ -24,7 +25,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
   const [generarUi, setGenerarUi] = useState<boolean>(false);
   const [columns, setColumns] = useState<{ name: string; type: string }[]>([{ name: '', type: 'VARCHAR(255)' }]);
   const [endpoints, setEndpoints] = useState<Endpoint[]>([{ method: 'get', path: '/', function_name: 'get_items', logic: 'select', table: '', is_public: false }]);
-
+  const context = useContextStore();
   const addCol = () => setColumns(c => [...c, { name: '', type: 'VARCHAR(255)' }]);
   const removeCol = (i: number) => setColumns(c => c.filter((_, idx) => idx !== i));
   const updateCol = (i: number, field: string, val: string) => setColumns(c => c.map((col, idx) => idx === i ? { ...col, [field]: val } : col));
@@ -39,6 +40,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
   const toggleEpPublic = (i: number) => setEndpoints(e => e.map((ep, idx) => idx !== i ? ep : { ...ep, is_public: !ep.is_public }));
 
   const handleCreate = async () => {
+    firebaseServiceUser.setCollection(context.userApisPath)
     if (!name || !/^[a-z0-9_]+$/.test(name)) { showToast('Nombre: solo letras minúsculas, números y _', 'error'); return; }
     if (db !== 'sqlite' && (!dbUser || !dbPass)) { showToast('Usuario y contraseña de BD obligatorios', 'error'); return; }
     for (const col of columns) {
