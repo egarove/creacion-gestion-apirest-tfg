@@ -3,6 +3,11 @@ import { useState } from "react";
 import CustomTextField from "../CustomTextField";
 import DeleteModal from "./DeleteModal";
 import { useContextStore } from "../../contextZustand";
+import { auth } from "../../FirebaseConfig";
+import { useNavigate } from "react-router-dom";
+import { deleteApi } from "../../services/apiService";
+import LoadingOverlay from "../LoadingOverlay";
+import DeleteAccountConfirmationModal from "./DeleteAccountConfirmationModal";
 
 interface UserModalProps {
   user: User | null;
@@ -21,6 +26,8 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [deleteAccount, setIsDeleting] = useState(false);
+  const [deletingApis, setDeletingApis] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const context = useContextStore();
 
   const isPasswordValid =
@@ -48,20 +55,41 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async (): Promise<boolean> => {
     try {
-
-      context.clearUser();
-      onClose();
-    } catch (e) {
-      context.addToast({ id: crypto.randomUUID(), msg: "Error al eliminar la cuenta. Inténtalo de nuevo.", type: "error" });
-      return;
+      setDeletingApis(true);
+      const deletePromises = context.apis.map((api) => deleteApi(api.api_name));
+      await Promise.all(deletePromises);
+      if (auth.currentUser) {
+        await auth.currentUser.delete();
+        setDeletingApis(false);
+        return true;
+      } else {
+        setDeletingApis(false);
+        return false;
+      }
+    } catch (error) {
+      setDeletingApis(false);
+      context.addToast({
+        id: crypto.randomUUID(),
+        msg: "Hubo un error al procesar la eliminación. Inténtalo de nuevo.",
+        type: "error"
+      });
+      return false;
     }
   };
 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+      {deletingApis && (<LoadingOverlay message="Eliminando cuenta..." />)}
+      {showDeleteModal && (
+        <DeleteAccountConfirmationModal
+          user={user}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
+        />
+      )}
       <div className="w-full max-w-md rounded-xl bg-surface border border-borderNormal p-6 shadow-2xl">
         <div className="flex flex-row items-center mb-3 gap-4">
           <h1 className="text-xl font-bold text-textMain">
@@ -79,7 +107,7 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           <DeleteModal
             target="cuenta"
             close={() => setIsDeleting(false)}
-            confirm={handleDelete}
+            confirm={() => { setIsDeleting(false); setShowDeleteModal(true); }}
           />
         )
         }

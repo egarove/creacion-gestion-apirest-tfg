@@ -49,7 +49,7 @@ export type Roles = "admin" | "usuario";
 
 export type Tabs = "info" | "endpoints" | "logs" | "schema";
 
-export type Panels = "dashboard" | "userPanel";
+export type Panels = "dashboard" | "adminPanel";
 
 
 export interface SchemaColumn {
