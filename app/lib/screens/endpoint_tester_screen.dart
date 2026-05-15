@@ -37,11 +37,8 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
   int? _selectedApiIdx;
   int? _selectedEndpointIdx;
 
-  // Path params like {id}
   final Map<String, TextEditingController> _pathParamCtrls = {};
-  // POST/PUT body fields
   final Map<String, TextEditingController> _bodyCtrls = {};
-  // GET/DELETE query filters
   final List<_FilterRow> _filterRows = [];
 
   bool _executing = false;
@@ -64,13 +61,33 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
           ? _endpoints[_selectedEndpointIdx!]
           : null;
 
+  // Columnas de la tabla principal de la API
   List<String> get _columns =>
       (_selectedApi?['columns'] as List<dynamic>?)
           ?.map((c) => (c as String).split(' ').first)
           .toList() ??
       [];
 
-  List<String> get _filterColumns => ['id', ..._columns];
+  // Columnas de la tabla que usa el endpoint seleccionado
+  List<String> get _endpointColumns {
+    final ep = _selectedEndpoint;
+    final endpointTable = ep?['table'] as String?;
+    if (endpointTable != null && endpointTable.isNotEmpty) {
+      final tables = (_selectedApi?['tables'] as List<dynamic>?) ?? [];
+      for (final t in tables) {
+        final tMap = Map<String, dynamic>.from(t as Map);
+        if (tMap['name'] == endpointTable) {
+          return (tMap['columns'] as List<dynamic>?)
+                  ?.map((c) => (c as String).split(' ').first)
+                  .toList() ??
+              _columns;
+        }
+      }
+    }
+    return _columns;
+  }
+
+  List<String> get _filterColumns => ['id', ..._endpointColumns];
 
   @override
   void initState() {
@@ -116,6 +133,8 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
           'db': data['db'] as String? ?? '',
           'columns':
               (data['columns'] as List<dynamic>?)?.cast<String>() ?? [],
+          'tables':
+              (data['tables'] as List<dynamic>?) ?? [],
           'endpoints': (data['endpoints'] as List<dynamic>?)
                   ?.map((e) => Map<String, dynamic>.from(e as Map))
                   .toList() ??
@@ -163,18 +182,22 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final path = ep['path'] as String? ?? '/';
     final pathParams = _extractPathParams(path);
 
-    // Always create controllers for path params
     for (final p in pathParams) {
       _pathParamCtrls[p] = TextEditingController();
     }
 
     if (_bodyMethods.contains(method)) {
-      // POST/PUT: body fields from API columns
-      for (final col in _columns) {
+      // PUT sin {id} en path: añadir campo id primero
+      if (method == 'PUT' && !pathParams.contains('id')) {
+        _bodyCtrls['id'] = TextEditingController();
+      }
+      for (final col in _endpointColumns) {
         _bodyCtrls[col] = TextEditingController();
       }
-    } else if (pathParams.isEmpty) {
-      // GET/DELETE without path params: query filters
+    } else if (method == 'DELETE' && pathParams.isEmpty) {
+      // DELETE sin path param: mostrar solo campo id
+      _bodyCtrls['id'] = TextEditingController();
+    } else if (method == 'GET' && pathParams.isEmpty) {
       final filterCols = _filterColumns;
       if (filterCols.isNotEmpty) {
         _filterRows.add(
@@ -220,7 +243,6 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final method = (ep['method'] as String? ?? 'GET').toUpperCase();
     String path = ep['path'] as String? ?? '/';
 
-    // Substitute path params
     for (final entry in _pathParamCtrls.entries) {
       final val = entry.value.text.trim();
       path = path.replaceAll('{${entry.key}}', val.isNotEmpty ? val : '0');
@@ -236,6 +258,12 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
 
     if (_bodyMethods.contains(method)) {
       body = {
+        for (final e in _bodyCtrls.entries)
+          if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
+      };
+    } else if (method == 'DELETE' && _bodyCtrls.isNotEmpty) {
+      // DELETE por id: enviamos como query param (el template lo lee)
+      queryParams = {
         for (final e in _bodyCtrls.entries)
           if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
       };
@@ -289,12 +317,16 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     final ep = _selectedEndpoint;
     final method = (ep?['method'] as String? ?? '').toUpperCase();
     final path = ep?['path'] as String? ?? '/';
+    final epTable = ep?['table'] as String?;
     final pathParams = _extractPathParams(path);
     final needsBody = _bodyMethods.contains(method);
-    final needsQueryFilters =
-        _paramMethods.contains(method) && pathParams.isEmpty;
+    final needsQueryFilters = method == 'GET' && pathParams.isEmpty;
+    final needsDeleteId = method == 'DELETE' && pathParams.isEmpty;
     final cols = _filterColumns;
     final isPublic = ep?['is_public'] as bool? ?? false;
+
+    // Número de sección para body/filtros/delete-id
+    final inputSectionNum = pathParams.isNotEmpty ? '4' : '3';
 
     return Scaffold(
       appBar: AppBar(
@@ -387,6 +419,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                             items: List.generate(endpoints.length, (i) {
                               final epItem = endpoints[i];
                               final pub = epItem['is_public'] as bool? ?? false;
+                              final tbl = epItem['table'] as String?;
                               return DropdownMenuItem<int>(
                                 value: i,
                                 child: Row(
@@ -416,6 +449,27 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    if (tbl != null && tbl.isNotEmpty)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 5, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                              color: Colors.blue.shade300,
+                                              width: 0.5),
+                                        ),
+                                        child: Text(
+                                          tbl,
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.blue.shade300,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
                                     if (pub)
                                       Container(
                                         margin: const EdgeInsets.only(left: 4),
@@ -477,13 +531,27 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              path,
-                              style: const TextStyle(
-                                  fontFamily: 'monospace', fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  path,
+                                  style: const TextStyle(
+                                      fontFamily: 'monospace', fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (epTable != null && epTable.isNotEmpty)
+                                  Text(
+                                    'tabla: $epTable',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue.shade300,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
+                          const SizedBox(width: 8),
                           if (isPublic)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -568,14 +636,12 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                       ),
                     ],
 
-                    // ── 4. Body (POST/PUT) ──
+                    // ── Body (POST/PUT) ──
                     if (needsBody) ...[
-                      _SectionHeader(
-                          pathParams.isNotEmpty ? '4. Body (JSON)' : '3. Body (JSON)'),
+                      _SectionHeader('$inputSectionNum. Body (JSON)'),
                       const SizedBox(height: 8),
                       _bodyCtrls.isEmpty
-                          ? _emptyFieldsCard(
-                              'Sin columnas configuradas para el body')
+                          ? _emptyFieldsCard('Sin columnas configuradas para el body')
                           : Card(
                               elevation: 0,
                               color: AppTheme.surfaceColor,
@@ -594,10 +660,17 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                                                 bottom: 10),
                                             child: TextFormField(
                                               controller: e.value,
+                                              keyboardType: e.key == 'id'
+                                                  ? TextInputType.number
+                                                  : TextInputType.text,
                                               decoration: InputDecoration(
-                                                labelText: e.key,
-                                                hintText:
-                                                    'Valor de ${e.key}',
+                                                labelText: e.key == 'id'
+                                                    ? 'id (para identificar el registro)'
+                                                    : e.key,
+                                                hintText: 'Valor de ${e.key}',
+                                                prefixIcon: e.key == 'id'
+                                                    ? const Icon(Icons.tag, size: 18)
+                                                    : null,
                                               ),
                                             ),
                                           ))
@@ -607,9 +680,36 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                             ),
                     ],
 
-                    // ── 4/3. Query filters (GET/DELETE without path params) ──
+                    // ── DELETE por id ──
+                    if (needsDeleteId) ...[
+                      _SectionHeader('$inputSectionNum. ID a eliminar'),
+                      const SizedBox(height: 8),
+                      Card(
+                        elevation: 0,
+                        color: AppTheme.surfaceColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                              color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: TextFormField(
+                            controller: _bodyCtrls['id'],
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'id',
+                              hintText: 'ID del registro a eliminar',
+                              prefixIcon: Icon(Icons.delete_outline, size: 18),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // ── Query filters (GET sin path params) ──
                     if (needsQueryFilters) ...[
-                      _SectionHeader('3. Filtros (query params)'),
+                      _SectionHeader('$inputSectionNum. Filtros (query params)'),
                       const SizedBox(height: 8),
                       ..._filterRows.asMap().entries.map((entry) {
                         final i = entry.key;
@@ -698,7 +798,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                       ),
                     ],
 
-                    // No params note for GET with path params (no query filters)
+                    // Nota para GET/DELETE con path params
                     if (_paramMethods.contains(method) &&
                         pathParams.isNotEmpty) ...[
                       const SizedBox(height: 4),

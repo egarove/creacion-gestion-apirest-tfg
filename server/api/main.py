@@ -17,6 +17,14 @@ from models.endpoint_model import STRICT_MATRIX
 async def lifespan(app: FastAPI):
     """Inicializa tablas y regenera configs nginx con auth_request al arrancar."""
     Base.metadata.create_all(bind=engine)
+    # Migración: añadir columna tables si no existe (PostgreSQL soporta IF NOT EXISTS)
+    from sqlalchemy import text as _sql_text
+    try:
+        with engine.connect() as _mc:
+            _mc.execute(_sql_text("ALTER TABLE api_data ADD COLUMN IF NOT EXISTS tables JSON"))
+            _mc.commit()
+    except Exception:
+        pass
     # Regenerate nginx configs so auth_request is applied to all existing APIs.
     from sqlalchemy.orm import sessionmaker
     from services.nginx_service import _write_nginx_conf, _reload_nginx

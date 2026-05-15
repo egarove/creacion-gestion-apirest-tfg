@@ -129,8 +129,15 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
     final funcCtrl = TextEditingController();
     String method = 'get';
     String logic = 'select';
+    String? selectedTable;
     bool isLoading = false;
     String? errorMsg;
+
+    final extraTables = (_apiData['tables'] as List<dynamic>?)
+            ?.map((t) => (t as Map)['name'] as String? ?? '')
+            .where((n) => n.isNotEmpty)
+            .toList() ??
+        [];
 
     showModalBottomSheet(
       context: context,
@@ -257,6 +264,24 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                       },
                     ),
 
+                    const SizedBox(height: 14),
+
+                    DropdownButtonFormField<String?>(
+                      value: selectedTable,
+                      decoration: const InputDecoration(labelText: 'Tabla'),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Tabla principal (predeterminada)'),
+                        ),
+                        ...extraTables.map((n) => DropdownMenuItem<String?>(
+                              value: n,
+                              child: Text(n),
+                            )),
+                      ],
+                      onChanged: (v) => setSheetState(() => selectedTable = v),
+                    ),
+
                     const SizedBox(height: 12),
 
                     if (errorMsg != null)
@@ -284,11 +309,13 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                                   errorMsg = null;
                                 });
 
-                                final newEndpoint = {
+                                final newEndpoint = <String, dynamic>{
                                   'method': method,
                                   'path': pathCtrl.text.trim(),
                                   'function_name': funcCtrl.text.trim(),
                                   'logic': logic,
+                                  if (selectedTable != null)
+                                    'table': selectedTable!,
                                 };
 
                                 try {
@@ -299,7 +326,7 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
 
                                   await apiService.crearEndpoint(
                                     apiName,
-                                    Map<String, String>.from(newEndpoint),
+                                    newEndpoint,
                                   );
 
                                   await authService.agregarEndpointFirestore(
@@ -682,6 +709,15 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                                   color: AppTheme.secondaryColor,
                                 ),
                               ),
+                              if ((ep['table'] as String?) != null &&
+                                  (ep['table'] as String).isNotEmpty)
+                                Text(
+                                  'Tabla: ${ep['table']}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade300,
+                                  ),
+                                ),
                             ],
                           ),
                         ),

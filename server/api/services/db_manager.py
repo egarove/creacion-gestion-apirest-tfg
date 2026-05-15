@@ -55,6 +55,37 @@ def _crear_usuario_y_bd(db_type: str, api_name: str, usr: str, paswd: str):
             cursor.close()
             conn.close()
 
+def _crear_tabla_adicional(db_type: str, api_name: str, usr: str, paswd: str, table_name: str, sql_columns: str):
+    """Crea una tabla con nombre personalizado en la BD del usuario."""
+    table_name = _safe_identifier(table_name)
+    db_name = f"{api_name}_db"
+
+    if db_type == "sqlite":
+        project_path = f"deployments/{api_name}"
+        os.makedirs(project_path, exist_ok=True)
+        db_path = os.path.join(project_path, f"{api_name}.db")
+        conn = sqlite3_lib.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY AUTOINCREMENT, {sql_columns});")
+        conn.commit()
+        cursor.close()
+        conn.close()
+    elif db_type == "postgresql":
+        conn = psycopg2.connect(host="postgres", port=5432, dbname=db_name, user=usr, password=paswd)
+        conn.autocommit = True
+        cursor = conn.cursor()
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {quote_ident(table_name, conn)} (id SERIAL PRIMARY KEY, {sql_columns});")
+        cursor.close()
+        conn.close()
+    elif db_type in ("mariadb", "mysql"):
+        conn = pymysql.connect(host=db_type, port=3306, user=usr, password=paswd, database=db_name)
+        cursor = conn.cursor()
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS `{table_name}` (id INT AUTO_INCREMENT PRIMARY KEY, {sql_columns});")
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+
 def _crear_tabla_en_bd_usuario(db_type: str, api_name: str, usr: str, paswd: str, sql_columns: str):
     table_name = f"data_{api_name}"
     db_name = f"{api_name}_db"

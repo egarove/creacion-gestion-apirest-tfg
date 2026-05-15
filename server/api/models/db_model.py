@@ -13,6 +13,7 @@ class DBModel(Base):
     db = Column(String)
     columns = Column(ARRAY(String))
     endpoints = Column(JSON, default=list)
+    tables = Column(JSON, default=list)
     usr = Column(String)
     paswd = Column(String)
     generar_ui = Column(Integer, default=0)
