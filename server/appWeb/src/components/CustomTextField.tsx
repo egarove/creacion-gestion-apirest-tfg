@@ -8,6 +8,7 @@ export interface CustomTextFieldProps {
   type?: string;
   label?: string;
   className?: string;
+  error?: string;
 }
 
 export default function CustomTextField({
@@ -18,12 +19,14 @@ export default function CustomTextField({
   prefixIcon,
   label,
   className,
+  error,
 }: CustomTextFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
   return (
     <div className="relative">
       {label && (
-        <label className="block text-textSoft text-sm font-semibold mb-2">
+        <label className={`block text-sm font-semibold mb-2 ${error ? 'text-red-500' : 'text-textSoft'
+          }`}>
           {label}
         </label>
       )}
@@ -39,7 +42,10 @@ export default function CustomTextField({
           }
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`bg-surface border border-borderNormal rounded-xl w-full py-3 pr-4 text-sm text-textMain focus:border-primary focus:ring-2 focus:ring-primaryGlow outline-none transition-all ${prefixIcon ? "pl-11" : "pl-4"} ${className || ""}`}
+          className={`bg-surface border rounded-xl w-full py-3 pr-4 text-sm text-textMain outline-none transition-all ${error
+              ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+              : 'border-borderNormal focus:border-primary focus:ring-2 focus:ring-primaryGlow'
+            } ${prefixIcon ? "pl-11" : "pl-4"} ${className || ""}`}
           placeholder={placeholder}
         />
         {type === "password" && (
@@ -49,6 +55,12 @@ export default function CustomTextField({
           ></i>
         )}
       </div>
+      {error && (
+        <p className="text-red-500 text-xs font-medium mt-1 flex items-center">
+          <i className="fas fa-exclamation-circle mr-1"></i>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

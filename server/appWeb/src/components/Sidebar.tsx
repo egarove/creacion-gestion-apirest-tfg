@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { firebaseAuth } from '../services/LogInService';
-import type { Api } from '../types';
+import type { Panels } from '../types';
 import { UserModal } from './modals/UserModal';
 import { auth } from '../FirebaseConfig';
 import { useNavigate } from 'react-router-dom';
@@ -9,19 +9,19 @@ import { useContextStore } from '../contextZustand';
 import { firebaseServiceUser } from '../services/FireStoreService';
 
 interface SidebarProps {
-  apis: Api[];
-  runCount: number;
-  stopCount: number;
-  epsCount: number;
   onRefresh: () => void;
   onNewApi: () => void;
 }
 
-export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh, onNewApi }: SidebarProps) {
+export default function Sidebar({ onRefresh, onNewApi }: SidebarProps) {
+  const context = useContextStore();
   const [userModal, setUserModal] = useState(false);
   const navigate = useNavigate();
   const [alertModal, setAlertModal] = useState(false);
-  const context = useContextStore();
+
+  const handleSectionChange = (section: Panels) => {
+    context.setSelectedView(section);
+  };
   const handleLogout = async () => {
     await firebaseAuth.logOut();
     context.addToast({ msg: 'Sesión cerrada correctamente', type: 'success', id: crypto.randomUUID() })
@@ -64,13 +64,32 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3 no-scrollbar">
         <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-2">Principal</div>
-        <button className="flex items-center w-full gap-3 px-4 py-3 rounded-xl bg-primaryGlow text-white mb-1 transition-colors text-sm font-medium text-left">
-          <i className="fas fa-th-large w-5 text-center text-primary"></i> Dashboard
-          <span className="ml-auto bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{apis.length}</span>
+        <button
+          onClick={() => handleSectionChange('dashboard')}
+          className={`flex items-center w-full gap-3 px-4 py-3 rounded-xl mb-1 transition-all text-sm font-medium text-left ${context.selectedView === 'dashboard'
+            ? 'bg-primaryGlow text-white shadow-lg shadow-primary/30'
+            : 'text-textSoft hover:bg-white/5 hover:text-textMain'
+            }`}
+        >
+          <i className={`fas fa-th-large w-5 text-center ${context.selectedView === 'dashboard' ? 'text-white' : 'text-textMuted'
+            }`}></i> Dashboard
+          <span className="ml-auto bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{context.apis.length}</span>
         </button>
         <a href="/docs" target="_blank" className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
           <i className="fas fa-book-open w-5 text-center"></i> Swagger UI
         </a>
+        {context.user?.role === 'admin' && (
+          <button
+            onClick={() => handleSectionChange('adminPanel')}
+            className={`flex items-center w-full gap-3 px-4 py-3 rounded-xl mb-1 transition-all text-sm font-medium text-left ${context.selectedView === 'adminPanel'
+              ? 'bg-primaryGlow text-white shadow-lg shadow-primary/30'
+              : 'text-textSoft hover:bg-white/5 hover:text-textMain'
+              }`}
+          >
+            <i className={`fas fa-users w-5 text-center ${context.selectedView === 'adminPanel' ? 'text-white' : 'text-textMuted'
+              }`}></i> Panel de Administrador
+          </button>
+        )}
         <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-4">Herramientas</div>
         <button onClick={onRefresh} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
           <i className="fas fa-sync-alt w-5 text-center"></i> Refrescar todo
@@ -82,21 +101,9 @@ export default function Sidebar({ apis, runCount, stopCount, epsCount, onRefresh
 
       {/* Stats footer */}
       <div className="p-5 border-t border-borderNormal">
-        <div className="flex justify-between py-1.5 text-xs text-textSoft">
-          <span><i className="fas fa-circle text-[10px] text-success mr-2"></i>En ejecución</span>
-          <span className="font-bold text-success">{runCount}</span>
-        </div>
-        <div className="flex justify-between py-1.5 text-xs text-textSoft">
-          <span><i className="fas fa-circle text-[10px] text-danger mr-2"></i>Detenidas</span>
-          <span className="font-bold text-danger">{stopCount}</span>
-        </div>
-        <div className="flex justify-between py-1.5 text-xs text-textSoft">
-          <span><i className="fas fa-code-branch text-[10px] text-primary mr-2"></i>Endpoints</span>
-          <span className="font-bold text-textMain">{epsCount}</span>
-        </div>
         {alertModal && <AlertModal message="¿Estás seguro de que quieres cerrar sesión?" onConfirm={() => { handleLogout(); setAlertModal(false); }} onCancel={() => setAlertModal(false)} />}
         {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={handleChangePassword} />}
-        <div className='flex flex-row w-full gap-4 py-2 mt-2'>
+        <div className='flex flex-row w-full gap-4 py-2'>
           <button onClick={() => setAlertModal(true)} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
             <i className="fas fa-sign-out-alt w-5 text-center text-red-500"></i> Salir
           </button>

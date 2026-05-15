@@ -55,7 +55,11 @@ async def {{ endpoint.function_name }}(request: Request):
         body = {}
         try: body = await request.json()
         except: pass
-        row_id = request.path_params.get('id') or body.get('id')
+        row_id = (request.path_params.get('id')
+                  or body.get('id')
+                  or request.query_params.get('id'))
+        if not row_id:
+            return {"error": "id is required"}
         conn.execute(text(f"DELETE FROM {_tbl} WHERE id = :id"), {"id": row_id})
         conn.commit()
         return {"msg": "deleted"}

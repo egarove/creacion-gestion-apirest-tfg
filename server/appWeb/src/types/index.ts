@@ -36,17 +36,21 @@ export interface Api {
 export interface Toast {
   id: string;
   msg: string;
-  type: 'success' | 'error' | 'info';
+  type: "success" | "error" | "info";
 }
 
 export interface UserData {
   role: Roles;
   uid: string;
+  email?: string;
   apis: Api[];
 }
 export type Roles = "admin" | "usuario";
 
-export type Tabs = "info" | "endpoints" | "logs" | "schema"
+export type Tabs = "info" | "endpoints" | "logs" | "schema";
+
+export type Panels = "dashboard" | "adminPanel";
+
 
 export interface SchemaColumn {
   name: string;

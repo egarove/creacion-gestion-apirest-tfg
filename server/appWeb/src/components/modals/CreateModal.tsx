@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Endpoint, Toast } from '../../types';
 import { LANG_OPTS, DB_OPTS } from '../../constants';
-import { createApi, STRICT_MATRIX, autoLogic } from '../../services/apiService';
+import { createApi, STRICT_MATRIX, autoLogic, deleteApi } from '../../services/apiService';
 import { firebaseServiceUser } from '../../services/FireStoreService';
 import { useContextStore } from '../../contextZustand';
 
@@ -67,20 +67,35 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
         endpoints: cleanedEndpoints,
         generar_ui: generarUi,
       });
-      await firebaseServiceUser.saveApi(name, {
+      console.log('API creada con puerto:', firebaseServiceUser.userCollectionRef);
+      const firebaseEndpoints = cleanedEndpoints.map(ep => ({
+        method: ep.method,
+        path: ep.path,
+        function_name: ep.function_name,
+        logic: ep.logic,
+        table: ep.table ?? null,
+        is_public: ep.is_public,
+      }));
+      const savedApi = await firebaseServiceUser.saveApi(name, {
         api_name: name,
         port: data.puerto,
         backup_port: data.puerto + 1,
-        db,
+        db: db,
         language: lang,
         columns: columns.map(c => `${c.name} ${c.type}`),
-        endpoints,
+        endpoints: firebaseEndpoints,
         generar_ui: generarUi,
       });
-      showToast(`API "${name}" creada · Puerto ${data.puerto}`, 'success');
-      reload();
-      close();
+      if (savedApi) {
+        showToast(`API "${name}" creada · Puerto ${data.puerto}`, 'success');
+        reload();
+        close();
+      } else {
+        await deleteApi(name);
+        showToast('Error al guardar la API en la base de datos', 'error');
+      }
     } catch (e) {
+      await deleteApi(name);
       showToast('Error: ' + (e instanceof Error ? e.message : String(e)), 'error');
     }
     hideLoading();

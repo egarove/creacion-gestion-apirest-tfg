@@ -42,7 +42,7 @@ class ApiService {
 
   Future<void> crearEndpoint(
     String apiName,
-    Map<String, String> endpoint,
+    Map<String, dynamic> endpoint,
   ) async {
     final uri = Uri.parse('$_baseUrl/$apiName/create-end-point');
 

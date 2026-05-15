@@ -3,6 +3,7 @@ import LoginScreen from "./screens/LoginScreen";
 import MainScreen from "./screens/MainScreen";
 import { useContextStore } from "./contextZustand";
 import ToastList from "./components/ToastList";
+import RegisterScreen from "./screens/RegisterScreen";
 
 export default function App() {
     const context = useContextStore();
@@ -12,6 +13,7 @@ export default function App() {
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<LoginScreen />} />
                 <Route path="/main" element={<MainScreen />} />
+                <Route path="/register" element={<RegisterScreen />} />
             </Routes>
             <ToastList toasts={context.toastList} />
         </BrowserRouter>

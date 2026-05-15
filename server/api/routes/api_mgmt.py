@@ -17,6 +17,7 @@ from services.db_manager import (
     _build_database_url,
     _crear_usuario_y_bd,
     _crear_tabla_en_bd_usuario,
+    _crear_tabla_adicional,
     _get_free_port,
     _is_port_available,
 )
@@ -53,6 +54,7 @@ def get_all_apis(db: Session = Depends(get_db)):
             "db": api.db,
             "language": api.language or "python",
             "columns": api.columns or [],
+            "tables": api.tables or [],
             "endpoints": api.endpoints or [],
             "generar_ui": bool(api.generar_ui),
             "status": main_status,
@@ -76,6 +78,7 @@ def sync_apis(db: Session = Depends(get_db)):
             "db": api.db,
             "language": api.language or "python",
             "columns": api.columns or [],
+            "tables": api.tables or [],
             "endpoints": api.endpoints or [],
             "generar_ui": bool(api.generar_ui),
             "status": main_status,
@@ -154,6 +157,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
 
         # Guardar en base de datos
         endpoints_data = [ep.model_dump() for ep in project.endpoints]
+        tables_data = [tbl.model_dump() for tbl in project.tables]
         db_data = DBModel(
             api_name=project.api_name,
             port=port,
@@ -164,6 +168,7 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
             columns=project.columns,
             paswd=project.paswd,
             endpoints=endpoints_data,
+            tables=tables_data,
             generar_ui=int(generar_ui),
         )
         db.add(db_data)
@@ -172,6 +177,14 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
         # Crear tabla para motores distintos de SQLite (ya hecho arriba para sqlite)
         if project.db != "sqlite":
             _crear_tabla_en_bd_usuario(project.db, project.api_name, project.usr, project.paswd, sql_columns)
+
+        # Crear tablas adicionales
+        for tbl in project.tables:
+            extra_cols = ", ".join(tbl.columns)
+            try:
+                _crear_tabla_adicional(project.db, project.api_name, project.usr, project.paswd, tbl.name, extra_cols)
+            except Exception:
+                pass
 
         # Configurar nginx
         try:

@@ -99,6 +99,7 @@ class AuthService {
       'usr': apiData['usr'] ?? '',
       'paswd': apiData['paswd'] ?? '',
       'columns': apiData['columns'],
+      'tables': apiData['tables'] ?? [],
       'endpoints': apiData['endpoints'] ?? [],
       'createdAt': FieldValue.serverTimestamp(),
     };
