@@ -154,26 +154,26 @@ export default function RegisterScreen() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-bg text-textMain font-sans">
+    <div className="flex items-center justify-center min-h-screen bg-bg text-textMain font-sans px-3 py-4 sm:px-4 sm:py-6">
       <form
         onSubmit={handleRegister}
-        className="bg-card border border-borderNormal rounded-2xl shadow-2xl p-6 sm:p-10 w-full max-w-md mx-4 sm:mx-0 relative overflow-hidden"
+        className="bg-card border border-borderNormal rounded-2xl shadow-2xl p-5 sm:p-8 md:p-10 w-full max-w-md relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-purple-500"></div>
 
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primaryGlow text-primary mb-4">
-            <i className="fas fa-user-plus text-3xl"></i>
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primaryGlow text-primary mb-3 sm:mb-4">
+            <i className="fas fa-user-plus text-2xl sm:text-3xl"></i>
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-textMain">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-textMain">
             Crear Cuenta
           </h2>
-          <p className="text-textSoft mt-2 text-sm">
+          <p className="text-textSoft mt-2 text-xs sm:text-sm">
             Únete para empezar a gestionar tus APIs
           </p>
         </div>
 
-        <div className="space-y-5 mb-8">
+        <div className="space-y-4 sm:space-y-5 mb-6 sm:mb-8">
           <CustomTextField
             type="email"
             label="Correo electrónico"
@@ -206,7 +206,7 @@ export default function RegisterScreen() {
         <button
           type="submit"
           disabled={loading || !isFormValid}
-          className="w-full bg-gradient-to-br from-primary to-purple-500 hover:to-purple-600 rounded-xl px-5 py-3 text-white font-bold text-[15px] shadow-lg hover:shadow-primary/30 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-gradient-to-br from-primary to-purple-500 hover:to-purple-600 rounded-xl px-4 sm:px-5 py-2.5 sm:py-3 text-white font-bold text-sm sm:text-[15px] shadow-lg hover:shadow-primary/30 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -218,15 +218,15 @@ export default function RegisterScreen() {
           )}
         </button>
 
-        <div className="mt-8 text-center border-t border-borderNormal/50 pt-6">
-          <p className="text-textSoft text-sm">
+        <div className="mt-4 sm:mt-8 text-center border-t border-borderNormal/50 pt-4 sm:pt-6">
+          <p className="text-textSoft text-xs sm:text-sm">
             ¿Ya tienes una cuenta?{" "}
             <button
               type="button"
               onClick={() => navigate("/login")}
               className="text-primary hover:underline font-medium"
             >
-              Inicia sesión aquí
+              Inicia sesión
             </button>
           </p>
         </div>

@@ -104,7 +104,7 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-3 sm:p-4 md:p-0">
       {deletingApis && (<LoadingOverlay message="Eliminando cuenta..." />)}
       {showDeleteModal && (
         <DeleteAccountConfirmationModal
@@ -113,15 +113,15 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           onConfirm={handleDelete}
         />
       )}
-      <div className="w-full max-w-md rounded-xl bg-surface border border-borderNormal p-6 shadow-2xl">
-        <div className="flex flex-row items-center mb-3 gap-4">
-          <h1 className="text-xl font-bold text-textMain">
+      <div className="w-full max-w-md rounded-xl bg-surface border border-borderNormal p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center mb-3 gap-2 sm:gap-4">
+          <h1 className="text-lg sm:text-xl font-bold text-textMain">
             Cambiar Contraseña
           </h1>
 
           <button
             onClick={() => setIsDeleting(true)}
-            className="ml-auto text-danger hover:text-danger/80 hover:underline transition-colors"
+            className="ml-0 sm:ml-auto text-danger hover:text-danger/80 hover:underline transition-colors text-xs sm:text-sm whitespace-nowrap"
           >
             darse de baja
           </button>
@@ -134,17 +134,17 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           />
         )
         }
-        <div className="bg-card border border-borderNormal rounded-lg p-3 mb-6">
-          <div className="text-[10px] text-textMuted uppercase font-bold mb-1">
+        <div className="bg-card border border-borderNormal rounded-lg p-2 sm:p-3 mb-4 sm:mb-6">
+          <div className="text-[9px] sm:text-[10px] text-textMuted uppercase font-bold mb-1">
             Email
           </div>
-          <p className="text-sm text-textSoft font-mono break-all">
+          <p className="text-xs sm:text-sm text-textSoft font-mono break-all">
             {user?.email}
           </p>
         </div>
 
         {context.user?.provider === "password" ? (
-          <div className="space-y-4 mb-6">
+          <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
             <CustomTextField
               label="Contraseña Actual"
               type="password"
@@ -207,9 +207,9 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
               )}
           </div>
         ) : (
-          <form onSubmit={handleChangePassword} className="space-y-4 mb-6">
-            <h2 className="text-lg font-semibold text-textMain mb-2">Cambiar contraseña</h2>
-            <p className="text-sm text-textSoft mb-4">Introduce tu correo electrónico para recibir un enlace de restablecimiento de contraseña.</p>
+          <form onSubmit={handleChangePassword} className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+            <h2 className="text-base sm:text-lg font-semibold text-textMain mb-1 sm:mb-2">Cambiar contraseña</h2>
+            <p className="text-xs sm:text-sm text-textSoft mb-3 sm:mb-4">Introduce tu correo electrónico para recibir un enlace de restablecimiento de contraseña.</p>
 
             <CustomTextField
               type="email"
@@ -221,11 +221,13 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
 
             <div className="flex justify-end gap-2">
               {loadingChangePasswd ? (
-                <button type="button" disabled className="px-4 py-2 rounded-lg bg-borderNormal text-textMuted text-xs font-semibold cursor-not-allowed opacity-50">
-                  <i className="fas fa-circle-notch animate-spin mr-2"></i> Enviando...
+                <button type="button" disabled className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-borderNormal text-textMuted text-xs font-semibold cursor-not-allowed opacity-50">
+                  <i className="fas fa-circle-notch animate-spin mr-1 sm:mr-2"></i>
+                  <span className="hidden sm:inline">Enviando...</span>
+                  <span className="inline sm:hidden">...</span>
                 </button>
               ) : (
-                <button type="submit" className="px-4 py-2 rounded-lg bg-success hover:bg-opacity-90 text-white text-xs font-semibold transition-all shadow-lg shadow-success/30">
+                <button type="submit" className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-success hover:bg-opacity-90 text-white text-xs font-semibold transition-all shadow-lg shadow-success/30">
                   Enviar enlace
                 </button>
               )}
@@ -233,25 +235,26 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           </form>
         )}
 
-
-        <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg border border-borderLight text-textSoft text-xs font-semibold hover:text-textMain hover:border-borderNormal transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!isPasswordValid}
-            className={`flex-1 py-2.5 rounded-lg text-white text-xs font-bold transition-all ${isPasswordValid
-              ? "bg-success hover:bg-opacity-90 shadow-lg shadow-success/30"
-              : "bg-borderNormal text-textMuted cursor-not-allowed opacity-50"
-              }`}
-          >
-            Actualizar
-          </button>
-        </div>
+        {context.user?.provider === "password" && (
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2 sm:py-2.5 rounded-lg border border-borderLight text-textSoft text-xs sm:text-sm font-semibold hover:text-textMain hover:border-borderNormal transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!isPasswordValid}
+              className={`flex-1 py-2 sm:py-2.5 rounded-lg text-white text-xs sm:text-sm font-bold transition-all ${isPasswordValid
+                ? "bg-success hover:bg-opacity-90 shadow-lg shadow-success/30"
+                : "bg-borderNormal text-textMuted cursor-not-allowed opacity-50"
+                }`}
+            >
+              Actualizar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
