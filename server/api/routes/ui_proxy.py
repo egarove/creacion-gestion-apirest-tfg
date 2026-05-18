@@ -456,7 +456,7 @@ function changeTable(t){{CURRENT_TABLE=t;COLS=TABLE_SCHEMA[t]||[];DATA=[];filter
 
 
 @router.get("/ui-proxy/{api_name}", response_class=HTMLResponse)
-def ui_proxy_panel(api_name: str, db: Session = Depends(get_db)):
+def ui_proxy_panel(api_name: str, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404, content="API no encontrada")
@@ -486,8 +486,8 @@ def ui_proxy_data(api_name: str, table: str | None = None, db: Session = Depends
         with engine.connect() as conn:
             rows = conn.execute(text(f"SELECT * FROM {tname}")).fetchall()
             return [dict(r._mapping) for r in rows]
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/ui-proxy/{api_name}/add")

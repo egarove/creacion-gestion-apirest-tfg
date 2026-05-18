@@ -3,12 +3,13 @@
 Rutas DDL para gestión dinámica del esquema de bases de datos de usuario.
 SOLO accesible desde el panel web (no expuesto a la app móvil).
 """
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Path, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from models import DBModel
 from events.db import get_db
+from routes.auth import firebase_dep
 from services.db_manager import (
     _get_user_schema,
     _ddl_create_table,
@@ -16,6 +17,8 @@ from services.db_manager import (
     _ddl_add_column,
     _ddl_add_fk,
 )
+
+_API_NAME_PATH = Path(pattern=r'^[a-z][a-z0-9_]{1,49}$')
 
 router = APIRouter(prefix="/schema", tags=["schema"])
 
@@ -52,7 +55,7 @@ def _get_api_or_404(api: str, db: Session):
 
 
 @router.get("/{api}")
-def get_schema(api: str, db: Session = Depends(get_db)):
+def get_schema(api: str = _API_NAME_PATH, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Devuelve el esquema completo (tablas + columnas + FKs) de la BD de usuario."""
     try:
         record = _get_api_or_404(api, db)
@@ -60,12 +63,12 @@ def get_schema(api: str, db: Session = Depends(get_db)):
         return {"api": api, "db_type": record.db, "tables": schema}
     except ValueError as e:
         return Response(status_code=404, content=str(e))
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/tables")
-def create_table(api: str, body: TableCreate, db: Session = Depends(get_db)):
+def create_table(api: str = _API_NAME_PATH, body: TableCreate = ..., db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Crea una nueva tabla en la BD de usuario."""
     try:
         record = _get_api_or_404(api, db)
@@ -75,12 +78,12 @@ def create_table(api: str, body: TableCreate, db: Session = Depends(get_db)):
         return {"ok": True, "table": body.name}
     except ValueError as e:
         return Response(status_code=400, content=str(e))
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.delete("/{api}/tables/{table_name}")
-def drop_table(api: str, table_name: str, db: Session = Depends(get_db)):
+def drop_table(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'), db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Elimina una tabla de la BD de usuario."""
     try:
         record = _get_api_or_404(api, db)
@@ -88,12 +91,12 @@ def drop_table(api: str, table_name: str, db: Session = Depends(get_db)):
         return {"ok": True, "dropped": table_name}
     except ValueError as e:
         return Response(status_code=400, content=str(e))
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/tables/{table_name}/columns")
-def add_column(api: str, table_name: str, body: ColumnAdd, db: Session = Depends(get_db)):
+def add_column(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'), body: ColumnAdd = ..., db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Añade una columna a una tabla existente."""
     try:
         record = _get_api_or_404(api, db)
@@ -101,12 +104,12 @@ def add_column(api: str, table_name: str, body: ColumnAdd, db: Session = Depends
         return {"ok": True, "column": body.name, "table": table_name}
     except ValueError as e:
         return Response(status_code=400, content=str(e))
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/tables/{table_name}/fk")
-def add_foreign_key(api: str, table_name: str, body: FKCreate, db: Session = Depends(get_db)):
+def add_foreign_key(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'), body: FKCreate = ..., db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Añade una Foreign Key a una tabla."""
     try:
         record = _get_api_or_404(api, db)
@@ -115,5 +118,5 @@ def add_foreign_key(api: str, table_name: str, body: FKCreate, db: Session = Dep
         return {"ok": True, "fk": f"{table_name}.{body.column} → {body.ref_table}.{body.ref_column}"}
     except ValueError as e:
         return Response(status_code=400, content=str(e))
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")

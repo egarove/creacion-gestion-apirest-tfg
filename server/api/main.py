@@ -42,7 +42,7 @@ app = FastAPI(
     title="API Generator",
     description="Gestor de generación dinámica de APIs con Docker",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 

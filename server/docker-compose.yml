@@ -7,7 +7,7 @@ services:
     env_file:
       - ./api/.env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./api:/api
       - /var/run/docker.sock:/var/run/docker.sock
@@ -24,7 +24,7 @@ services:
       context: ./appWeb
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./appWeb:/appWeb
       - /appWeb/node_modules
@@ -40,7 +40,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     mem_limit: 256m
@@ -59,7 +59,7 @@ services:
       MARIADB_USER: user
       MARIADB_PASSWORD: password
     ports:
-      - "5433:3306"
+      - "127.0.0.1:5433:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
     mem_limit: 256m
@@ -77,7 +77,7 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     ports:
-      - "5434:3306"
+      - "127.0.0.1:5434:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     mem_limit: 256m

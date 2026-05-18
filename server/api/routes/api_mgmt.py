@@ -3,9 +3,10 @@
 Endpoints para la gestión CRUD de APIs.
 """
 import os
+import re
 import shutil
 import subprocess
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Path, Response
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,7 @@ from models import ApiModel, DBModel
 from models.endpoint_model import Endpoint
 from settings import LANG_CONFIG, HOST_API_PATH
 from events.db import get_db
+from routes.auth import firebase_dep
 from services.db_manager import (
     _build_database_url,
     _crear_usuario_y_bd,
@@ -35,12 +37,13 @@ from services.generator import (
     add_endpoint_to_project,
 )
 
+_API_NAME_PATH = Path(pattern=r'^[a-z][a-z0-9_]{1,49}$')
 
 router = APIRouter()
 
 
 @router.get("/get-all-apis")
-def get_all_apis(db: Session = Depends(get_db)):
+def get_all_apis(db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Obtiene todas las APIs registradas con su estado."""
     apis = db.query(DBModel).all()
     result = []
@@ -64,7 +67,7 @@ def get_all_apis(db: Session = Depends(get_db)):
 
 
 @router.get("/sync")
-def sync_apis(db: Session = Depends(get_db)):
+def sync_apis(db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Sincroniza el estado de todas las APIs con Docker."""
     apis = db.query(DBModel).all()
     result = []
@@ -88,7 +91,7 @@ def sync_apis(db: Session = Depends(get_db)):
 
 
 @router.post("/crear-api")
-def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
+def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Crea una nueva API con la configuración proporcionada."""
     try:
         if db.query(DBModel).filter(DBModel.api_name == project.api_name).first():
@@ -199,13 +202,13 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db)):
             "id": db_data.id,
             "language": lang,
         }
-    except Exception as e:
+    except Exception:
         db.rollback()
-        return Response(status_code=500, content=str(e))
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/start")
-def start_api(api: str):
+def start_api(api: str = _API_NAME_PATH, _auth: dict = Depends(firebase_dep)):
     """Inicia los contenedores de una API detenida."""
     try:
         from services.docker_service import start_container
@@ -213,12 +216,12 @@ def start_api(api: str):
         if isinstance(result, Response):
             return result
         return result
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/stop")
-def stop_api(api: str):
+def stop_api(api: str = _API_NAME_PATH, _auth: dict = Depends(firebase_dep)):
     """Para los contenedores de una API en ejecución."""
     try:
         from services.docker_service import stop_container
@@ -226,23 +229,23 @@ def stop_api(api: str):
         if isinstance(result, Response):
             return result
         return result
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.get("/{api}/status")
-def get_api_status(api: str):
+def get_api_status(api: str = _API_NAME_PATH, _auth: dict = Depends(firebase_dep)):
     """Obtiene el estado del contenedor principal y del respaldo."""
     try:
         main_status = get_container_status(api)
         backup_status = get_container_status(api, "_backup")
         return {"status": main_status, "backup_status": backup_status}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/rebuild")
-def rebuild_api(api: str, db: Session = Depends(get_db)):
+def rebuild_api(api: str = _API_NAME_PATH, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Regenera el código con el template actual y reconstruye la imagen Docker."""
     try:
         api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
@@ -283,12 +286,12 @@ def rebuild_api(api: str, db: Session = Depends(get_db)):
         _reload_nginx()
 
         return {"mensaje": "API reconstruida", "puerto": port, "backup_port": backup_port}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/restore")
-def restore_api(api: str, db: Session = Depends(get_db)):
+def restore_api(api: str = _API_NAME_PATH, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Para ambos contenedores y los relanza desde cero."""
     try:
         api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
@@ -319,12 +322,12 @@ def restore_api(api: str, db: Session = Depends(get_db)):
         _reload_nginx()
 
         return {"mensaje": "API restaurada", "puerto": port, "backup_port": backup_port}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/create-end-point")
-def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)):
+def create_end_point(api: str = _API_NAME_PATH, endpoint: Endpoint = ..., db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Añade un nuevo endpoint a una API existente."""
     try:
         api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
@@ -376,12 +379,12 @@ def create_end_point(api: str, endpoint: Endpoint, db: Session = Depends(get_db)
         _reload_nginx()
 
         return {"mensaje": "Endpoint añadido", "endpoint": endpoint.path}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
 
 
 @router.post("/{api}/delete")
-def delete_api(api: str, db: Session = Depends(get_db)):
+def delete_api(api: str = _API_NAME_PATH, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Elimina la API y sus recursos (contenedores, archivos, BD)."""
     try:
         reg = db.query(DBModel).filter(DBModel.api_name == api).first()
@@ -414,5 +417,5 @@ def delete_api(api: str, db: Session = Depends(get_db)):
             pass
 
         return {"mensaje": "Eliminado"}
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception:
+        return Response(status_code=500, content="Error interno del servidor")
