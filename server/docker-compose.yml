@@ -25,9 +25,6 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
-    volumes:
-      - ./appWeb:/appWeb
-      - /appWeb/node_modules
     depends_on:
       - api
 # Base de datos para las apis:
