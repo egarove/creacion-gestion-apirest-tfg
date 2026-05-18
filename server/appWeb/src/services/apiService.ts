@@ -3,6 +3,11 @@ import { auth } from '../FirebaseConfig';
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : extra;
+}
+
 // Matriz estricta: GET→select, POST→insert, PUT→update, DELETE→update|delete
 export const STRICT_MATRIX: Record<string, string[]> = {
   get:    ['select'],
@@ -17,30 +22,30 @@ export function autoLogic(method: string): string {
 }
 
 export async function getAllApis(): Promise<Api[]> {
-  const res = await fetch('/get-all-apis');
+  const res = await fetch('/get-all-apis', { headers: await authHeaders() });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<Api[]>;
 }
 
 export async function toggleApi(name: string, status: string): Promise<void> {
   const action = status === 'running' ? 'stop' : 'start';
-  const res = await fetch(`/${name}/${action}`, { method: 'POST' });
+  const res = await fetch(`/${name}/${action}`, { method: 'POST', headers: await authHeaders() });
   if (!res.ok) throw new Error(await res.text());
 }
 
 export async function restoreApi(name: string): Promise<void> {
-  const res = await fetch(`/${name}/restore`, { method: 'POST' });
+  const res = await fetch(`/${name}/restore`, { method: 'POST', headers: await authHeaders() });
   if (!res.ok) throw new Error(await res.text());
 }
 
 export async function deleteApi(name: string): Promise<void> {
-  const res = await fetch(`/${name}/delete`, { method: 'POST' });
+  const res = await fetch(`/${name}/delete`, { method: 'POST', headers: await authHeaders() });
   if (!res.ok) throw new Error(await res.text());
 }
 
 export async function getLogs(name: string): Promise<string> {
   try {
-    const res = await fetch(`/${name}/logs?tail=80`);
+    const res = await fetch(`/${name}/logs?tail=80`, { headers: await authHeaders() });
     const data = await res.json() as { logs?: string };
     return data.logs || 'Sin logs disponibles';
   } catch (e) {
@@ -51,7 +56,7 @@ export async function getLogs(name: string): Promise<string> {
 export async function addEndpoint(apiName: string, ep: Endpoint): Promise<void> {
   const res = await fetch(`/${apiName}/create-end-point`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(ep),
   });
   if (!res.ok) {
@@ -76,7 +81,7 @@ export interface CreateApiBody {
 export async function createApi(body: CreateApiBody): Promise<{ puerto: number }> {
   const res = await fetch('/crear-api', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
   });
   const text = await res.text();
@@ -93,7 +98,7 @@ export async function createApi(body: CreateApiBody): Promise<{ puerto: number }
 
 // ── DDL / Schema ──────────────────────────────────────────
 export async function getSchema(apiName: string): Promise<ApiSchema> {
-  const res = await fetch(`/schema/${apiName}`);
+  const res = await fetch(`/schema/${apiName}`, { headers: await authHeaders() });
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<ApiSchema>;
 }
@@ -105,14 +110,14 @@ export async function createTable(
 ): Promise<void> {
   const res = await fetch(`/schema/${apiName}/tables`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ name, columns }),
   });
   if (!res.ok) throw new Error(await res.text());
 }
 
 export async function dropTable(apiName: string, tableName: string): Promise<void> {
-  const res = await fetch(`/schema/${apiName}/tables/${tableName}`, { method: 'DELETE' });
+  const res = await fetch(`/schema/${apiName}/tables/${tableName}`, { method: 'DELETE', headers: await authHeaders() });
   if (!res.ok) throw new Error(await res.text());
 }
 
@@ -123,7 +128,7 @@ export async function addColumn(
 ): Promise<void> {
   const res = await fetch(`/schema/${apiName}/tables/${tableName}/columns`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(col),
   });
   if (!res.ok) throw new Error(await res.text());
@@ -136,7 +141,7 @@ export async function addFK(
 ): Promise<void> {
   const res = await fetch(`/schema/${apiName}/tables/${tableName}/fk`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(fk),
   });
   if (!res.ok) throw new Error(await res.text());
