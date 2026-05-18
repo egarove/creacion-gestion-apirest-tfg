@@ -175,8 +175,8 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
             <div className="space-y-2">
               {columns.map((col, i) => (
                 <div key={i} className="flex gap-2 items-center">
-                  <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value.replace(/\s/g, ''))} className={inputCls + ' flex-1'} placeholder="nombre_columna" />
-                  <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className={selectCls + ' !w-[150px] flex-shrink-0'}>
+                  <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value.replace(/\s/g, ''))} className={'bg-bg border border-borderNormal rounded-xl px-3 py-2.5 text-sm focus:border-primary outline-none text-textMain transition-colors flex-1'} placeholder="nombre_columna" />
+                  <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className={selectCls + ' w-[150px] flex-shrink-0 max-w-[40%]'}>
                     {COL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <button onClick={() => removeCol(i)} disabled={columns.length === 1} className="w-9 h-10 flex items-center justify-center text-danger hover:bg-dangerBg rounded-lg disabled:opacity-30 shrink-0">
