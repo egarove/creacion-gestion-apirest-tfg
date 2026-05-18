@@ -4,7 +4,7 @@ import { create } from "zustand";
 
 export type State = {
   user: UserData | null;
-  setUser: (user: UserData) => void;
+  setUser: (user: UserData | null) => void;
   clearUser: () => void;
   selectedView: Panels;
   setSelectedView: (selection: Panels) => void;
@@ -23,7 +23,7 @@ export const useContextStore = create<State>()(
   persist(
     (set) => ({
       user: null,
-      setUser: (user: UserData) => set({ user }),
+      setUser: (user) => set({ user }),
       clearUser: () => set({ user: null }),
       apis: [],
       userApisPath: "",

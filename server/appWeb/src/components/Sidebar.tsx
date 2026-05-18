@@ -29,6 +29,7 @@ export default function Sidebar({ onRefresh, onNewApi }: SidebarProps) {
     context.clearApis();
     firebaseServiceUser.setCollection("");
     context.setUserApisPath("");
+    context.setSelectedView("dashboard");
     setUserModal(false);
     navigate("/");
   };

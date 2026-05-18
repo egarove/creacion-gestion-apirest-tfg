@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useContextStore } from "../../contextZustand";
 import { useNavigate } from "react-router-dom";
 import { User, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
-import { auth } from "../../FirebaseConfig";
 import CustomTextField from "../CustomTextField";
 import { firebaseServiceUser } from "../../services/FireStoreService";
 

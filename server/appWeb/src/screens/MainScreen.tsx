@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Api, Toast } from "../types";
+import type { Api, Toast, UserData } from "../types";
 import * as ApiService from "../services/apiService";
 import Sidebar from "../components/Sidebar";
 import Panel from "../components/Panel";
@@ -21,8 +21,36 @@ export default function MainScreen() {
   useEffect(() => {
     if (!user) {
       navigate("/login");
+      return;
     }
-  }, [user, navigate]);
+    const verifyUser = async () => {
+      try {
+        firebaseServiceUser.setCollection("");
+        const userData = await firebaseServiceUser.getByIdentifier<UserData>(
+          "email",
+          user.email!,
+        );
+
+        if (userData == null) {
+          context.addToast({
+            msg: "Usuario no encontrado en la base de datos",
+            type: "error",
+            id: uuidv4(),
+          });
+          context.setUser(null);
+          navigate("/login");
+        } else {
+          context.setUser(userData);
+        }
+      } catch (error) {
+        console.error("Error verificando usuario:", error);
+        context.setUser(null);
+        navigate("/login");
+      }
+    };
+
+    verifyUser();
+  }, []);
 
   if (!user) return null;
 
