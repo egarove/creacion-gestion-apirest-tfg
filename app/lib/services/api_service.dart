@@ -91,8 +91,12 @@ class ApiService {
 
   Future<Map<String, dynamic>> getStatus(String apiName) async {
     final uri = Uri.parse('$_baseUrl/$apiName/status');
+    final token = await _getToken();
     try {
-      final response = await http.get(uri);
+      final response = await http.get(
+        uri,
+        headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      );
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
@@ -134,8 +138,12 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getAllApis() async {
     final uri = Uri.parse('$_baseUrl/get-all-apis');
+    final token = await _getToken();
     try {
-      final response = await http.get(uri);
+      final response = await http.get(
+        uri,
+        headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      );
       if (response.statusCode == 200) {
         final list = jsonDecode(response.body) as List;
         return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -202,8 +210,12 @@ class ApiService {
   // Returns null on network/server error (don't clean up), empty list if server has 0 APIs
   Future<List<String>?> syncApiNames() async {
     final uri = Uri.parse('$_baseUrl/sync');
+    final token = await _getToken();
     try {
-      final response = await http.get(uri);
+      final response = await http.get(
+        uri,
+        headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      );
       if (response.statusCode == 200) {
         final list = jsonDecode(response.body) as List;
         return list.map((e) => (e as Map)['api_name'] as String).toList();
