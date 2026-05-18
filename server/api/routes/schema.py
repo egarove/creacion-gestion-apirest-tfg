@@ -3,9 +3,12 @@
 Rutas DDL para gestión dinámica del esquema de bases de datos de usuario.
 SOLO accesible desde el panel web (no expuesto a la app móvil).
 """
+import logging
 from fastapi import APIRouter, Depends, Path, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+log = logging.getLogger(__name__)
 
 from models import DBModel
 from events.db import get_db
@@ -64,6 +67,7 @@ def get_schema(api: str = _API_NAME_PATH, db: Session = Depends(get_db), _auth: 
     except ValueError as e:
         return Response(status_code=404, content=str(e))
     except Exception:
+        log.exception("Error interno en schema")
         return Response(status_code=500, content="Error interno del servidor")
 
 
@@ -79,6 +83,7 @@ def create_table(api: str = _API_NAME_PATH, body: TableCreate = ..., db: Session
     except ValueError as e:
         return Response(status_code=400, content=str(e))
     except Exception:
+        log.exception("Error interno en schema")
         return Response(status_code=500, content="Error interno del servidor")
 
 
@@ -92,6 +97,7 @@ def drop_table(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'^[a-z
     except ValueError as e:
         return Response(status_code=400, content=str(e))
     except Exception:
+        log.exception("Error interno en schema")
         return Response(status_code=500, content="Error interno del servidor")
 
 
@@ -105,6 +111,7 @@ def add_column(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'^[a-z
     except ValueError as e:
         return Response(status_code=400, content=str(e))
     except Exception:
+        log.exception("Error interno en schema")
         return Response(status_code=500, content="Error interno del servidor")
 
 
@@ -119,4 +126,5 @@ def add_foreign_key(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'
     except ValueError as e:
         return Response(status_code=400, content=str(e))
     except Exception:
+        log.exception("Error interno en schema")
         return Response(status_code=500, content="Error interno del servidor")
