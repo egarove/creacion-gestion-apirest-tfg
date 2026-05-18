@@ -456,7 +456,7 @@ function changeTable(t){{CURRENT_TABLE=t;COLS=TABLE_SCHEMA[t]||[];DATA=[];filter
 
 
 @router.get("/ui-proxy/{api_name}", response_class=HTMLResponse)
-def ui_proxy_panel(api_name: str, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
+def ui_proxy_panel(api_name: str, db: Session = Depends(get_db)):
     api_data = db.query(DBModel).filter(DBModel.api_name == api_name).first()
     if not api_data:
         return Response(status_code=404, content="API no encontrada")
