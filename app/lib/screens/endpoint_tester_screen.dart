@@ -351,6 +351,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                         )
                       : DropdownButtonFormField<int>(
                           value: _selectedApiIdx,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'API',
                             hintText: 'Selecciona una API',
@@ -401,6 +402,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                           )
                         : DropdownButtonFormField<int>(
                             value: _selectedEndpointIdx,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Endpoint',
                               hintText: 'Selecciona un endpoint',
