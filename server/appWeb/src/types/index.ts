@@ -57,6 +57,7 @@ export interface SchemaColumn {
   type: string;
   nullable: boolean;
   pk?: boolean;
+  unique?: boolean;
 }
 
 export interface SchemaFK {

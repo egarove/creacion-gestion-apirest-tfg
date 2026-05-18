@@ -190,7 +190,25 @@ def _get_user_schema(db_type: str, api_name: str, usr: str, paswd: str) -> list[
                 FROM information_schema.columns
                 WHERE table_name = %s ORDER BY ordinal_position;
             """, (table,))
-            cols = [{"name": r[0], "type": r[1], "nullable": r[2] == "YES"} for r in cursor.fetchall()]
+            raw_cols = cursor.fetchall()
+            # Columnas con UNIQUE (excluye PK que también es unique)
+            cursor.execute("""
+                SELECT kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+                WHERE tc.constraint_type = 'UNIQUE' AND tc.table_name = %s;
+            """, (table,))
+            unique_cols = {r[0] for r in cursor.fetchall()}
+            # PK columns
+            cursor.execute("""
+                SELECT kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+                WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_name = %s;
+            """, (table,))
+            pk_cols = {r[0] for r in cursor.fetchall()}
+            cols = [{"name": r[0], "type": r[1], "nullable": r[2] == "YES",
+                     "pk": r[0] in pk_cols, "unique": r[0] in unique_cols} for r in raw_cols]
             cursor.execute("""
                 SELECT kcu.column_name, ccu.table_name, ccu.column_name
                 FROM information_schema.table_constraints tc
@@ -212,7 +230,9 @@ def _get_user_schema(db_type: str, api_name: str, usr: str, paswd: str) -> list[
         result = []
         for table in tables:
             cursor.execute(f"DESCRIBE `{table}`;")
-            cols = [{"name": r[0], "type": r[1], "nullable": r[2] == "YES"} for r in cursor.fetchall()]
+            # r: Field, Type, Null, Key, Default, Extra
+            cols = [{"name": r[0], "type": r[1], "nullable": r[2] == "YES",
+                     "pk": r[3] == "PRI", "unique": r[3] == "UNI"} for r in cursor.fetchall()]
             cursor.execute(f"""
                 SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
                 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
@@ -390,6 +410,48 @@ def _ddl_add_fk(db_type: str, api_name: str, usr: str, paswd: str,
                 f"ALTER TABLE `{table_name}` "
                 f"ADD CONSTRAINT `{constraint_name}` "
                 f"FOREIGN KEY (`{col_name}`) REFERENCES `{ref_table}` (`{ref_col}`);"
+            )
+            conn.commit()
+        except pymysql.Error as e:
+            raise ValueError(str(e))
+        finally:
+            cursor.close()
+            conn.close()
+
+
+def _ddl_add_unique(db_type: str, api_name: str, usr: str, paswd: str,
+                    table_name: str, col_name: str) -> None:
+    """Añade restricción UNIQUE a una columna existente."""
+    table_name = _safe_identifier(table_name)
+    col_name = _safe_identifier(col_name)
+    db_name = f"{api_name}_db"
+    constraint_name = f"uq_{table_name}_{col_name}"
+
+    if db_type == "sqlite":
+        raise ValueError("SQLite no soporta ADD CONSTRAINT UNIQUE en tablas existentes. Recrea la tabla.")
+    elif db_type == "postgresql":
+        conn = psycopg2.connect(host="postgres", port=5432, dbname=db_name, user=usr, password=paswd)
+        conn.autocommit = True
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                f"ALTER TABLE {quote_ident(table_name, conn)} "
+                f"ADD CONSTRAINT {quote_ident(constraint_name, conn)} "
+                f"UNIQUE ({quote_ident(col_name, conn)});"
+            )
+        except psycopg2.errors.DuplicateTable:
+            raise ValueError(f"La columna '{col_name}' ya tiene una restricción UNIQUE.")
+        except psycopg2.Error as e:
+            raise ValueError(str(e).split("\n")[0])
+        finally:
+            cursor.close()
+            conn.close()
+    elif db_type in ("mariadb", "mysql"):
+        conn = pymysql.connect(host=db_type, port=3306, user=usr, password=paswd, database=db_name)
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                f"ALTER TABLE `{table_name}` ADD CONSTRAINT `{constraint_name}` UNIQUE (`{col_name}`);"
             )
             conn.commit()
         except pymysql.Error as e:

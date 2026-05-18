@@ -19,6 +19,7 @@ from services.db_manager import (
     _ddl_drop_table,
     _ddl_add_column,
     _ddl_add_fk,
+    _ddl_add_unique,
 )
 
 _API_NAME_PATH = Path(pattern=r'^[a-z][a-z0-9_]{1,49}$')
@@ -108,6 +109,20 @@ def add_column(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'^[a-z
         record = _get_api_or_404(api, db)
         _ddl_add_column(record.db, api, record.usr, record.paswd, table_name, body.name, body.type)
         return {"ok": True, "column": body.name, "table": table_name}
+    except ValueError as e:
+        return Response(status_code=400, content=str(e))
+    except Exception:
+        log.exception("Error interno en schema")
+        return Response(status_code=500, content="Error interno del servidor")
+
+
+@router.post("/{api}/tables/{table_name}/columns/{col_name}/unique")
+def add_unique(api: str = _API_NAME_PATH, table_name: str = Path(pattern=r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'), col_name: str = Path(pattern=r'^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'), db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
+    """Añade restricción UNIQUE a una columna."""
+    try:
+        record = _get_api_or_404(api, db)
+        _ddl_add_unique(record.db, api, record.usr, record.paswd, table_name, col_name)
+        return {"ok": True, "unique": f"{table_name}.{col_name}"}
     except ValueError as e:
         return Response(status_code=400, content=str(e))
     except Exception:

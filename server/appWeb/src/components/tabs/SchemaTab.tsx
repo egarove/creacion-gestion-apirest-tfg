@@ -101,6 +101,21 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
     setSaving(false);
   };
 
+  const handleAddUnique = async (tableName: string, colName: string) => {
+    if (dbType === "sqlite") {
+      showToast("SQLite no soporta ADD UNIQUE en tablas existentes.", "error"); return;
+    }
+    setSaving(true);
+    try {
+      await ApiService.addUnique(apiName, tableName, colName);
+      showToast(`UNIQUE añadido a '${tableName}.${colName}'`, "success");
+      await fetchSchema();
+    } catch (e) {
+      showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
+    }
+    setSaving(false);
+  };
+
   const handleAddFK = async (tableName: string) => {
     if (!fkCol || !fkRefTable || !fkRefCol) {
       showToast("Completa todos los campos de FK", "error"); return;
@@ -289,9 +304,18 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
                       {t.columns.map(col => (
                         <div key={col.name} className="flex items-center gap-2 text-xs py-1 border-b border-borderNormal/50 last:border-0">
                           {col.pk && <span className="text-[9px] bg-yellow-500/20 text-yellow-400 px-1 rounded">PK</span>}
+                          {col.unique && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1 rounded">UQ</span>}
                           <span className="text-textMain font-mono font-medium">{col.name}</span>
                           <span className="text-textMuted ml-auto">{col.type}</span>
                           {col.nullable === false && <span className="text-[9px] text-orange-400">NOT NULL</span>}
+                          {!col.pk && !col.unique && dbType !== "sqlite" && (
+                            <button
+                              onClick={() => handleAddUnique(t.table, col.name)}
+                              disabled={saving}
+                              title="Añadir UNIQUE"
+                              className="text-[9px] border border-borderNormal text-textMuted hover:text-blue-400 hover:border-blue-400 rounded px-1 py-0.5 transition-colors disabled:opacity-30"
+                            >UQ</button>
+                          )}
                         </div>
                       ))}
                     </div>

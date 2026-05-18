@@ -1,10 +1,13 @@
 import {
     createUserWithEmailAndPassword,
+    GoogleAuthProvider,
     sendPasswordResetEmail,
     signInWithEmailAndPassword,
+    signInWithPopup,
     signOut,
     updatePassword,
     type User,
+    type UserCredential,
 } from "firebase/auth";
 import { auth } from "../FirebaseConfig";
 
@@ -59,6 +62,10 @@ export const firebaseAuth = {
             .catch(() => false),
     changePasswdEmail: async (email: string) =>
         await sendPasswordResetEmail(auth, email),
+    signInWithGoogle: async (): Promise<UserCredential> => {
+        const provider = new GoogleAuthProvider();
+        return signInWithPopup(auth, provider);
+    },
     changePasswdWithLastPasswd: async (
         user: User | null,
         newPasswd: string,

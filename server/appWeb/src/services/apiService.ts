@@ -134,6 +134,14 @@ export async function addColumn(
   if (!res.ok) throw new Error(await res.text());
 }
 
+export async function addUnique(apiName: string, tableName: string, colName: string): Promise<void> {
+  const res = await fetch(`/schema/${apiName}/tables/${tableName}/columns/${colName}/unique`, {
+    method: 'POST',
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 export async function addFK(
   apiName: string,
   tableName: string,
