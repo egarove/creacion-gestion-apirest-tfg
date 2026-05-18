@@ -17,12 +17,26 @@ from services.db_manager import _build_database_url, _get_user_schema
 router = APIRouter()
 
 
+def _db_err_msg(e: Exception) -> str:
+    msg = str(e)
+    if "DETAIL:" in msg:
+        return msg.split("DETAIL:")[1].split("\n")[0].strip()
+    if "orig" in dir(e) and e.orig:
+        return str(e.orig).split("\n")[0]
+    return msg.split("\n")[0]
+
+
 def _get_engine(api_data: DBModel):
+    name = api_data.api_name
     if api_data.db == "sqlite":
-        # Management API container has the file at deployments/{name}/{name}.db (WORKDIR=/api)
-        db_path = f"deployments/{api_data.api_name}/{api_data.api_name}.db"
+        db_path = f"deployments/{name}/{name}.db"
         return create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
-    url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api_data.api_name)
+    elif api_data.db == "postgresql":
+        return create_engine(f"postgresql://user:password@postgres:5432/{name}_db")
+    elif api_data.db in ("mysql", "mariadb"):
+        host = api_data.db
+        return create_engine(f"mysql+pymysql://root:password@{host}:3306/{name}_db")
+    url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, name)
     return create_engine(url)
 
 
@@ -400,7 +414,7 @@ async function submitAdd(){{
   const body={{}};let ok=true;COLS.forEach(c=>{{const v=(document.getElementById('add-'+c)?.value??'').trim();if(!v)ok=false;body[c]=v;}});
   if(!ok){{toast('Rellena todos los campos','wrn');return;}}
   const btn=document.querySelector('#ov-add .btn-p');btn.disabled=true;btn.textContent='Añadiendo…';
-  try{{const r=await fetchT(BASE+'/ui/add?table='+encodeURIComponent(CURRENT_TABLE),{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-add');toast('Registro añadido','ok');await loadData();}}else toast('Error al añadir','err');}}
+  try{{const r=await fetchT(BASE+'/ui/add?table='+encodeURIComponent(CURRENT_TABLE),{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-add');toast('Registro añadido','ok');await loadData();}}else{{let m='Error al añadir';try{{const t=await r.text();if(t)m=t;}}catch(e){{}}toast(m,'err');}}}}
   catch(e){{toast('Error de conexión','err');}}
   btn.disabled=false;btn.innerHTML='＋ Añadir';
 }}
@@ -413,7 +427,7 @@ function openEdit(id){{
 async function submitEdit(){{
   if(editId===null)return;const body={{}};COLS.forEach(c=>{{body[c]=document.getElementById('edit-'+c)?.value??'';}});
   const btn=document.querySelector('#ov-edit .btn-p');btn.disabled=true;btn.textContent='Guardando…';
-  try{{const r=await fetchT(BASE+'/ui/update/'+editId+'?table='+encodeURIComponent(CURRENT_TABLE),{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-edit');toast('Cambios guardados','ok');await loadData();}}else toast('Error al guardar','err');}}
+  try{{const r=await fetchT(BASE+'/ui/update/'+editId+'?table='+encodeURIComponent(CURRENT_TABLE),{{method:'PUT',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body)}});if(r.ok){{closeOv('ov-edit');toast('Cambios guardados','ok');await loadData();}}else{{let m='Error al guardar';try{{const t=await r.text();if(t)m=t;}}catch(e){{}}toast(m,'err');}}}}
   catch(e){{toast('Error de conexión','err');}}
   btn.disabled=false;btn.innerHTML='✓ Guardar';
 }}
@@ -422,8 +436,10 @@ function bulkDelete(){{if(!ST.sel.size)return;delTarget={{ids:[...ST.sel]}};docu
 async function execDel(){{
   if(!delTarget)return;const btn=document.getElementById('del-btn');btn.disabled=true;btn.textContent='Eliminando…';
   try{{
-    if(delTarget.ids.length===1){{await fetchT(BASE+'/ui/delete/'+delTarget.ids[0]+'?table='+encodeURIComponent(CURRENT_TABLE),{{method:'DELETE'}});}}
-    else{{await fetchT(BASE+'/ui/bulk-delete?table='+encodeURIComponent(CURRENT_TABLE),{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(delTarget.ids)}});}}
+    let rDel;
+    if(delTarget.ids.length===1)rDel=await fetchT(BASE+'/ui/delete/'+delTarget.ids[0]+'?table='+encodeURIComponent(CURRENT_TABLE),{{method:'DELETE'}});
+    else rDel=await fetchT(BASE+'/ui/bulk-delete?table='+encodeURIComponent(CURRENT_TABLE),{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(delTarget.ids)}});
+    if(rDel&&!rDel.ok){{let m='Error al eliminar';try{{const t=await rDel.text();if(t)m=t;}}catch(e){{}}toast(m,'err');btn.disabled=false;btn.innerHTML='🗑 Eliminar';return;}}
     closeOv('ov-del');ST.sel.clear();toast(delTarget.ids.length===1?'Registro eliminado':delTarget.ids.length+' eliminados','ok');await loadData();
   }}catch(e){{toast('Error al eliminar','err');}}
   btn.disabled=false;btn.innerHTML='🗑 Eliminar';
@@ -500,12 +516,15 @@ def ui_proxy_add(api_name: str, data: dict = Body(...), table: str | None = None
     if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
         return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
-    with engine.connect() as conn:
-        cols = ", ".join(data.keys())
-        vals = ", ".join(f":{k}" for k in data.keys())
-        conn.execute(text(f"INSERT INTO {tname} ({cols}) VALUES ({vals})"), data)
-        conn.commit()
-    return {"ok": True}
+    try:
+        with engine.connect() as conn:
+            cols = ", ".join(data.keys())
+            vals = ", ".join(f":{k}" for k in data.keys())
+            conn.execute(text(f"INSERT INTO {tname} ({cols}) VALUES ({vals})"), data)
+            conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        return Response(status_code=400, content=_db_err_msg(e))
 
 
 @router.put("/ui-proxy/{api_name}/update/{row_id}")
@@ -518,13 +537,16 @@ def ui_proxy_update(api_name: str, row_id: int, data: dict = Body(...), table: s
     if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
         return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
-    with engine.connect() as conn:
-        sets = ", ".join(f"{k} = :{k}" for k in data.keys())
-        params = dict(data)
-        params["id"] = row_id
-        conn.execute(text(f"UPDATE {tname} SET {sets} WHERE id = :id"), params)
-        conn.commit()
-    return {"ok": True}
+    try:
+        with engine.connect() as conn:
+            sets = ", ".join(f"{k} = :{k}" for k in data.keys())
+            params = dict(data)
+            params["id"] = row_id
+            conn.execute(text(f"UPDATE {tname} SET {sets} WHERE id = :id"), params)
+            conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        return Response(status_code=400, content=_db_err_msg(e))
 
 
 @router.delete("/ui-proxy/{api_name}/delete/{row_id}")
@@ -537,10 +559,13 @@ def ui_proxy_delete(api_name: str, row_id: int, table: str | None = None, db: Se
     if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
         return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
-    with engine.connect() as conn:
-        conn.execute(text(f"DELETE FROM {tname} WHERE id = :id"), {"id": row_id})
-        conn.commit()
-    return {"ok": True}
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(f"DELETE FROM {tname} WHERE id = :id"), {"id": row_id})
+            conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        return Response(status_code=400, content=_db_err_msg(e))
 
 
 @router.post("/ui-proxy/{api_name}/bulk-delete")
@@ -553,8 +578,11 @@ def ui_proxy_bulk_delete(api_name: str, ids: list = Body(...), table: str | None
     if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', tname):
         return Response(status_code=400, content="Nombre de tabla inválido")
     engine = _get_engine(api_data)
-    with engine.connect() as conn:
-        for id_val in ids:
-            conn.execute(text(f"DELETE FROM {tname} WHERE id = :id"), {"id": id_val})
-        conn.commit()
-    return {"ok": True, "deleted": len(ids)}
+    try:
+        with engine.connect() as conn:
+            for id_val in ids:
+                conn.execute(text(f"DELETE FROM {tname} WHERE id = :id"), {"id": id_val})
+            conn.commit()
+        return {"ok": True, "deleted": len(ids)}
+    except Exception as e:
+        return Response(status_code=400, content=_db_err_msg(e))
