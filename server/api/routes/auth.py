@@ -47,12 +47,15 @@ async def auth_verify(request: Request, db: Session = Depends(get_db)):
             pass  # DB error → fall through to token check
 
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+    else:
+        token = request.cookies.get("x_fb_token", "")
+    if not token:
         return JSONResponse(
             status_code=401,
-            content={"detail": "Missing or invalid Authorization header"},
+            content={"detail": "Authorization required"},
         )
-    token = auth_header.split(" ", 1)[1]
     try:
         payload = verify_token(token)
         return {"uid": payload.get("sub"), "email": payload.get("email")}
