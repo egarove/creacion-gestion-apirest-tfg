@@ -107,8 +107,7 @@ export default function RegisterScreen() {
         };
 
         const firestore = new FirebaseService();
-        firestore.setCollection("usuarios");
-        const saved = await firestore.saveUser(newUser.uid, firebaseData);
+        const saved = await firestore.saveUser(userData.uid, firebaseData);
 
         if (saved) {
           context.setUser(userData);
