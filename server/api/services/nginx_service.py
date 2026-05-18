@@ -14,16 +14,18 @@ def _write_nginx_conf(api_name: str, port: int):
     """Escribe la configuración de nginx para una API."""
     os.makedirs(NGINX_CONF_DIR, exist_ok=True)
     conf = (
-        # El location /ui es más específico (prefix más largo) y lo intercepta nginx
-        # antes que /app/{api}/, redirigiendo a la meta-API que sirve el panel universal.
-        f"location /app/{api_name}/ui {{\n"
-        f"    proxy_pass http://localhost:8000/ui-proxy/{api_name};\n"
+        # ^~ en /ui (prefix más largo) gana a los regex y al ^~ de /app/{api}/
+        f"location ^~ /app/{api_name}/ui {{\n"
+        f"    rewrite ^/app/{api_name}/ui(.*)$ /ui-proxy/{api_name}$1 break;\n"
+        f"    proxy_pass http://localhost:8000;\n"
         f"    proxy_set_header Host $host;\n"
         f"    proxy_set_header X-Real-IP $remote_addr;\n"
         f"    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n"
         f"    proxy_set_header X-Forwarded-Proto $scheme;\n"
+        f"    proxy_set_header Authorization $http_authorization;\n"
         f"}}\n"
-        f"location /app/{api_name}/ {{\n"
+        # ^~ bloquea que el regex ^/[a-z][a-z0-9_]+/ de nginx_main.conf intercepte
+        f"location ^~ /app/{api_name}/ {{\n"
         f"    auth_request /internal/auth;\n"
         f"    proxy_pass http://localhost:{port}/;\n"
         f"    proxy_set_header Host $host;\n"
