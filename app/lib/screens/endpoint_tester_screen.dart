@@ -109,45 +109,34 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
       return;
     }
 
-    final userDoc = await FirebaseFirestore.instance
+    final snapshot = await FirebaseFirestore.instance
         .collection('usuarios')
         .doc(uid)
+        .collection('apis')
         .get();
-    final isAdmin = userDoc.data()?['role'] == 'admin';
-
-    List<Map<String, dynamic>> apis;
-    if (isAdmin) {
-      apis = await _apiService.getAllApis();
-    } else {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc(uid)
-          .collection('apis')
-          .get();
-      apis = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return <String, dynamic>{
-          'api_name': data['api_name'] as String? ?? '',
-          'port': data['port'] ?? 0,
-          'backup_port': data['backup_port'],
-          'db': data['db'] as String? ?? '',
-          'columns':
-              (data['columns'] as List<dynamic>?)?.cast<String>() ?? [],
-          'tables':
-              (data['tables'] as List<dynamic>?) ?? [],
-          'endpoints': (data['endpoints'] as List<dynamic>?)
-                  ?.map((e) => Map<String, dynamic>.from(e as Map))
-                  .toList() ??
-              [],
-          'status': 'unknown',
-        };
-      }).toList();
-      for (final api in apis) {
-        try {
-          final s = await _apiService.getStatus(api['api_name'] as String);
-          api['status'] = s['status'] ?? 'unknown';
-        } catch (_) {}
-      }
+    final apis = snapshot.docs.map((doc) {
+      final data = doc.data();
+      return <String, dynamic>{
+        'api_name': data['api_name'] as String? ?? '',
+        'port': data['port'] ?? 0,
+        'backup_port': data['backup_port'],
+        'db': data['db'] as String? ?? '',
+        'columns':
+            (data['columns'] as List<dynamic>?)?.cast<String>() ?? [],
+        'tables':
+            (data['tables'] as List<dynamic>?) ?? [],
+        'endpoints': (data['endpoints'] as List<dynamic>?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [],
+        'status': 'unknown',
+      };
+    }).toList();
+    for (final api in apis) {
+      try {
+        final s = await _apiService.getStatus(api['api_name'] as String);
+        api['status'] = s['status'] ?? 'unknown';
+      } catch (_) {}
     }
 
     _clearFields();
