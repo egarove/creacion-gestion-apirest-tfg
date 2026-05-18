@@ -365,25 +365,38 @@ def _ddl_add_fk(db_type: str, api_name: str, usr: str, paswd: str,
         conn = psycopg2.connect(host="postgres", port=5432, dbname=db_name, user=usr, password=paswd)
         conn.autocommit = True
         cursor = conn.cursor()
-        cursor.execute(
-            f"ALTER TABLE {quote_ident(table_name, conn)} "
-            f"ADD CONSTRAINT {quote_ident(constraint_name, conn)} "
-            f"FOREIGN KEY ({quote_ident(col_name, conn)}) "
-            f"REFERENCES {quote_ident(ref_table, conn)} ({quote_ident(ref_col, conn)});"
-        )
-        cursor.close()
-        conn.close()
+        try:
+            cursor.execute(
+                f"ALTER TABLE {quote_ident(table_name, conn)} "
+                f"ADD CONSTRAINT {quote_ident(constraint_name, conn)} "
+                f"FOREIGN KEY ({quote_ident(col_name, conn)}) "
+                f"REFERENCES {quote_ident(ref_table, conn)} ({quote_ident(ref_col, conn)});"
+            )
+        except psycopg2.errors.InvalidForeignKey:
+            raise ValueError(
+                f"La columna '{ref_col}' de '{ref_table}' no tiene restricción UNIQUE o PRIMARY KEY. "
+                "Solo se puede referenciar columnas únicas."
+            )
+        except psycopg2.Error as e:
+            raise ValueError(str(e).split("\n")[0])
+        finally:
+            cursor.close()
+            conn.close()
     elif db_type in ("mariadb", "mysql"):
         conn = pymysql.connect(host=db_type, port=3306, user=usr, password=paswd, database=db_name)
         cursor = conn.cursor()
-        cursor.execute(
-            f"ALTER TABLE `{table_name}` "
-            f"ADD CONSTRAINT `{constraint_name}` "
-            f"FOREIGN KEY (`{col_name}`) REFERENCES `{ref_table}` (`{ref_col}`);"
-        )
-        conn.commit()
-        cursor.close()
-        conn.close()
+        try:
+            cursor.execute(
+                f"ALTER TABLE `{table_name}` "
+                f"ADD CONSTRAINT `{constraint_name}` "
+                f"FOREIGN KEY (`{col_name}`) REFERENCES `{ref_table}` (`{ref_col}`);"
+            )
+            conn.commit()
+        except pymysql.Error as e:
+            raise ValueError(str(e))
+        finally:
+            cursor.close()
+            conn.close()
 
 
 def _is_port_available(port: int) -> bool:
