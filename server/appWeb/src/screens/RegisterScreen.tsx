@@ -5,8 +5,6 @@ import { firebaseAuth } from "../services/LogInService";
 import { UserData } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import CustomTextField from "../components/CustomTextField";
-import { collection, setDoc, doc } from "firebase/firestore";
-import { fireStore } from "../FirebaseConfig";
 import { FirebaseService } from "../services/FireStoreService";
 
 export default function RegisterScreen() {
@@ -93,8 +91,6 @@ export default function RegisterScreen() {
       const newUser = await firebaseAuth.createUser(email, password);
 
       if (newUser) {
-        const firestore = new FirebaseService();
-
         const userData: UserData = {
           uid: newUser.uid,
           role: "usuario",
@@ -108,13 +104,13 @@ export default function RegisterScreen() {
           role: userData.role,
           provider: "password",
           uid: userData.uid,
-        }
+        };
 
-        const doc = await firestore.add(firebaseData);
+        const firestore = new FirebaseService();
+        firestore.setCollection("usuarios");
+        const saved = await firestore.saveUser(newUser.uid, firebaseData);
 
-        if (doc != undefined) {
-          await firestore.update(doc.id, { ...firebaseData, uid: doc.id });
-
+        if (saved) {
           context.setUser(userData);
 
           context.addToast({
@@ -124,6 +120,12 @@ export default function RegisterScreen() {
           });
 
           navigate("/main");
+        } else {
+          context.addToast({
+            msg: "Error al guardar los datos del usuario",
+            type: "error",
+            id: uuidv4(),
+          });
         }
       } else {
         context.addToast({

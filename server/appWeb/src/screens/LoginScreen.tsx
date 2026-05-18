@@ -32,14 +32,13 @@ export default function LoginScreen() {
       // Buscar usuario en Firestore por email
       let userData = await firebaseServiceUser.getByIdentifier<UserData>("email", fbUser.email!);
 
-      if (!userData) {
-        // Primera vez con Google: crear documento en Firestore
+      if (userData == null) {
         const firestore = new FirebaseService();
         const firebaseData = {
           createdAt: new Date(),
           email: fbUser.email,
           role: "usuario",
-          provider: "google",
+          provider: "google.com",
           uid: fbUser.uid,
         };
         const docRef = await firestore.add(firebaseData);
