@@ -4,10 +4,11 @@ import CustomTextField from "../CustomTextField";
 import DeleteModal from "./DeleteModal";
 import { useContextStore } from "../../contextZustand";
 import { auth } from "../../FirebaseConfig";
-import { useNavigate } from "react-router-dom";
 import { deleteApi } from "../../services/apiService";
 import LoadingOverlay from "../LoadingOverlay";
 import DeleteAccountConfirmationModal from "./DeleteAccountConfirmationModal";
+import { firebaseAuth } from "../../services/LogInService";
+import { v4 as uuidv4 } from 'uuid';
 
 interface UserModalProps {
   user: User | null;
@@ -28,6 +29,8 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
   const [deleteAccount, setIsDeleting] = useState(false);
   const [deletingApis, setDeletingApis] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [email, setEmail] = useState("");
+  const [loadingChangePasswd, setLoadingChangePasswd] = useState(false);
   const context = useContextStore();
 
   const isPasswordValid =
@@ -79,6 +82,26 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoadingChangePasswd(true);
+      await firebaseAuth.changePasswdEmail(email);
+      context.addToast({ msg: "Correo enviado correctamente, revise la bandeja de entrada y spam", type: "success", id: uuidv4() });
+      setEmail("");
+      setLoadingChangePasswd(false);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === "Firebase: Error (auth/user-not-found).") {
+          context.addToast({ msg: "Correo no encontrado", type: "error", id: uuidv4() });
+        } else {
+          context.addToast({ msg: "Error al enviar correo" + error.message, type: "error", id: uuidv4() });
+        }
+      }
+      setLoadingChangePasswd(false);
+    }
+  };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
@@ -107,7 +130,7 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           <DeleteModal
             target="cuenta"
             close={() => setIsDeleting(false)}
-            confirm={() => { setIsDeleting(false); setShowDeleteModal(true); }}
+            confirm={() => { context.user?.provider === "password" ? setShowDeleteModal(true) : handleDelete(); setIsDeleting(false); }}
           />
         )
         }
@@ -120,68 +143,96 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           </p>
         </div>
 
-        <div className="space-y-4 mb-6">
-          <CustomTextField
-            label="Contraseña Actual"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => {
-              setCurrentPassword(e);
-              setIsError(false);
-            }}
-            placeholder="Ingresa tu contraseña actual"
-          />
+        {context.user?.provider === "password" ? (
+          <div className="space-y-4 mb-6">
+            <CustomTextField
+              label="Contraseña Actual"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => {
+                setCurrentPassword(e);
+                setIsError(false);
+              }}
+              placeholder="Ingresa tu contraseña actual"
+            />
 
-          <CustomTextField
-            label="Nueva Contraseña"
-            type="password"
-            value={newPassword}
-            onChange={(e) => {
-              setNewPassword(e)
-              setIsError(false);
-            }}
-            placeholder="Ingresa tu nueva contraseña"
-          />
+            <CustomTextField
+              label="Nueva Contraseña"
+              type="password"
+              value={newPassword}
+              onChange={(e) => {
+                setNewPassword(e)
+                setIsError(false);
+              }}
+              placeholder="Ingresa tu nueva contraseña"
+            />
 
-          <CustomTextField
-            label="Confirmar Nueva Contraseña"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e);
-              setIsError(false);
-            }}
-            placeholder="Confirma tu nueva contraseña"
-          />
+            <CustomTextField
+              label="Confirmar Nueva Contraseña"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e);
+                setIsError(false);
+              }}
+              placeholder="Confirma tu nueva contraseña"
+            />
 
-          {newPassword &&
-            confirmPassword &&
-            newPassword !== confirmPassword && (
-              <div className="text-[11px] text-danger bg-dangerBg border border-danger/20 rounded-lg p-2">
-                Las contraseñas no coinciden
-              </div>
-            )}
+            {newPassword &&
+              confirmPassword &&
+              newPassword !== confirmPassword && (
+                <div className="text-[11px] text-danger bg-dangerBg border border-danger/20 rounded-lg p-2">
+                  Las contraseñas no coinciden
+                </div>
+              )}
 
-          {newPassword && newPassword.length < 6 && (
-            <div className="text-[11px] text-warning bg-warningBg border border-warning/20 rounded-lg p-2">
-              La contraseña debe tener mínimo 6 caracteres
-            </div>
-          )}
-
-          {isError && (
-            <div className="text-[11px] text-danger bg-dangerBg border border-danger/20 rounded-lg p-2">
-              {errorMsg}
-            </div>
-          )}
-
-          {currentPassword &&
-            newPassword &&
-            currentPassword === newPassword && (
+            {newPassword && newPassword.length < 6 && (
               <div className="text-[11px] text-warning bg-warningBg border border-warning/20 rounded-lg p-2">
-                La nueva contraseña debe ser diferente a la actual
+                La contraseña debe tener mínimo 6 caracteres
               </div>
             )}
-        </div>
+
+            {isError && (
+              <div className="text-[11px] text-danger bg-dangerBg border border-danger/20 rounded-lg p-2">
+                {errorMsg}
+              </div>
+            )}
+
+            {currentPassword &&
+              newPassword &&
+              currentPassword === newPassword && (
+                <div className="text-[11px] text-warning bg-warningBg border border-warning/20 rounded-lg p-2">
+                  La nueva contraseña debe ser diferente a la actual
+                </div>
+              )}
+          </div>
+        ) : (
+          <form onSubmit={handleChangePassword} className="space-y-4 mb-6">
+            <h2 className="text-lg font-semibold text-textMain mb-2">Cambiar contraseña</h2>
+            <p className="text-sm text-textSoft mb-4">Introduce tu correo electrónico para recibir un enlace de restablecimiento de contraseña.</p>
+
+            <CustomTextField
+              type="email"
+              value={email}
+              onChange={setEmail}
+              label="Correo electrónico"
+              placeholder="ejemplo@correo.com"
+            />
+
+            <div className="flex justify-end gap-2">
+              {loadingChangePasswd ? (
+                <button type="button" disabled className="px-4 py-2 rounded-lg bg-borderNormal text-textMuted text-xs font-semibold cursor-not-allowed opacity-50">
+                  <i className="fas fa-circle-notch animate-spin mr-2"></i> Enviando...
+                </button>
+              ) : (
+                <button type="submit" className="px-4 py-2 rounded-lg bg-success hover:bg-opacity-90 text-white text-xs font-semibold transition-all shadow-lg shadow-success/30">
+                  Enviar enlace
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+
 
         <div className="flex gap-2">
           <button

@@ -42,6 +42,7 @@ export interface Toast {
 export interface UserData {
   role: Roles;
   uid: string;
+  provider: "google.com" | "password";
   email?: string;
   apis: Api[];
 }

@@ -7,6 +7,8 @@ import { firebaseServiceUser, FirebaseService } from "../services/FireStoreServi
 import { v4 as uuidv4 } from "uuid";
 import ChangePasswdModal from "../components/modals/ChangePasswdModal";
 import CustomTextField from "../components/CustomTextField";
+import { linkWithCredential } from "firebase/auth";
+import { GoogleAuthProvider } from "firebase/auth/web-extension";
 
 export default function LoginScreen() {
   const navigate = useNavigate();
@@ -30,8 +32,11 @@ export default function LoginScreen() {
       const fbUser = credential.user;
 
       // Buscar usuario en Firestore por email
-      let userData = await firebaseServiceUser.getByIdentifier<UserData>("email", fbUser.email!);
+      const fireStore = new FirebaseService();
+      let userData = await fireStore.getByIdentifier<UserData>("email", fbUser.email!);
+      console.log("Datos de usuario obtenidos:", userData);
 
+      // Si no existe, crear nuevo usuario en Firestore
       if (userData == null) {
         const firestore = new FirebaseService();
         const firebaseData = {
@@ -44,7 +49,7 @@ export default function LoginScreen() {
         const docRef = await firestore.add(firebaseData);
         if (docRef) {
           await firestore.update(docRef.id, { ...firebaseData, uid: docRef.id });
-          userData = { uid: docRef.id, role: "usuario", apis: [], email: fbUser.email ?? undefined };
+          userData = { uid: docRef.id, role: "usuario", apis: [], email: fbUser.email ?? undefined, provider: "google.com" };
         }
       }
 
@@ -59,6 +64,7 @@ export default function LoginScreen() {
         context.addToast({ msg: "Error al obtener datos de usuario", type: "error", id: uuidv4() });
       }
     } catch (error) {
+      console.error("Error al iniciar sesión con Google:", error);
       context.addToast({ msg: "Error al iniciar sesión con Google", type: "error", id: uuidv4() });
     }
     setLoading(false);

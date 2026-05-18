@@ -94,6 +94,7 @@ export default function RegisterScreen() {
         const userData: UserData = {
           uid: newUser.uid,
           role: "usuario",
+          provider: "password",
           apis: [],
           email: email,
         };
@@ -107,7 +108,6 @@ export default function RegisterScreen() {
         };
 
         const firestore = new FirebaseService();
-        firestore.setCollection("usuarios");
         const saved = await firestore.saveUser(newUser.uid, firebaseData);
 
         if (saved) {

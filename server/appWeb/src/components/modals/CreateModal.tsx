@@ -176,7 +176,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
               {columns.map((col, i) => (
                 <div key={i} className="flex gap-2 items-center">
                   <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value.replace(/\s/g, ''))} className={inputCls + ' flex-1 min-w-0'} placeholder="nombre_columna" />
-                  <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className={selectCls + ' w-auto min-w-[110px] shrink-0'}>
+                  <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className={selectCls + ' w-auto min-w-[110px] shrink-0 max-w-[150px]'}>
                     {COL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <button onClick={() => removeCol(i)} disabled={columns.length === 1} className="w-9 h-10 flex items-center justify-center text-danger hover:bg-dangerBg rounded-lg disabled:opacity-30 shrink-0">
