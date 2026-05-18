@@ -164,32 +164,33 @@ export default function DashBoard({
                                 </button>
                             ))}
                         </div>
+                        <div className="flex gap-2 sm:gap-3">
+                            {/* Language Filter */}
+                            <CustomSelector
+                                options={Object.keys(LANG_OPTS).map((k) => ({ value: k, label: LANG_OPTS[k].label }))}
+                                value={langFilter}
+                                onChange={(e) => setLangFilter(e)}
+                            />
 
-                        {/* Language Filter */}
-                        <CustomSelector
-                            options={Object.keys(LANG_OPTS).map((k) => ({ value: k, label: LANG_OPTS[k].label }))}
-                            value={langFilter}
-                            onChange={(e) => setLangFilter(e)}
-                        />
+                            {/* Database Filter */}
+                            <CustomSelector
+                                options={Object.keys(DB_OPTS).map((k) => ({ value: k, label: DB_OPTS[k].label }))}
+                                value={dbFilter}
+                                onChange={(e) => setDbFilter(e)}
+                            />
 
-                        {/* Database Filter */}
-                        <CustomSelector
-                            options={Object.keys(DB_OPTS).map((k) => ({ value: k, label: DB_OPTS[k].label }))}
-                            value={dbFilter}
-                            onChange={(e) => setDbFilter(e)}
-                        />
-
-                        {/* Sort */}
-                        <CustomSelector
-                            value={sortParam}
-                            options={[
-                                { value: "name", label: "Nombre" },
-                                { value: "status", label: "Estado" },
-                                { value: "port", label: "Puerto" },
-                                { value: "eps", label: "Endpoints" },
-                            ]}
-                            onChange={(e) => setSortParam(e)}
-                        />
+                            {/* Sort */}
+                            <CustomSelector
+                                value={sortParam}
+                                options={[
+                                    { value: "name", label: "Nombre" },
+                                    { value: "status", label: "Estado" },
+                                    { value: "port", label: "Puerto" },
+                                    { value: "eps", label: "Endpoints" },
+                                ]}
+                                onChange={(e) => setSortParam(e)}
+                            />
+                        </div>
 
                         {/* Result Count */}
                         <div className="ml-auto flex items-center text-xs text-textMuted whitespace-nowrap">

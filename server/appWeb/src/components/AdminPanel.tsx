@@ -144,21 +144,21 @@ export default function AdminPanel() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <StatCard 
+                <StatCard
                     label="Total Usuarios"
                     value={users.length}
                     icon="fas fa-users"
                     color="text-primary"
                 />
 
-                <StatCard 
+                <StatCard
                     label="Administradores"
                     value={adminCount}
                     icon="fas fa-user-shield"
                     color="text-amber-400"
                 />
 
-                <StatCard 
+                <StatCard
                     label="Usuarios Estándar"
                     value={userCount}
                     icon="fas fa-user"
@@ -204,9 +204,10 @@ export default function AdminPanel() {
                     <button
                         onClick={loadUsers}
                         disabled={loading}
-                        className="bg-bg border border-borderNormal rounded-lg px-4 py-2.5 text-textSoft hover:text-textMain hover:border-borderLight transition-all flex items-center gap-2 text-sm disabled:opacity-50"
+                        className="bg-gradient-to-br from-primary/20 to-purple-500/10 border border-primary/40 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-primary hover:from-primary/30 hover:to-purple-500/20 hover:border-primary/60 transition-all flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold disabled:opacity-50 shadow-sm whitespace-nowrap"
                     >
                         <i className={`fas fa-sync-alt ${loading ? "animate-spin" : ""}`}></i>
+                        <span className="hidden sm:inline">Recargar</span>
                     </button>
                 </div>
             </div>
@@ -247,7 +248,7 @@ export default function AdminPanel() {
 
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (
-                <DeleteModal 
+                <DeleteModal
                     target={deleteConfirm.email ?? deleteConfirm.uid}
                     confirm={() => handleDeleteUser(deleteConfirm)}
                     close={() => setDeleteConfirm(null)}
