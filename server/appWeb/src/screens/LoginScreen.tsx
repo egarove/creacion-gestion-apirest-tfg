@@ -7,8 +7,6 @@ import { firebaseServiceUser, FirebaseService } from "../services/FireStoreServi
 import { v4 as uuidv4 } from "uuid";
 import ChangePasswdModal from "../components/modals/ChangePasswdModal";
 import CustomTextField from "../components/CustomTextField";
-import { linkWithCredential } from "firebase/auth";
-import { GoogleAuthProvider } from "firebase/auth/web-extension";
 
 export default function LoginScreen() {
   const navigate = useNavigate();
