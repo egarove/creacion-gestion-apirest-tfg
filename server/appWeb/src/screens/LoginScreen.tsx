@@ -124,14 +124,12 @@ export default function LoginScreen() {
       )}
       <form
         onSubmit={handleLogin}
-        className="bg-card border border-borderNormal rounded-2xl shadow-2xl p-10 w-full max-w-md relative overflow-hidden"
+        className="bg-card border border-borderNormal rounded-2xl shadow-2xl p-6 sm:p-10 w-full max-w-md mx-4 sm:mx-0 relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-purple-500"></div>
 
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primaryGlow text-primary mb-4">
-            <i className="fas fa-cubes text-3xl"></i>
-          </div>
+          <img src="/logo.png" alt="Logo" className="w-16 h-16 rounded-2xl object-contain mx-auto mb-4" />
           <h2 className="text-3xl font-extrabold tracking-tight text-textMain">
             Bienvenido
           </h2>

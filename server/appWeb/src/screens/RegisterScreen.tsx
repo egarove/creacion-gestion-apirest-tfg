@@ -155,7 +155,7 @@ export default function RegisterScreen() {
     <div className="flex items-center justify-center min-h-screen bg-bg text-textMain font-sans">
       <form
         onSubmit={handleRegister}
-        className="bg-card border border-borderNormal rounded-2xl shadow-2xl p-10 w-full max-w-md relative overflow-hidden"
+        className="bg-card border border-borderNormal rounded-2xl shadow-2xl p-6 sm:p-10 w-full max-w-md mx-4 sm:mx-0 relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-purple-500"></div>
 

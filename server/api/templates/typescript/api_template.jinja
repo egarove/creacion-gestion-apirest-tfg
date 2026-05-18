@@ -52,10 +52,11 @@ app.get('/', (req, res) => {
 });
 
 {% for endpoint in endpoints %}
+{% set _tbl = endpoint.table if endpoint.table else 'data_' ~ api_name %}
 app.{{ endpoint.method | lower }}('{{ endpoint.path | replace("{", ":") | replace("}", "") }}', async (req, res) => {
     try {
         {% if endpoint.logic == 'select' %}
-        const rows = await query('SELECT * FROM data_{{ api_name }}');
+        const rows = await query('SELECT * FROM {{ _tbl }}');
         res.json(rows);
         {% elif endpoint.logic == 'insert' %}
         const body = req.body;
@@ -66,7 +67,7 @@ app.{{ endpoint.method | lower }}('{{ endpoint.path | replace("{", ":") | replac
         {% else %}
         const placeholders = keys.map(() => '?').join(', ');
         {% endif %}
-        const sql = `INSERT INTO data_{{ api_name }} (${keys.join(', ')}) VALUES (${placeholders})`;
+        const sql = `INSERT INTO {{ _tbl }} (${keys.join(', ')}) VALUES (${placeholders})`;
         await query(sql, values);
         res.json({ msg: 'inserted' });
         {% elif endpoint.logic == 'update' %}
@@ -77,20 +78,20 @@ app.{{ endpoint.method | lower }}('{{ endpoint.path | replace("{", ":") | replac
         {% if db == 'postgresql' %}
         const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
         values.push(id);
-        const sql = `UPDATE data_{{ api_name }} SET ${sets} WHERE id = $${values.length}`;
+        const sql = `UPDATE {{ _tbl }} SET ${sets} WHERE id = $${values.length}`;
         {% else %}
         const sets = keys.map(k => `${k} = ?`).join(', ');
         values.push(id);
-        const sql = `UPDATE data_{{ api_name }} SET ${sets} WHERE id = ?`;
+        const sql = `UPDATE {{ _tbl }} SET ${sets} WHERE id = ?`;
         {% endif %}
         await query(sql, values);
         res.json({ msg: 'updated' });
         {% elif endpoint.logic == 'delete' %}
         const id = req.params.id || req.body.id;
         {% if db == 'postgresql' %}
-        await query('DELETE FROM data_{{ api_name }} WHERE id = $1', [id]);
+        await query('DELETE FROM {{ _tbl }} WHERE id = $1', [id]);
         {% else %}
-        await query('DELETE FROM data_{{ api_name }} WHERE id = ?', [id]);
+        await query('DELETE FROM {{ _tbl }} WHERE id = ?', [id]);
         {% endif %}
         res.json({ msg: 'deleted' });
         {% endif %}

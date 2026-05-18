@@ -11,9 +11,11 @@ import { firebaseServiceUser } from '../services/FireStoreService';
 interface SidebarProps {
   onRefresh: () => void;
   onNewApi: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function Sidebar({ onRefresh, onNewApi }: SidebarProps) {
+export default function Sidebar({ onRefresh, onNewApi, isOpen, onClose }: SidebarProps) {
   const context = useContextStore();
   const [userModal, setUserModal] = useState(false);
   const navigate = useNavigate();
@@ -50,12 +52,18 @@ export default function Sidebar({ onRefresh, onNewApi }: SidebarProps) {
   };
 
   return (
-    <aside className="fixed top-0 left-0 w-[270px] h-screen bg-surface border-r border-borderNormal flex flex-col z-50">
+    <>
+      {/* Backdrop móvil */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-[45] md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside className={`fixed top-0 left-0 w-[270px] h-screen bg-surface border-r border-borderNormal flex flex-col z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       {/* Logo */}
       <div className="p-6 pb-4 flex items-center gap-3 border-b border-borderNormal">
-        <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-500 rounded-xl flex items-center justify-center text-white shrink-0">
-          <i className="fas fa-bolt text-lg"></i>
-        </div>
+        <img src="/logo.png" alt="Logo" className="w-10 h-10 rounded-xl object-contain shrink-0" />
         <div>
           <div className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300">APIGen Master</div>
           <div className="text-xs text-textMuted mt-0.5">{context.user?.role === 'admin' ? 'Admin' : 'User'} Console v1.0</div>
@@ -102,8 +110,6 @@ export default function Sidebar({ onRefresh, onNewApi }: SidebarProps) {
 
       {/* Stats footer */}
       <div className="p-5 border-t border-borderNormal">
-        {alertModal && <AlertModal message="¿Estás seguro de que quieres cerrar sesión?" onConfirm={() => { handleLogout(); setAlertModal(false); }} onCancel={() => setAlertModal(false)} />}
-        {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={handleChangePassword} />}
         <div className='flex flex-row w-full gap-4 py-2'>
           <button onClick={() => setAlertModal(true)} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
             <i className="fas fa-sign-out-alt w-5 text-center text-red-500"></i> Salir
@@ -114,5 +120,8 @@ export default function Sidebar({ onRefresh, onNewApi }: SidebarProps) {
         </div>
       </div>
     </aside>
+    {alertModal && <AlertModal message="¿Estás seguro de que quieres cerrar sesión?" onConfirm={() => { handleLogout(); setAlertModal(false); }} onCancel={() => setAlertModal(false)} />}
+    {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={handleChangePassword} />}
+    </>
   );
 }

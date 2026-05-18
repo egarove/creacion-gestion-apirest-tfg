@@ -12,11 +12,48 @@ import { useContextStore } from "../contextZustand";
 import { firebaseServiceUser } from "../services/FireStoreService";
 import DashBoardContainer from "../components/DashBoardContainer";
 import AdminPanel from "../components/AdminPanel";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../FirebaseConfig";
 
 export default function MainScreen() {
   const navigate = useNavigate();
   const context = useContextStore();
   const user = context.user;
+
+  const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
+  const [panelApi, setPanelApi] = useState<any | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const showToast = (msg: string, type: Toast["type"] = "info") => {
+    context.addToast({ id: uuidv4(), msg, type });
+  };
+
+  const showLoading = (msg: string) => setLoadingMsg(msg);
+  const hideLoading = () => setLoadingMsg(null);
+
+  const fetchApis = async (manual = false) => {
+    try {
+      const data = await ApiService.getAllApis();
+      let myApis: Api[];
+      if (user?.role === "admin") {
+        myApis = data;
+      } else {
+        const userApiEntries = await firebaseServiceUser.getUserApis(data);
+        const userApiNames = new Set(userApiEntries.map((a) => (a as Api).api_name));
+        myApis = data.filter((a) => userApiNames.has(a.api_name));
+      }
+      context.setUserApis(myApis);
+      if (manual) showToast("APIs actualizadas", "success");
+    } catch (err) {
+      showToast(
+        "Error al cargar APIs: " +
+        (err instanceof Error ? err.message : String(err)),
+        "error",
+      );
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -52,19 +89,27 @@ export default function MainScreen() {
     verifyUser();
   }, []);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (
+      context.userApisPath !== "" &&
+      firebaseServiceUser.userCollectionRef !== context.userApisPath
+    ) {
+      firebaseServiceUser.setCollection(context.userApisPath);
+    }
+  }, [context.userApisPath]);
 
-  const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
-  const [panelApi, setPanelApi] = useState<any | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  useEffect(() => {
+    fetchApis();
+    const interval = setInterval(() => fetchApis(), 15000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const showToast = (msg: string, type: Toast["type"] = "info") => {
-    context.addToast({ id: uuidv4(), msg, type });
-  };
-
-  const showLoading = (msg: string) => setLoadingMsg(msg);
-  const hideLoading = () => setLoadingMsg(null);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) fetchApis();
+    });
+    return () => unsub();
+  }, []);
 
   const handleDeleteApi = async () => {
     if (!deleteTarget) return;
@@ -84,48 +129,26 @@ export default function MainScreen() {
     hideLoading();
   };
 
-  // Set Firestore collection
-  useEffect(() => {
-    if (
-      context.userApisPath !== "" &&
-      firebaseServiceUser.userCollectionRef !== context.userApisPath
-    ) {
-      firebaseServiceUser.setCollection(context.userApisPath);
-    }
-  }, [context.userApisPath]);
-
-  // Fetch APIs
-  const fetchApis = async (manual = false) => {
-    try {
-      const data = await ApiService.getAllApis();
-      let myApis: Api[];
-      if (user?.role === "admin") {
-        myApis = data;
-      } else {
-        const userApiEntries = await firebaseServiceUser.getUserApis(data);
-        const userApiNames = new Set(userApiEntries.map((a) => (a as Api).api_name));
-        myApis = data.filter((a) => userApiNames.has(a.api_name));
-      }
-      context.setUserApis(myApis);
-      if (manual) showToast("APIs actualizadas", "success");
-    } catch (err) {
-      showToast(
-        "Error al cargar APIs: " +
-        (err instanceof Error ? err.message : String(err)),
-        "error",
-      );
-    }
-  };
-
-  useEffect(() => {
-    fetchApis();
-    const interval = setInterval(() => fetchApis(), 15000);
-    return () => clearInterval(interval);
-  }, []);
+  if (!user) return null;
 
   return (
     <div className="flex bg-bg text-textMain min-h-screen font-sans no-scrollbar">
+      {/* Mobile top bar */}
+      <div className="fixed top-0 left-0 right-0 h-14 bg-surface border-b border-borderNormal flex items-center px-4 z-40 md:hidden">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-textSoft hover:text-textMain hover:bg-white/5 transition-colors"
+        >
+          <i className="fas fa-bars text-lg"></i>
+        </button>
+        <div className="ml-3 font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300">
+          APIGen Master
+        </div>
+      </div>
+
       <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         onRefresh={() => {
           fetchApis(true);
         }}

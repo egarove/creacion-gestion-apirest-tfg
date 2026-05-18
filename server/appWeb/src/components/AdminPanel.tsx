@@ -134,10 +134,10 @@ export default function AdminPanel() {
     const userCount = users.filter((u) => u.role === "usuario").length;
 
     return (
-        <main className="ml-[270px] flex-1 p-8 min-h-screen">
+        <main className="ml-0 md:ml-[270px] flex-1 p-4 md:p-8 pt-[4.5rem] md:pt-8 min-h-screen">
             {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-extrabold leading-none">Gestión de Usuarios</h1>
+            <div className="mb-6 md:mb-8">
+                <h1 className="text-2xl md:text-3xl font-extrabold leading-none">Gestión de Usuarios</h1>
                 <p className="text-sm text-textMuted mt-2">
                     Administra los roles y usuarios de la aplicación
                 </p>

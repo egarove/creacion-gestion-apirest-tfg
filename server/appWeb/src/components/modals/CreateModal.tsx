@@ -126,7 +126,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
                 <label className={labelCls}>Nombre de la API</label>
                 <input value={name} onChange={e => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className={inputCls} placeholder="mi_api_rest" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Lenguaje</label>
                   <select value={lang} onChange={e => setLang(e.target.value)} className={selectCls}>
@@ -141,7 +141,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
                 </div>
               </div>
               {db !== 'sqlite' && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Usuario BD</label>
                     <input value={dbUser} onChange={e => setDbUser(e.target.value)} className={inputCls} placeholder="usuario" />
@@ -175,8 +175,8 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
             <div className="space-y-2">
               {columns.map((col, i) => (
                 <div key={i} className="flex gap-2 items-center">
-                  <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value.replace(/\s/g, ''))} className={'bg-bg border border-borderNormal rounded-xl px-3 py-2.5 text-sm focus:border-primary outline-none text-textMain transition-colors flex-1'} placeholder="nombre_columna" />
-                  <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className={selectCls + ' w-[150px] flex-shrink-0 max-w-[40%]'}>
+                  <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value.replace(/\s/g, ''))} className={inputCls + ' flex-1 min-w-0'} placeholder="nombre_columna" />
+                  <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className={selectCls + ' w-auto min-w-[110px] shrink-0'}>
                     {COL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <button onClick={() => removeCol(i)} disabled={columns.length === 1} className="w-9 h-10 flex items-center justify-center text-danger hover:bg-dangerBg rounded-lg disabled:opacity-30 shrink-0">
@@ -220,7 +220,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
                       <p className="text-[9px] text-textMuted mt-1">{ep.method.toUpperCase()} → {(STRICT_MATRIX[ep.method] ?? []).join(', ')}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <div className="text-[10px] text-textMuted font-bold uppercase mb-1">Path</div>
                       <input value={ep.path} onChange={e => updateEp(i, 'path', e.target.value)} className={inputCls} placeholder="/usuarios" />
@@ -230,7 +230,7 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
                       <input value={ep.function_name} onChange={e => updateEp(i, 'function_name', e.target.value.replace(/\s/g, ''))} className={inputCls} placeholder="get_usuarios" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                     <div>
                       <div className="text-[10px] text-textMuted font-bold uppercase mb-1">Tabla (opcional)</div>
                       <input value={ep.table ?? ''} onChange={e => updateEp(i, 'table', e.target.value.replace(/\s/g, ''))} className={inputCls} placeholder="tabla_por_defecto" />

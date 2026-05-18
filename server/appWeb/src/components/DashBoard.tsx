@@ -64,28 +64,29 @@ export default function DashBoard({
 
 
     return (
-        <main className="ml-[270px] flex-1 p-8 min-h-screen">
-            {loadingMsg && <LoadingOverlay message={loadingMsg} />}
-            {showCreate && (
-                <CreateModal
-                    close={() => setShowCreate(false)}
-                    reload={async () => { }}
-                    showLoading={showLoading}
-                    hideLoading={hideLoading}
-                    showToast={showToast}
-                />
-            )}
+        <>
+        {loadingMsg && <LoadingOverlay message={loadingMsg} />}
+        {showCreate && (
+            <CreateModal
+                close={() => setShowCreate(false)}
+                reload={async () => { fetchApis(); }}
+                showLoading={showLoading}
+                hideLoading={hideLoading}
+                showToast={showToast}
+            />
+        )}
+        <main className="ml-0 md:ml-[270px] flex-1 p-4 md:p-8 pt-[4.5rem] md:pt-8 min-h-screen">
             {/* Header Section */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-extrabold leading-none">Panel de Control</h1>
+            <div className="mb-6 md:mb-8">
+                <h1 className="text-2xl md:text-3xl font-extrabold leading-none">Panel de Control</h1>
                 <p className="text-sm text-textMuted mt-2">
                     {apis.length} APIs · {runCount} en ejecución · {epsCount} endpoints
                 </p>
             </div>
 
             {/* Top Actions Bar */}
-            <div className="flex flex-wrap items-center gap-3 mb-8">
-                <div className="relative flex-1 min-w-[250px]">
+            <div className="flex flex-wrap items-center gap-3 mb-6 md:mb-8">
+                <div className="relative flex-1 min-w-[160px]">
                     <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-textMuted text-sm"></i>
                     <input
                         value={search}
@@ -233,6 +234,7 @@ export default function DashBoard({
                     </div>
                 )
             }
-        </main >
+        </main>
+        </>
     );
 }

@@ -125,7 +125,7 @@ export default function ApiCard({
       </div>
 
       {/* Actions */}
-      <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-1.5 p-3 bg-black/20 border-t border-borderNormal">
+      <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-1 sm:gap-1.5 p-2 sm:p-3 bg-black/20 border-t border-borderNormal">
         <button
           onClick={handleToggle}
           disabled={toggleLoading}

@@ -5,13 +5,22 @@ import 'package:http/http.dart' as http;
 class ApiService {
   static const String _baseUrl = 'https://tfg-dam.libertoguillen.com';
 
+  Future<String?> _getToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    return user != null ? await user.getIdToken() : null;
+  }
+
   Future<Map<String, dynamic>> crearApi(Map<String, dynamic> body) async {
     final uri = Uri.parse('$_baseUrl/crear-api');
+    final token = await _getToken();
 
     try {
       final response = await http.post(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(body),
       );
 
@@ -45,11 +54,15 @@ class ApiService {
     Map<String, dynamic> endpoint,
   ) async {
     final uri = Uri.parse('$_baseUrl/$apiName/create-end-point');
+    final token = await _getToken();
 
     try {
       final response = await http.post(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(endpoint),
       );
 
@@ -93,8 +106,12 @@ class ApiService {
 
   Future<Map<String, dynamic>> restoreApi(String apiName) async {
     final uri = Uri.parse('$_baseUrl/$apiName/restore');
+    final token = await _getToken();
     try {
-      final response = await http.post(uri);
+      final response = await http.post(
+        uri,
+        headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      );
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
@@ -199,9 +216,13 @@ class ApiService {
 
   Future<void> eliminarApi(String apiName) async {
     final uri = Uri.parse('$_baseUrl/$apiName/delete');
+    final token = await _getToken();
 
     try {
-      final response = await http.post(uri);
+      final response = await http.post(
+        uri,
+        headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
         String mensaje;
