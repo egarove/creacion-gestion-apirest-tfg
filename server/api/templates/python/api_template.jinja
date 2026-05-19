@@ -44,25 +44,39 @@ async def {{ endpoint.function_name }}(request: Request):
         return {"msg": "inserted"}
         {% elif endpoint.logic == 'update' %}
         body = await request.json()
-        row_id = request.path_params.get('id') or body.get('id')
+        _raw_id = request.path_params.get('id') or body.get('id')
+        if not _raw_id:
+            return {"error": "id is required"}
+        try:
+            row_id = int(_raw_id)
+        except (ValueError, TypeError):
+            return {"error": "id must be an integer"}
         body['id'] = row_id
         sets = ", ".join(f"{k} = :{k}" for k in body.keys() if k != 'id')
         if not sets: return {"error": "no fields to update"}
-        conn.execute(text(f"UPDATE {_tbl} SET {sets} WHERE id = :id"), body)
+        result = conn.execute(text(f"UPDATE {_tbl} SET {sets} WHERE id = :id"), body)
         conn.commit()
-        return {"msg": "updated"}
+        if result.rowcount == 0:
+            return {"error": f"record {row_id} not found"}
+        return {"msg": "updated", "id": row_id}
         {% elif endpoint.logic == 'delete' %}
         body = {}
         try: body = await request.json()
         except: pass
-        row_id = (request.path_params.get('id')
-                  or body.get('id')
-                  or request.query_params.get('id'))
-        if not row_id:
+        _raw_id = (request.path_params.get('id')
+                   or body.get('id')
+                   or request.query_params.get('id'))
+        if not _raw_id:
             return {"error": "id is required"}
-        conn.execute(text(f"DELETE FROM {_tbl} WHERE id = :id"), {"id": row_id})
+        try:
+            row_id = int(_raw_id)
+        except (ValueError, TypeError):
+            return {"error": "id must be an integer"}
+        result = conn.execute(text(f"DELETE FROM {_tbl} WHERE id = :id"), {"id": row_id})
         conn.commit()
-        return {"msg": "deleted"}
+        if result.rowcount == 0:
+            return {"error": f"record {row_id} not found"}
+        return {"msg": "deleted", "id": row_id}
         {% endif %}
 {% endfor %}
 {% if generar_ui %}
