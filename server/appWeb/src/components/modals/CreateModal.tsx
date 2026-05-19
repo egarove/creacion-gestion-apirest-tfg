@@ -91,14 +91,15 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
         reload();
         close();
       } else {
-        await deleteApi(name);
+        try { await deleteApi(name); } catch { /* limpieza best-effort */ }
         showToast('Error al guardar la API en la base de datos', 'error');
       }
     } catch (e) {
-      await deleteApi(name);
+      try { await deleteApi(name); } catch { /* limpieza best-effort */ }
       showToast('Error: ' + (e instanceof Error ? e.message : String(e)), 'error');
+    } finally {
+      hideLoading();
     }
-    hideLoading();
   };
 
   const inputCls = 'w-full bg-bg border border-borderNormal rounded-xl px-3 py-2.5 text-sm focus:border-primary outline-none text-textMain transition-colors';
