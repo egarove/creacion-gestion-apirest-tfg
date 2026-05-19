@@ -56,6 +56,17 @@ export default function Panel({
 
   useEffect(() => {
     if (tab === "logs") fetchLogs();
+    if (tab === "endpoints") {
+      const syncEps = eps.map(ep => ({
+        method: ep.method,
+        path: ep.path,
+        function_name: ep.function_name,
+        logic: ep.logic,
+        table: ep.table ?? null,
+        is_public: ep.is_public,
+      }));
+      firebaseServiceUser.update(api.api_name, { endpoints: syncEps }).catch(() => {});
+    }
   }, [tab]);
 
   const handleDeleteEndpoint = async (functionName: string) => {
