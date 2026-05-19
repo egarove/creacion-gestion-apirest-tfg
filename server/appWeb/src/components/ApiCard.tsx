@@ -46,36 +46,36 @@ export default function ApiCard({
   };
 
   return (
-    <div className="bg-card border border-borderNormal rounded-2xl overflow-hidden hover:border-borderLight hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(0,0,0,0.4)] transition-all relative flex flex-col">
+    <div className="bg-card border border-borderNormal rounded-2xl overflow-hidden hover:border-borderLight hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(0,0,0,0.4)] transition-all relative flex flex-col h-full">
       <div
         className="h-1 w-full"
         style={{ background: "linear-gradient(90deg, #3b82f6, #8b5cf6)" }}
       ></div>
 
-      <div className="p-5 pb-3 flex-1">
+      <div className="p-3 sm:p-5 pb-2 sm:pb-3 flex-1">
         {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="text-lg font-bold text-textMain font-mono break-all">
+        <div className="flex items-start justify-between mb-2 sm:mb-3">
+          <div className="text-base sm:text-lg font-bold text-textMain font-mono break-all min-w-0">
             {api.api_name}
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-            <div className="flex items-center gap-1.5 text-[10px] text-textMuted">
+            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-textMuted">
               <div
                 className={`w-2 h-2 rounded-full ${api.status === "running" ? "bg-success animate-pulse-green" : "bg-danger"}`}
               ></div>{" "}
-              main
+              <span className="hidden sm:inline">main</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-textMuted">
+            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-textMuted">
               <div
                 className={`w-2 h-2 rounded-full ${api.backup_status === "running" ? "bg-success animate-pulse-green" : "bg-danger"}`}
               ></div>{" "}
-              backup
+              <span className="hidden sm:inline">backup</span>
             </div>
           </div>
         </div>
 
         {/* Badges */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
+        <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-2 sm:mb-3">
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold ${lc.bg} ${lc.color} border ${lc.border}`}
           >
@@ -129,40 +129,46 @@ export default function ApiCard({
         <button
           onClick={handleToggle}
           disabled={toggleLoading}
-          className={`flex items-center justify-center gap-1.5 border rounded-lg py-2 text-xs font-bold transition-colors ${isRun ? "text-warning border-warning/30 hover:bg-warningBg" : "text-success border-success/30 hover:bg-successBg"}`}
+          className={`flex items-center justify-center gap-1 sm:gap-1.5 border rounded-lg py-1.5 sm:py-2 text-xs font-bold transition-colors ${isRun ? "text-warning border-warning/30 hover:bg-warningBg" : "text-success border-success/30 hover:bg-successBg"}`}
+          title={isRun ? "Detener" : "Iniciar"}
         >
-          <i className={`fas fa-${isRun ? "stop" : "play"}`}></i>{" "}
-          {isRun ? "Detener" : "Iniciar"}
+          <i className={`fas fa-${isRun ? "stop" : "play"}`}></i>
+          <span className="hidden sm:inline">{isRun ? "Detener" : "Iniciar"}</span>
         </button>
         <button
           disabled={!anyDown && toggleLoading}
           onClick={handleRestore}
-          className={`flex items-center justify-center gap-1.5 border rounded-lg py-2 text-xs font-bold transition-colors ${anyDown && !toggleLoading ? "text-info border-info/30 hover:bg-infoBg" : "text-textSoft border-borderLight opacity-50 cursor-not-allowed"}`}
+          className={`flex items-center justify-center gap-1 sm:gap-1.5 border rounded-lg py-1.5 sm:py-2 text-xs font-bold transition-colors ${anyDown && !toggleLoading ? "text-info border-info/30 hover:bg-infoBg" : "text-textSoft border-borderLight opacity-50 cursor-not-allowed"}`}
+          title="Restaurar"
         >
-          <i className="fas fa-undo"></i> Restaurar
+          <i className="fas fa-undo"></i>
+          <span className="hidden sm:inline">Restaurar</span>
         </button>
         <button
           onClick={openPanel}
-          className="flex items-center justify-center gap-1.5 border border-primary/30 rounded-lg py-2 text-xs font-bold text-primary hover:bg-primaryGlow transition-colors"
+          className="flex items-center justify-center gap-1 sm:gap-1.5 border border-primary/30 rounded-lg py-1.5 sm:py-2 text-xs font-bold text-primary hover:bg-primaryGlow transition-colors"
+          title="Ver detalle"
         >
-          <i className="fas fa-eye"></i> Detalle
+          <i className="fas fa-eye"></i>
+          <span className="hidden sm:inline">Detalle</span>
         </button>
         {api.generar_ui ? (
           <button
             onClick={() => window.open(`/app/${api.api_name}/ui`, "_blank")}
-            className="flex items-center justify-center w-9 border border-success/30 rounded-lg text-xs font-bold text-success hover:bg-successBg transition-colors"
+            className="flex items-center justify-center w-8 sm:w-9 border border-success/30 rounded-lg text-xs font-bold text-success hover:bg-successBg transition-colors"
             title="Abrir panel UI"
           >
-            <i className="fas fa-external-link-alt"></i>
+            <i className="fas fa-external-link-alt text-xs sm:text-sm"></i>
           </button>
         ) : (
-          <span className="w-9"></span>
+          <span className="w-8 sm:w-9"></span>
         )}
         <button
           onClick={setDeleteTarget}
-          className="flex items-center justify-center w-9 border border-danger/30 rounded-lg text-xs font-bold text-danger hover:bg-dangerBg transition-colors"
+          className="flex items-center justify-center w-8 sm:w-9 border border-danger/30 rounded-lg text-xs font-bold text-danger hover:bg-dangerBg transition-colors"
+          title="Eliminar"
         >
-          <i className="fas fa-trash"></i>
+          <i className="fas fa-trash text-xs"></i>
         </button>
       </div>
     </div>

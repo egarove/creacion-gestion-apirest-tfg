@@ -11,29 +11,29 @@ export default function UserAdminCard({ user, handleChangeRole, setDeleteConfirm
     return (
         <div
             key={user.uid}
-            className="bg-card border border-borderNormal rounded-xl p-4 hover:border-borderLight transition-all cursor-pointer"
+            className="bg-card border border-borderNormal rounded-xl p-3 sm:p-4 hover:border-borderLight transition-all cursor-pointer"
         >
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                 {/* User Info */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                        <i className="fas fa-user text-primary"></i>
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <i className="fas fa-user text-primary text-xs sm:text-sm"></i>
                     </div>
                     <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-textMain truncate">
+                        <p className="text-xs sm:text-sm font-medium text-textMain truncate">
                             {user.email}
                         </p>
-                        <code className="text-xs text-textMuted truncate block">
+                        <code className="text-[10px] sm:text-xs text-textMuted truncate block">
                             {user.uid}
                         </code>
                     </div>
                 </div>
                 {/* Role Badge */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     <span
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${user.role === "admin"
-                                ? "bg-amber-500/20 text-amber-300"
-                                : "bg-blue-500/20 text-blue-300"
+                        className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold whitespace-nowrap ${user.role === "admin"
+                            ? "bg-amber-500/20 text-amber-300"
+                            : "bg-blue-500/20 text-blue-300"
                             }`}
                     >
                         {user.role === "admin" ? "Admin" : "Usuario"}
@@ -41,7 +41,7 @@ export default function UserAdminCard({ user, handleChangeRole, setDeleteConfirm
                 </div>
 
                 {/* Quick Actions */}
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 sm:gap-2 shrink-0">
                     {user.role === "usuario" ? (
                         <button
                             onClick={(e) => {
@@ -49,10 +49,11 @@ export default function UserAdminCard({ user, handleChangeRole, setDeleteConfirm
                                 handleChangeRole(user.uid, "admin");
                             }}
                             disabled={actionLoading}
-                            className="px-3 py-1.5 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold hover:bg-amber-500/30 transition-all disabled:opacity-50"
+                            className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-br from-amber-500/30 to-amber-600/20 text-amber-300 border border-amber-500/40 rounded-lg text-[10px] sm:text-xs font-semibold hover:from-amber-500/40 hover:to-amber-600/30 hover:border-amber-400 transition-all disabled:opacity-50 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap shadow-sm"
                             title="Promover a Admin"
                         >
-                            <i className="fas fa-crown mr-1"></i> Promover
+                            <i className="fas fa-crown text-xs sm:text-sm"></i>
+                            <span className="hidden sm:inline">Promover</span>
                         </button>
                     ) : (
                         <button
@@ -61,10 +62,11 @@ export default function UserAdminCard({ user, handleChangeRole, setDeleteConfirm
                                 handleChangeRole(user.uid, "usuario");
                             }}
                             disabled={actionLoading}
-                            className="px-3 py-1.5 bg-blue-500/20 text-blue-300 rounded-lg text-xs font-semibold hover:bg-blue-500/30 transition-all disabled:opacity-50"
+                            className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-br from-blue-500/30 to-blue-600/20 text-blue-300 border border-blue-500/40 rounded-lg text-[10px] sm:text-xs font-semibold hover:from-blue-500/40 hover:to-blue-600/30 hover:border-blue-400 transition-all disabled:opacity-50 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap shadow-sm"
                             title="Degradar a Usuario"
                         >
-                            <i className="fas fa-user mr-1"></i> Degradar
+                            <i className="fas fa-user text-xs sm:text-sm"></i>
+                            <span className="hidden sm:inline">Degradar</span>
                         </button>
                     )}
                     <button
@@ -73,10 +75,11 @@ export default function UserAdminCard({ user, handleChangeRole, setDeleteConfirm
                             setDeleteConfirm(user);
                         }}
                         disabled={actionLoading}
-                        className="px-3 py-1.5 bg-red-500/20 text-red-300 rounded-lg text-xs font-semibold hover:bg-red-500/30 transition-all disabled:opacity-50"
+                        className="px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-br from-red-500/30 to-red-600/20 text-red-300 border border-red-500/40 rounded-lg text-[10px] sm:text-xs font-semibold hover:from-red-500/40 hover:to-red-600/30 hover:border-red-400 transition-all disabled:opacity-50 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap shadow-sm"
                         title="Eliminar usuario"
                     >
-                        <i className="fas fa-trash mr-1"></i> Eliminar
+                        <i className="fas fa-trash text-xs sm:text-sm"></i>
+                        <span className="hidden sm:inline">Eliminar</span>
                     </button>
                 </div>
             </div>

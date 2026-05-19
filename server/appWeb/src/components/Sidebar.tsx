@@ -60,68 +60,79 @@ export default function Sidebar({ onRefresh, onNewApi, isOpen, onClose }: Sideba
           onClick={onClose}
         />
       )}
-      <aside className={`fixed top-0 left-0 w-[270px] h-screen bg-surface border-r border-borderNormal flex flex-col z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-      {/* Logo */}
-      <div className="p-6 pb-4 flex items-center gap-3 border-b border-borderNormal">
-        <img src="/logo.png" alt="Logo" className="w-10 h-10 rounded-xl object-contain shrink-0" />
-        <div>
-          <div className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300">APIGen Master</div>
-          <div className="text-xs text-textMuted mt-0.5">{context.user?.role === 'admin' ? 'Admin' : 'User'} Console v1.0</div>
+      <aside className={`fixed top-0 left-0 w-64 md:w-[270px] h-screen bg-surface border-r border-borderNormal flex flex-col z-50 transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Logo */}
+        <div className="p-4 sm:p-6 pb-3 sm:pb-4 flex items-center gap-2 sm:gap-3 border-b border-borderNormal">
+          <img src="/logo.png" alt="Logo" className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain shrink-0" />
+          <div className="min-w-0">
+            <div className="font-extrabold text-sm sm:text-lg text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300 truncate">APIGen Master</div>
+            <div className="text-[10px] text-textMuted mt-0.5">{context.user?.role === 'admin' ? 'Admin' : 'User'} v1.0</div>
+          </div>
         </div>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-3 no-scrollbar">
-        <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-2">Principal</div>
-        <button
-          onClick={() => handleSectionChange('dashboard')}
-          className={`flex items-center w-full gap-3 px-4 py-3 rounded-xl mb-1 transition-all text-sm font-medium text-left ${context.selectedView === 'dashboard'
-            ? 'bg-primaryGlow text-white shadow-lg shadow-primary/30'
-            : 'text-textSoft hover:bg-white/5 hover:text-textMain'
-            }`}
-        >
-          <i className={`fas fa-th-large w-5 text-center ${context.selectedView === 'dashboard' ? 'text-white' : 'text-textMuted'
-            }`}></i> Dashboard
-          <span className="ml-auto bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{context.apis.length}</span>
-        </button>
-        <a href="/docs" target="_blank" className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
-          <i className="fas fa-book-open w-5 text-center"></i> Swagger UI
-        </a>
-        {context.user?.role === 'admin' && (
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto p-2 sm:p-3 no-scrollbar">
+          <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-2">Principal</div>
           <button
-            onClick={() => handleSectionChange('adminPanel')}
-            className={`flex items-center w-full gap-3 px-4 py-3 rounded-xl mb-1 transition-all text-sm font-medium text-left ${context.selectedView === 'adminPanel'
+            onClick={() => { handleSectionChange('dashboard'); onClose(); }}
+            className={`flex items-center w-full gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl mb-1 transition-all text-xs sm:text-sm font-medium text-left ${context.selectedView === 'dashboard'
               ? 'bg-primaryGlow text-white shadow-lg shadow-primary/30'
               : 'text-textSoft hover:bg-white/5 hover:text-textMain'
               }`}
           >
-            <i className={`fas fa-users w-5 text-center ${context.selectedView === 'adminPanel' ? 'text-white' : 'text-textMuted'
-              }`}></i> Panel de Administrador
+            <i className={`fas fa-th-large w-4 sm:w-5 text-center ${context.selectedView === 'dashboard' ? 'text-white' : 'text-textMuted'
+              }`}></i>
+            <span className="hidden sm:inline">Dashboard</span>
+            <span className="inline sm:hidden">Panel</span>
+            <span className="ml-auto bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{context.apis.length}</span>
           </button>
-        )}
-        <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-4">Herramientas</div>
-        <button onClick={onRefresh} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
-          <i className="fas fa-sync-alt w-5 text-center"></i> Refrescar todo
-        </button>
-        <button onClick={onNewApi} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
-          <i className="fas fa-plus-circle w-5 text-center"></i> Nueva API
-        </button>
-      </nav>
+          <a href="/docs" target="_blank" className="flex items-center w-full gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-xs sm:text-sm font-medium text-left">
+            <i className="fas fa-book-open w-4 sm:w-5 text-center"></i>
+            <span className="hidden sm:inline">Swagger UI</span>
+            <span className="inline sm:hidden">Docs</span>
+          </a>
+          {context.user?.role === 'admin' && (
+            <button
+              onClick={() => { handleSectionChange('adminPanel'); onClose(); }}
+              className={`flex items-center w-full gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl mb-1 transition-all text-xs sm:text-sm font-medium text-left ${context.selectedView === 'adminPanel'
+                ? 'bg-primaryGlow text-white shadow-lg shadow-primary/30'
+                : 'text-textSoft hover:bg-white/5 hover:text-textMain'
+                }`}
+            >
+              <i className={`fas fa-users w-4 sm:w-5 text-center ${context.selectedView === 'adminPanel' ? 'text-white' : 'text-textMuted'
+                }`}></i>
+              <span className="hidden sm:inline">Panel de Administrador</span>
+              <span className="inline sm:hidden">Admin</span>
+            </button>
+          )}
+          <div className="text-[10px] font-bold tracking-widest text-textMuted uppercase px-3 py-2 mt-4">Herramientas</div>
+          <button onClick={onRefresh} className="flex items-center w-full gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-xs sm:text-sm font-medium text-left">
+            <i className="fas fa-sync-alt w-4 sm:w-5 text-center"></i>
+            <span className="hidden sm:inline">Refrescar todo</span>
+            <span className="inline sm:hidden">Refrescar</span>
+          </button>
+          <button onClick={onNewApi} className="flex items-center w-full gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-xs sm:text-sm font-medium text-left">
+            <i className="fas fa-plus-circle w-4 sm:w-5 text-center"></i>
+            <span className="hidden sm:inline">Nueva API</span>
+            <span className="inline sm:hidden">Nueva</span>
+          </button>
+        </nav>
 
-      {/* Stats footer */}
-      <div className="p-5 border-t border-borderNormal">
-        <div className='flex flex-row w-full gap-4 py-2'>
-          <button onClick={() => setAlertModal(true)} className="flex items-center w-full gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
-            <i className="fas fa-sign-out-alt w-5 text-center text-red-500"></i> Salir
-          </button>
-          <button onClick={() => setUserModal(true)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain mb-1 transition-colors text-sm font-medium text-left">
-            <i className="fas fa-user w-5 text-center"></i>
-          </button>
+        {/* Stats footer */}
+        <div className="p-3 sm:p-5 border-t border-borderNormal">
+          <div className='flex flex-row w-full gap-2 sm:gap-4 py-2'>
+            <button onClick={() => setAlertModal(true)} className="flex items-center flex-1 gap-2 sm:gap-3 px-2 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain transition-colors text-xs sm:text-sm font-medium text-left">
+              <i className="fas fa-sign-out-alt w-4 sm:w-5 text-center text-red-500"></i>
+              <span className="hidden sm:inline">Salir</span>
+            </button>
+            <button onClick={() => setUserModal(true)} className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-textSoft hover:bg-white/5 hover:text-textMain transition-colors text-xs sm:text-sm font-medium text-left">
+              <i className="fas fa-user w-4 sm:w-5 text-center"></i>
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
-    {alertModal && <AlertModal message="¿Estás seguro de que quieres cerrar sesión?" onConfirm={() => { handleLogout(); setAlertModal(false); }} onCancel={() => setAlertModal(false)} />}
-    {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={handleChangePassword} />}
+      </aside>
+      {alertModal && <AlertModal message="¿Estás seguro de que quieres cerrar sesión?" onConfirm={() => { handleLogout(); setAlertModal(false); }} onCancel={() => setAlertModal(false)} />}
+      {userModal && <UserModal user={auth.currentUser} onClose={() => setUserModal(false)} onConfirm={handleChangePassword} />}
     </>
   );
 }

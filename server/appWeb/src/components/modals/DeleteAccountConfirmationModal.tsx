@@ -61,8 +61,11 @@ export default function DeleteAccountConfirmationModal({
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
-            <div className="w-full max-w-sm rounded-xl bg-surface border border-borderNormal p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
+            <div className="w-full max-w-sm rounded-xl bg-surface border border-borderNormal p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 relative" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-textSoft hover:text-textMain hover:bg-white/5">
+                    <i className="fas fa-times text-sm"></i>
+                </button>
                 <h2 className="text-lg font-bold text-textMain mb-2">
                     Verificación de Seguridad
                 </h2>

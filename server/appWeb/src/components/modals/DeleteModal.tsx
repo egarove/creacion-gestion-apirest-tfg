@@ -9,9 +9,12 @@ interface DeleteModalProps {
 export default function DeleteModal({ target, close, confirm }: DeleteModalProps) {
   const [input, setInput] = useState<string>('');
   return (
-    <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-surface border border-borderLight rounded-2xl w-full max-w-[420px] overflow-hidden flex flex-col shadow-2xl">
-        <div className="p-6 pb-2 text-center flex flex-col items-center">
+    <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={close}>
+      <div className="bg-surface border border-borderLight rounded-2xl w-full max-w-[420px] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="p-6 pb-2 text-center flex flex-col items-center relative">
+          <button onClick={close} className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-textSoft hover:text-textMain hover:bg-white/5">
+            <i className="fas fa-times text-sm"></i>
+          </button>
           <div className="w-16 h-16 rounded-full bg-dangerBg text-danger flex items-center justify-center text-3xl mb-4">
             <i className="fas fa-trash"></i>
           </div>

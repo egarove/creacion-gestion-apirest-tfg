@@ -25,6 +25,7 @@ export default function MainScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [apisLoading, setApisLoading] = useState(true);
 
   const showToast = (msg: string, type: Toast["type"] = "info") => {
     context.addToast({ id: uuidv4(), msg, type });
@@ -48,10 +49,11 @@ export default function MainScreen() {
       if (manual) showToast("APIs actualizadas", "success");
     } catch (err) {
       showToast(
-        "Error al cargar APIs: " +
-        (err instanceof Error ? err.message : String(err)),
+        "Error al cargar APIs: " + (err instanceof Error ? err.message : String(err)),
         "error",
       );
+    } finally {
+      setApisLoading(false);
     }
   };
 
@@ -99,16 +101,18 @@ export default function MainScreen() {
   }, [context.userApisPath]);
 
   useEffect(() => {
-    fetchApis();
-    const interval = setInterval(() => fetchApis(), 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) fetchApis();
+      if (firebaseUser) {
+        fetchApis();
+        if (!intervalId) {
+          intervalId = setInterval(() => fetchApis(), 15000);
+        }
+      } else {
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
+      }
     });
-    return () => unsub();
+    return () => { unsub(); if (intervalId) clearInterval(intervalId); };
   }, []);
 
   const handleDeleteApi = async () => {
@@ -134,15 +138,15 @@ export default function MainScreen() {
   return (
     <div className="flex bg-bg text-textMain min-h-screen font-sans no-scrollbar">
       {/* Mobile top bar */}
-      <div className="fixed top-0 left-0 right-0 h-14 bg-surface border-b border-borderNormal flex items-center px-4 z-40 md:hidden">
+      <div className="fixed top-0 left-0 right-0 h-12 sm:h-14 bg-surface border-b border-borderNormal flex items-center px-3 sm:px-4 z-40 md:hidden">
         <button
           onClick={() => setSidebarOpen(true)}
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-textSoft hover:text-textMain hover:bg-white/5 transition-colors"
+          className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-textSoft hover:text-textMain hover:bg-white/5 transition-colors shrink-0"
         >
-          <i className="fas fa-bars text-lg"></i>
+          <i className="fas fa-bars text-base sm:text-lg"></i>
         </button>
-        <div className="ml-3 font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300">
-          APIGen Master
+        <div className="ml-2 sm:ml-3 font-extrabold text-sm sm:text-base text-transparent bg-clip-text bg-gradient-to-r from-white to-indigo-300 truncate">
+          APIGen
         </div>
       </div>
 
@@ -162,6 +166,7 @@ export default function MainScreen() {
           showToast={showToast}
           apis={context.apis}
           fetchApis={fetchApis}
+          isLoading={apisLoading}
         />
       ) : (
         <AdminPanel />
@@ -175,7 +180,7 @@ export default function MainScreen() {
           toggleApi={async () => { }}
           restoreApi={async () => { }}
           showToast={showToast}
-          reload={async () => { }}
+          reload={async () => { await fetchApis(true) }}
         />
       )}
 
@@ -183,7 +188,7 @@ export default function MainScreen() {
       {showCreate && (
         <CreateModal
           close={() => setShowCreate(false)}
-          reload={async () => { }}
+          reload={async () => { await fetchApis(true) }}
           showLoading={showLoading}
           hideLoading={hideLoading}
           showToast={showToast}

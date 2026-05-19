@@ -9,6 +9,7 @@ interface DashBoardContainerProps {
   showToast: (msg: string, type?: Toast["type"]) => void;
   apis: Api[];
   fetchApis: () => void;
+  isLoading: boolean;
 }
 
 export default function DashBoardContainer({
@@ -17,6 +18,7 @@ export default function DashBoardContainer({
   apis,
   fetchApis,
   showToast,
+  isLoading,
 }: DashBoardContainerProps) {
 
   const [filter, setFilter] = useState("all");
@@ -111,6 +113,7 @@ export default function DashBoardContainer({
       handleRestoreApi={handleRestoreApi}
       setPanelApi={onPanelOpen}
       setDeleteTarget={onDeleteTarget}
+      isLoading={isLoading}
     />
   );
 }

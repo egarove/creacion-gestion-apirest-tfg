@@ -97,6 +97,10 @@ def crear_nueva_api(project: ApiModel, db: Session = Depends(get_db), _auth: dic
         if db.query(DBModel).filter(DBModel.api_name == project.api_name).first():
             return Response(status_code=400, content="La API ya existe.")
 
+        if project.db != "sqlite":
+            if db.query(DBModel).filter(DBModel.usr == project.usr, DBModel.db == project.db).first():
+                return Response(status_code=400, content=f"El usuario de base de datos '{project.usr}' ya existe. Usa un nombre diferente.")
+
         lang = project.language
         if lang not in LANG_CONFIG:
             return Response(status_code=400, content=f"Lenguaje '{lang}' no soportado")

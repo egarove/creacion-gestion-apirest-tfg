@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { ApiSchema, SchemaTable, Toast } from "../../types";
 import * as ApiService from "../../services/apiService";
+import DeleteModal from "../modals/DeleteModal";
 
 interface SchemaTabProps {
   apiName: string;
@@ -25,6 +26,8 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
   const [addColFor, setAddColFor] = useState<string | null>(null);
   const [colName, setColName] = useState("");
   const [colType, setColType] = useState("VARCHAR(255)");
+
+  const [dropConfirmTable, setDropConfirmTable] = useState<string | null>(null);
 
   // Add FK form
   const [addFkFor, setAddFkFor] = useState<string | null>(null);
@@ -72,7 +75,6 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
   };
 
   const handleDropTable = async (tableName: string) => {
-    if (!confirm(`¿Eliminar la tabla '${tableName}'? Esta acción no se puede deshacer.`)) return;
     setSaving(true);
     try {
       await ApiService.dropTable(apiName, tableName);
@@ -83,6 +85,7 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
       showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
     }
     setSaving(false);
+    setDropConfirmTable(null);
   };
 
   const handleAddColumn = async (tableName: string) => {
@@ -157,6 +160,13 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
 
   return (
     <div className="space-y-4">
+      {dropConfirmTable && (
+        <DeleteModal
+          target={dropConfirmTable}
+          close={() => setDropConfirmTable(null)}
+          confirm={() => handleDropTable(dropConfirmTable)}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -410,7 +420,7 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
                         <i className="fas fa-link mr-1"></i>FK
                       </button>
                     )}
-                    <button onClick={() => handleDropTable(t.table)} disabled={saving} className={`${cls.btn} ${cls.btnDanger} text-xs ml-auto`}>
+                    <button onClick={() => setDropConfirmTable(t.table)} disabled={saving} className={`${cls.btn} ${cls.btnDanger} text-xs ml-auto`}>
                       <i className="fas fa-trash mr-1"></i>Eliminar tabla
                     </button>
                   </div>

@@ -92,7 +92,7 @@ export default function Panel({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/50 z-[190] backdrop-blur-[2px]"
+        className="fixed inset-0 bg-black/50 z-[190] backdrop-blur-[2px] md:hidden"
         onClick={handleClose}
       ></div>
       <div className={`fixed top-0 right-0 w-full md:w-[520px] h-screen bg-surface border-l border-borderNormal z-[200] flex flex-col shadow-2xl ${isClosing ? "animate-drawer-out" : "animate-drawer-in"}`}>
