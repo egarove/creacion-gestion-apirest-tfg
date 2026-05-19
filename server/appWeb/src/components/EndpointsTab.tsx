@@ -10,6 +10,7 @@ interface EndpointsTabProps {
   onAddingChange: (adding: boolean) => void;
   onNewEndpointChange: (endpoint: Endpoint) => void;
   onSubmitEndpoint: () => void;
+  onDeleteEndpoint?: (functionName: string) => void;
 }
 
 export default function EndpointsTab({
@@ -20,6 +21,7 @@ export default function EndpointsTab({
   onAddingChange,
   onNewEndpointChange,
   onSubmitEndpoint,
+  onDeleteEndpoint,
 }: EndpointsTabProps) {
   // Se puede crear aqui la parte del código con la función del endpoint para poder editar lo que hace la función, pero por ahora lo dejamos así para no complicar demasiado la UI. Solo se podrá elegir el tipo de lógica (select, insert, update, delete) y luego se generará una función básica con esa lógica.
   return (
@@ -31,7 +33,11 @@ export default function EndpointsTab({
       )}
       <div className="space-y-2 mb-3">
         {endpoints.map((ep, i) => (
-          <EndpointCard key={i} endpoint={ep} />
+          <EndpointCard
+            key={i}
+            endpoint={ep}
+            onDelete={onDeleteEndpoint ? () => onDeleteEndpoint(ep.function_name) : undefined}
+          />
         ))}
       </div>
       {addingEndpoint && (

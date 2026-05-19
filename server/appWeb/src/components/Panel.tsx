@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Api, Endpoint, Tabs, Toast } from "../types";
-import { getLogs, addEndpoint } from "../services/apiService";
+import { getLogs, addEndpoint, deleteEndpoint } from "../services/apiService";
 import { firebaseServiceUser } from "../services/FireStoreService";
 import PanelHeader from "./PanelHeader";
 import PanelTabs from "./tabs/PanelTabs";
@@ -57,6 +57,27 @@ export default function Panel({
   useEffect(() => {
     if (tab === "logs") fetchLogs();
   }, [tab]);
+
+  const handleDeleteEndpoint = async (functionName: string) => {
+    try {
+      await deleteEndpoint(api.api_name, functionName);
+      const updatedEndpoints = eps
+        .filter(ep => ep.function_name !== functionName)
+        .map(ep => ({
+          method: ep.method,
+          path: ep.path,
+          function_name: ep.function_name,
+          logic: ep.logic,
+          table: ep.table ?? null,
+          is_public: ep.is_public,
+        }));
+      await firebaseServiceUser.update(api.api_name, { endpoints: updatedEndpoints });
+      showToast("Endpoint eliminado · Reconstruyendo contenedor...", "success");
+      setTimeout(reload, 5000);
+    } catch (e) {
+      showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
+    }
+  };
 
   const handleAddEndpoint = async () => {
     if (!newEp.path.startsWith("/")) {
@@ -140,6 +161,7 @@ export default function Panel({
               onAddingChange={setAddingEp}
               onNewEndpointChange={setNewEp}
               onSubmitEndpoint={handleAddEndpoint}
+              onDeleteEndpoint={handleDeleteEndpoint}
             />
           )}
 

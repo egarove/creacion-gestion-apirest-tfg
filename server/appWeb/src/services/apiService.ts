@@ -67,6 +67,19 @@ export async function addEndpoint(apiName: string, ep: Endpoint): Promise<void> 
   }
 }
 
+export async function deleteEndpoint(apiName: string, functionName: string): Promise<void> {
+  const res = await fetch(`/${apiName}/endpoint?function_name=${encodeURIComponent(functionName)}`, {
+    method: 'DELETE',
+    headers: await authHeaders(),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    let msg = t;
+    try { msg = (JSON.parse(t) as { detail?: string }).detail || t; } catch { /* noop */ }
+    throw new Error(msg);
+  }
+}
+
 export interface CreateApiBody {
   api_name: string;
   language: string;

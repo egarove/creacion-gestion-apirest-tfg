@@ -387,6 +387,49 @@ def create_end_point(api: str = _API_NAME_PATH, endpoint: Endpoint = ..., db: Se
         return Response(status_code=500, content="Error interno del servidor")
 
 
+@router.delete("/{api}/endpoint")
+def delete_endpoint(api: str = _API_NAME_PATH, function_name: str = "", db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
+    """Elimina un endpoint de una API existente y reconstruye el contenedor."""
+    try:
+        api_data = db.query(DBModel).filter(DBModel.api_name == api).first()
+        if not api_data:
+            return Response(status_code=404, content=f"No se encontró la API {api}")
+
+        current_endpoints = list(api_data.endpoints or [])
+        updated_endpoints = [ep for ep in current_endpoints if ep.get("function_name") != function_name]
+
+        if len(updated_endpoints) == len(current_endpoints):
+            return Response(status_code=404, content=f"Endpoint '{function_name}' no encontrado")
+
+        api_data.endpoints = updated_endpoints
+        db.commit()
+
+        lang = api_data.language or "python"
+        from models.endpoint_model import Endpoint as EpModel
+        eps_objs = [EpModel(**ep) for ep in updated_endpoints]
+        regenerate_api_code(api, lang, api_data.db, eps_objs, list(api_data.columns or []), bool(api_data.generar_ui))
+
+        project_path = f"deployments/{api}"
+        build_docker_image(api, project_path)
+        remove_containers(api)
+
+        url = _build_database_url(api_data.db, api_data.usr, api_data.paswd, api)
+        port = api_data.port
+        backup_port = api_data.backup_port or (port + 1)
+        env_args = _build_docker_env_args(lang, api_data.db, url, api_data.usr, api_data.paswd, api)
+        volume_args = []
+        if api_data.db == "sqlite":
+            host_db = f"{HOST_API_PATH}/deployments/{api}/{api}.db"
+            volume_args = ["-v", f"{host_db}:/data/{api}.db"]
+        start_api_containers(api, port, backup_port, env_args, volume_args)
+        _write_nginx_conf(api, port)
+        _reload_nginx()
+
+        return {"mensaje": "Endpoint eliminado", "function_name": function_name}
+    except Exception as e:
+        return Response(status_code=500, content=f"Error interno del servidor: {e}")
+
+
 @router.post("/{api}/delete")
 def delete_api(api: str = _API_NAME_PATH, db: Session = Depends(get_db), _auth: dict = Depends(firebase_dep)):
     """Elimina la API y sus recursos (contenedores, archivos, BD)."""

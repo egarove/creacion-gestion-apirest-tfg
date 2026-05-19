@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { ApiSchema, SchemaTable, Toast } from "../../types";
 import * as ApiService from "../../services/apiService";
 import DeleteModal from "../modals/DeleteModal";
+import { firebaseServiceUser } from "../../services/FireStoreService";
 
 interface SchemaTabProps {
   apiName: string;
@@ -35,15 +36,25 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
   const [fkRefTable, setFkRefTable] = useState("");
   const [fkRefCol, setFkRefCol] = useState("");
 
-  const fetchSchema = async () => {
+  const fetchSchema = async (): Promise<ApiSchema | null> => {
     setLoading(true);
+    let result: ApiSchema | null = null;
     try {
-      const s = await ApiService.getSchema(apiName);
-      setSchema(s);
+      result = await ApiService.getSchema(apiName);
+      setSchema(result);
     } catch (e) {
       showToast("Error al cargar esquema: " + (e instanceof Error ? e.message : String(e)), "error");
     }
     setLoading(false);
+    return result;
+  };
+
+  const syncTablesToFirestore = async (updatedSchema: ApiSchema | null) => {
+    const firestoreTables = (updatedSchema?.tables ?? []).map(t => ({
+      name: t.table,
+      columns: t.columns.map(c => ({ name: c.name, type: c.type })),
+    }));
+    await firebaseServiceUser.update(apiName, { tables: firestoreTables });
   };
 
   useEffect(() => { fetchSchema(); }, [apiName]);
@@ -67,7 +78,8 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
       setShowAddTable(false);
       setNewTableName("");
       setNewCols([{ name: "", type: "VARCHAR(255)", nullable: true }]);
-      await fetchSchema();
+      const newSchema = await fetchSchema();
+      await syncTablesToFirestore(newSchema);
     } catch (e) {
       showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
     }
@@ -80,7 +92,8 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
       await ApiService.dropTable(apiName, tableName);
       showToast(`Tabla '${tableName}' eliminada`, "success");
       if (expandedTable === tableName) setExpandedTable(null);
-      await fetchSchema();
+      const newSchema = await fetchSchema();
+      await syncTablesToFirestore(newSchema);
     } catch (e) {
       showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
     }
