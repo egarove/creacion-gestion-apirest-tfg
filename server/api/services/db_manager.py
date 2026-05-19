@@ -480,7 +480,7 @@ def _get_free_port(db: Session) -> int:
         if row.backup_port:
             used.add(row.backup_port)
     port = 8100
-    while port in used or (port + 1) in used:
+    while port in used or (port + 1) in used or not _is_port_available(port) or not _is_port_available(port + 1):
         port += 2
     return port
 
