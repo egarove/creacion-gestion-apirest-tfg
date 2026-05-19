@@ -177,6 +177,7 @@ export default function Panel({
               addingEndpoint={addingEp}
               newEndpoint={newEp}
               savingEndpoint={savingEp}
+              tables={(api.tables || []).map(t => t.name)}
               onAddingChange={setAddingEp}
               onNewEndpointChange={setNewEp}
               onSubmitEndpoint={handleAddEndpoint}

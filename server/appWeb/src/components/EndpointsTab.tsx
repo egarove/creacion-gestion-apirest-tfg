@@ -7,6 +7,7 @@ interface EndpointsTabProps {
   addingEndpoint: boolean;
   newEndpoint: Endpoint;
   savingEndpoint: boolean;
+  tables?: string[];
   onAddingChange: (adding: boolean) => void;
   onNewEndpointChange: (endpoint: Endpoint) => void;
   onSubmitEndpoint: () => void;
@@ -18,6 +19,7 @@ export default function EndpointsTab({
   addingEndpoint,
   newEndpoint,
   savingEndpoint,
+  tables = [],
   onAddingChange,
   onNewEndpointChange,
   onSubmitEndpoint,
@@ -44,6 +46,7 @@ export default function EndpointsTab({
         <EndpointForm
           newEndpoint={newEndpoint}
           saving={savingEndpoint}
+          tables={tables}
           onEndpointChange={onNewEndpointChange}
           onCancel={() => onAddingChange(false)}
           onSubmit={onSubmitEndpoint}

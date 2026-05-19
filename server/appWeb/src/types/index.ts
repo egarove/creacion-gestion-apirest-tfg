@@ -29,6 +29,7 @@ export interface Api {
   language?: string;
   db: string;
   columns?: string[];
+  tables?: Array<{ name: string; columns: Array<{ name: string; type: string }> }>;
   endpoints?: Endpoint[];
   generar_ui?: boolean;
 }
