@@ -26,13 +26,10 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      const credential = await firebaseAuth.signInWithGoogle();
-      const fbUser = credential.user;
+      const result = await firebaseAuth.signInWithGoogle();
+      const fbUser = result.user;
+      console.log("Usuario de Firebase obtenido:", fbUser);
 
-      // Asegurar que buscamos en la colección "usuarios"
-      firebaseServiceUser.setCollection("usuarios");
-
-      // Buscar usuario en Firestore por email
       const fireStore = new FirebaseService();
       let userData = await fireStore.getByIdentifier<UserData>("email", fbUser.email!);
       console.log("Datos de usuario obtenidos:", userData);
@@ -46,10 +43,9 @@ export default function LoginScreen() {
           provider: "google.com",
           uid: fbUser.uid,
         };
-        const docRef = await fireStore.add(firebaseData);
-        if (docRef) {
-          await fireStore.update(docRef.id, { ...firebaseData, uid: docRef.id });
-          userData = { uid: docRef.id, role: "usuario", apis: [], email: fbUser.email ?? undefined, provider: "google.com" };
+        const saved = await fireStore.saveUser(firebaseData.uid, firebaseData);
+        if (saved) {
+          userData = { uid: firebaseData.uid, role: "usuario", apis: [], email: fbUser.email ?? undefined, provider: "google.com" };
         }
       }
 
