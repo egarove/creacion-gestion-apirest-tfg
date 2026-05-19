@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Api, Endpoint, Tabs, Toast } from "../types";
 import { getLogs, addEndpoint } from "../services/apiService";
+import { firebaseServiceUser } from "../services/FireStoreService";
 import PanelHeader from "./PanelHeader";
 import PanelTabs from "./tabs/PanelTabs";
 import InfoTab from "./tabs/InfoTab";
@@ -69,6 +70,16 @@ export default function Panel({
     setSavingEp(true);
     try {
       await addEndpoint(api.api_name, newEp);
+      // Sync to Firestore so Flutter app sees the new endpoint
+      const updatedEndpoints = [...eps, {
+        method: newEp.method,
+        path: newEp.path,
+        function_name: newEp.function_name,
+        logic: newEp.logic,
+        table: newEp.table ?? null,
+        is_public: newEp.is_public,
+      }];
+      await firebaseServiceUser.update(api.api_name, { endpoints: updatedEndpoints });
       showToast("Endpoint añadido · Reconstruyendo contenedor...", "success");
       setAddingEp(false);
       setNewEp({

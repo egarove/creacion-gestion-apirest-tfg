@@ -130,6 +130,7 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
     String method = 'get';
     String logic = 'select';
     String? selectedTable;
+    bool isPublic = false;
     bool isLoading = false;
     String? errorMsg;
 
@@ -284,6 +285,23 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
 
                     const SizedBox(height: 12),
 
+                    // ── Público toggle ──
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Endpoint público',
+                            style: TextStyle(fontSize: 13, color: AppTheme.primaryColor),
+                          ),
+                        ),
+                        Switch(
+                          value: isPublic,
+                          activeColor: AppTheme.primaryColor,
+                          onChanged: (v) => setSheetState(() => isPublic = v),
+                        ),
+                      ],
+                    ),
+
                     if (errorMsg != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -314,6 +332,7 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                                   'path': pathCtrl.text.trim(),
                                   'function_name': funcCtrl.text.trim(),
                                   'logic': logic,
+                                  'is_public': isPublic,
                                   if (selectedTable != null)
                                     'table': selectedTable!,
                                 };
@@ -649,6 +668,7 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                 final epPath = ep['path'] as String? ?? '';
                 final epFunc = ep['function_name'] as String? ?? '';
                 final epLogic = ep['logic'] as String? ?? '';
+                final epPublic = ep['is_public'] as bool? ?? false;
                 final color = _methodColor(epMethod);
 
                 return Card(
@@ -718,6 +738,28 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                                     color: Colors.blue.shade300,
                                   ),
                                 ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: epPublic
+                                      ? Colors.green.withOpacity(0.15)
+                                      : Colors.orange.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: epPublic ? Colors.green : Colors.orange,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  epPublic ? 'Público' : 'Privado',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: epPublic ? Colors.green : Colors.orange,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
