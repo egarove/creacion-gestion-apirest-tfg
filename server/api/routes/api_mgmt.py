@@ -34,7 +34,6 @@ from services.nginx_service import _write_nginx_conf, _remove_nginx_conf, _reloa
 from services.generator import (
     generate_api_project,
     regenerate_api_code,
-    add_endpoint_to_project,
 )
 
 _API_NAME_PATH = Path(pattern=r'^[a-z][a-z0-9_]{1,49}$')
@@ -340,21 +339,15 @@ def create_end_point(api: str = _API_NAME_PATH, endpoint: Endpoint = ..., db: Se
 
         lang = api_data.language or "python"
 
-        # Intentar añadir el endpoint
-        success = add_endpoint_to_project(api, lang, endpoint)
-
-        if not success:
-            return Response(
-                status_code=400,
-                content=f"Para APIs en {lang}, recrea la API con todos los endpoints deseados. "
-                        f"No se soporta añadir endpoints dinámicamente a lenguajes compilados."
-            )
-
-        # Persist endpoint in DB
+        # Persist endpoint in DB first
         current_endpoints = list(api_data.endpoints or [])
         current_endpoints.append(endpoint.model_dump())
         api_data.endpoints = current_endpoints
         db.commit()
+
+        # Regenerate full code from template (ensures correct logic + table handling)
+        eps_objs = [Endpoint(**ep) for ep in current_endpoints]
+        regenerate_api_code(api, lang, api_data.db, eps_objs, list(api_data.columns or []), bool(api_data.generar_ui))
 
         # Reconstruir imagen y contenedores
         project_path = f"deployments/{api}"
@@ -383,8 +376,8 @@ def create_end_point(api: str = _API_NAME_PATH, endpoint: Endpoint = ..., db: Se
         _reload_nginx()
 
         return {"mensaje": "Endpoint añadido", "endpoint": endpoint.path}
-    except Exception:
-        return Response(status_code=500, content="Error interno del servidor")
+    except Exception as e:
+        return Response(status_code=500, content=f"Error interno del servidor: {e}")
 
 
 @router.delete("/{api}/endpoint")
@@ -405,8 +398,7 @@ def delete_endpoint(api: str = _API_NAME_PATH, function_name: str = "", db: Sess
         db.commit()
 
         lang = api_data.language or "python"
-        from models.endpoint_model import Endpoint as EpModel
-        eps_objs = [EpModel(**ep) for ep in updated_endpoints]
+        eps_objs = [Endpoint(**ep) for ep in updated_endpoints]
         regenerate_api_code(api, lang, api_data.db, eps_objs, list(api_data.columns or []), bool(api_data.generar_ui))
 
         project_path = f"deployments/{api}"
