@@ -48,11 +48,10 @@ export default function MainScreen() {
       context.setUserApis(myApis);
       if (manual) showToast("APIs actualizadas", "success");
     } catch (err) {
-      const errStr = err instanceof Error ? err.message : String(err);
-      // 401 se espera mientras Firebase aún no restaura la sesión al recargar
-      if (!errStr.includes("401")) {
-        showToast("Error al cargar APIs: " + errStr, "error");
-      }
+      showToast(
+        "Error al cargar APIs: " + (err instanceof Error ? err.message : String(err)),
+        "error",
+      );
     } finally {
       setApisLoading(false);
     }
@@ -102,16 +101,18 @@ export default function MainScreen() {
   }, [context.userApisPath]);
 
   useEffect(() => {
-    fetchApis();
-    const interval = setInterval(() => fetchApis(), 15000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) fetchApis();
+      if (firebaseUser) {
+        fetchApis();
+        if (!intervalId) {
+          intervalId = setInterval(() => fetchApis(), 15000);
+        }
+      } else {
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
+      }
     });
-    return () => unsub();
+    return () => { unsub(); if (intervalId) clearInterval(intervalId); };
   }, []);
 
   const handleDeleteApi = async () => {
