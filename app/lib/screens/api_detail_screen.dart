@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tfg_2dama_gestion_apirest/services/api_service.dart';
 import 'package:tfg_2dama_gestion_apirest/services/login_singup_methods.dart';
@@ -15,6 +18,7 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
   late Map<String, dynamic> _apiData;
   late List<Map<String, dynamic>> _endpoints;
   bool _initialized = false;
+  StreamSubscription<DocumentSnapshot>? _apiDocSub;
 
   String? _mainStatus;
   String? _backupStatus;
@@ -48,7 +52,37 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
           [];
       _initialized = true;
       _loadStatus();
+      _subscribeToApiDoc();
     }
+  }
+
+  void _subscribeToApiDoc() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final apiName = _apiData['api_name'] as String;
+    _apiDocSub = FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(uid)
+        .collection('apis')
+        .doc(apiName)
+        .snapshots()
+        .listen((snap) {
+      if (!snap.exists || !mounted) return;
+      final data = snap.data()!;
+      setState(() {
+        _apiData = {..._apiData, ...data};
+        _endpoints = (data['endpoints'] as List<dynamic>?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            _endpoints;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _apiDocSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadStatus() async {

@@ -36,16 +36,16 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
   const [fkRefTable, setFkRefTable] = useState("");
   const [fkRefCol, setFkRefCol] = useState("");
 
-  const fetchSchema = async (): Promise<ApiSchema | null> => {
-    setLoading(true);
+  const fetchSchema = async (showLoader = true): Promise<ApiSchema | null> => {
+    if (showLoader) setLoading(true);
     let result: ApiSchema | null = null;
     try {
       result = await ApiService.getSchema(apiName);
       setSchema(result);
     } catch (e) {
-      showToast("Error al cargar esquema: " + (e instanceof Error ? e.message : String(e)), "error");
+      if (showLoader) showToast("Error al cargar esquema: " + (e instanceof Error ? e.message : String(e)), "error");
     }
-    setLoading(false);
+    if (showLoader) setLoading(false);
     return result;
   };
 
@@ -78,8 +78,8 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
       setShowAddTable(false);
       setNewTableName("");
       setNewCols([{ name: "", type: "VARCHAR(255)", nullable: true }]);
-      const newSchema = await fetchSchema();
-      await syncTablesToFirestore(newSchema);
+      const newSchema = await fetchSchema(false);
+      try { await syncTablesToFirestore(newSchema); } catch { /* sync no crítico */ }
     } catch (e) {
       showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
     }
@@ -92,8 +92,8 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
       await ApiService.dropTable(apiName, tableName);
       showToast(`Tabla '${tableName}' eliminada`, "success");
       if (expandedTable === tableName) setExpandedTable(null);
-      const newSchema = await fetchSchema();
-      await syncTablesToFirestore(newSchema);
+      const newSchema = await fetchSchema(false);
+      try { await syncTablesToFirestore(newSchema); } catch { /* sync no crítico */ }
     } catch (e) {
       showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
     }

@@ -78,7 +78,11 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
         final tMap = Map<String, dynamic>.from(t as Map);
         if (tMap['name'] == endpointTable) {
           return (tMap['columns'] as List<dynamic>?)
-                  ?.map((c) => (c as String).split(' ').first)
+                  ?.map((c) {
+                    if (c is Map) return c['name'] as String? ?? '';
+                    return (c as String).split(' ').first;
+                  })
+                  .where((n) => n.isNotEmpty)
                   .toList() ??
               _columns;
         }
