@@ -192,6 +192,23 @@ export default function DashBoard({
                                 ]}
                                 onChange={(e) => setSortParam(e)}
                             />
+
+                            {/* Clear Filters Button */}
+                            {(filter !== "all" || langFilter !== "" || dbFilter !== "" || sortParam !== "name") && (
+                                <button
+                                    onClick={() => {
+                                        setFilter("all");
+                                        setLangFilter("");
+                                        setDbFilter("");
+                                        setSortParam("name");
+                                    }}
+                                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-all whitespace-nowrap flex items-center gap-1"
+                                    title="Limpiar todos los filtros"
+                                >
+                                    <i className="fas fa-times text-xs"></i>
+                                    <span className="hidden sm:inline">Limpiar</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Result Count */}
