@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Api, Endpoint, Tabs, Toast } from "../types";
-import { getLogs, addEndpoint, deleteEndpoint, getSchema } from "../services/apiService";
+import { getLogs, addEndpoint, deleteEndpoint } from "../services/apiService";
 import { firebaseServiceUser } from "../services/FireStoreService";
 import PanelHeader from "./PanelHeader";
 import PanelTabs from "./tabs/PanelTabs";
@@ -41,7 +41,6 @@ export default function Panel({
   const [savingEp, setSavingEp] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [localEps, setLocalEps] = useState<Endpoint[]>(api.endpoints || []);
-  const [schemaTables, setSchemaTables] = useState<string[]>([]);
 
   // Sync when parent refreshes panelApi after reload
   useEffect(() => {
@@ -73,9 +72,6 @@ export default function Panel({
         is_public: ep.is_public,
       }));
       firebaseServiceUser.update(api.api_name, { endpoints: syncEps }).catch(() => {});
-      getSchema(api.api_name)
-        .then(s => setSchemaTables(s.tables.map(t => t.table)))
-        .catch(() => {});
     }
   }, [tab]);
 
@@ -181,7 +177,6 @@ export default function Panel({
               addingEndpoint={addingEp}
               newEndpoint={newEp}
               savingEndpoint={savingEp}
-              tables={schemaTables}
               onAddingChange={setAddingEp}
               onNewEndpointChange={setNewEp}
               onSubmitEndpoint={handleAddEndpoint}

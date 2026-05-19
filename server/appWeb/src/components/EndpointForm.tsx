@@ -4,7 +4,6 @@ import { STRICT_MATRIX, autoLogic } from "../services/apiService";
 interface EndpointFormProps {
   newEndpoint: Endpoint;
   saving: boolean;
-  tables?: string[];
   onEndpointChange: (endpoint: Endpoint) => void;
   onCancel: () => void;
   onSubmit: () => void;
@@ -15,7 +14,6 @@ const ALL_LOGICS = ["select", "insert", "update", "delete"];
 export default function EndpointForm({
   newEndpoint,
   saving,
-  tables = [],
   onEndpointChange,
   onCancel,
   onSubmit,
@@ -106,18 +104,14 @@ export default function EndpointForm({
           <div className="text-[10px] text-textMuted font-bold uppercase mb-1">
             Tabla (opcional)
           </div>
-          <select
+          <input
             value={newEndpoint.table ?? ''}
             onChange={(e) =>
               onEndpointChange({ ...newEndpoint, table: e.target.value || undefined })
             }
-            className={selCls}
-          >
-            <option value="">Tabla principal (predeterminada)</option>
-            {tables.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
+            className={inpCls}
+            placeholder="Tabla principal (predeterminada)"
+          />
         </div>
         <div className="flex items-center justify-between bg-bg border border-borderNormal rounded-lg px-3 py-2 mt-4">
           <span className="text-xs text-textSoft font-semibold">Público</span>
