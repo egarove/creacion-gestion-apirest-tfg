@@ -25,6 +25,7 @@ export default function MainScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [apisLoading, setApisLoading] = useState(true);
 
   const showToast = (msg: string, type: Toast["type"] = "info") => {
     context.addToast({ id: uuidv4(), msg, type });
@@ -47,11 +48,13 @@ export default function MainScreen() {
       context.setUserApis(myApis);
       if (manual) showToast("APIs actualizadas", "success");
     } catch (err) {
-      showToast(
-        "Error al cargar APIs: " +
-        (err instanceof Error ? err.message : String(err)),
-        "error",
-      );
+      const errStr = err instanceof Error ? err.message : String(err);
+      // 401 se espera mientras Firebase aún no restaura la sesión al recargar
+      if (!errStr.includes("401")) {
+        showToast("Error al cargar APIs: " + errStr, "error");
+      }
+    } finally {
+      setApisLoading(false);
     }
   };
 
@@ -162,6 +165,7 @@ export default function MainScreen() {
           showToast={showToast}
           apis={context.apis}
           fetchApis={fetchApis}
+          isLoading={apisLoading}
         />
       ) : (
         <AdminPanel />

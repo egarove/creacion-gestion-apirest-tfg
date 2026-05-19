@@ -104,7 +104,7 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-3 sm:p-4 md:p-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-3 sm:p-4 md:p-0" onClick={onClose}>
       {deletingApis && (<LoadingOverlay message="Eliminando cuenta..." />)}
       {showDeleteModal && (
         <DeleteAccountConfirmationModal
@@ -113,7 +113,7 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
           onConfirm={handleDelete}
         />
       )}
-      <div className="w-full max-w-md rounded-xl bg-surface border border-borderNormal p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-md rounded-xl bg-surface border border-borderNormal p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center mb-3 gap-2 sm:gap-4">
           <h1 className="text-lg sm:text-xl font-bold text-textMain">
             Cambiar Contraseña
@@ -124,6 +124,12 @@ export function UserModal({ user, onClose, onConfirm }: UserModalProps) {
             className="ml-0 sm:ml-auto text-danger hover:text-danger/80 hover:underline transition-colors text-xs sm:text-sm whitespace-nowrap"
           >
             darse de baja
+          </button>
+          <button
+            onClick={onClose}
+            className="text-textSoft hover:text-textMain transition-colors"
+          >
+            <i className="fas fa-times text-lg"></i>
           </button>
         </div>
         {deleteAccount && (

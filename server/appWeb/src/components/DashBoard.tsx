@@ -29,6 +29,7 @@ interface DashBoardProps {
     handleRestoreApi: (api_name: string) => Promise<void>;
     setPanelApi: (api: Api) => void;
     setDeleteTarget: (api_name: string) => void;
+    isLoading: boolean;
 }
 
 export default function DashBoard({
@@ -51,7 +52,8 @@ export default function DashBoard({
     handleToggleApi,
     handleRestoreApi,
     setPanelApi,
-    setDeleteTarget
+    setDeleteTarget,
+    isLoading
 }: DashBoardProps) {
     const [showCreate, setShowCreate] = useState(false);
     const showLoading = (msg: string) => setLoadingMsg(msg);
@@ -201,7 +203,12 @@ export default function DashBoard({
 
                 {/* APIs Grid or Empty State */}
                 {
-                    displayedApis.length === 0 ? (
+                    isLoading ? (
+                        <div className="flex flex-col items-center justify-center p-20 bg-card border border-borderNormal rounded-2xl gap-4">
+                            <i className="fas fa-spinner animate-spin text-3xl text-primary"></i>
+                            <p className="text-sm text-textMuted">Cargando APIs...</p>
+                        </div>
+                    ) : displayedApis.length === 0 ? (
                         <div className="flex flex-col items-center justify-center p-20 bg-card border-2 border-dashed border-borderNormal rounded-2xl gap-4 text-center">
                             <div className="text-5xl text-borderLight">
                                 <i className="fas fa-inbox"></i>

@@ -107,8 +107,8 @@ export default function CreateModal({ close, reload, showLoading, hideLoading, s
   const sectionCls = 'text-[10px] font-bold text-textMuted uppercase tracking-widest pb-2 border-b border-borderNormal mb-4';
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-surface border border-borderLight rounded-2xl w-full max-w-[640px] max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-black/70 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={close}>
+      <div className="bg-surface border border-borderLight rounded-2xl w-full max-w-[640px] max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b border-borderNormal flex items-center gap-3 shrink-0">
           <i className="fas fa-plus-circle text-primary text-lg"></i>
           <span className="text-base font-bold flex-1">Nueva API</span>
