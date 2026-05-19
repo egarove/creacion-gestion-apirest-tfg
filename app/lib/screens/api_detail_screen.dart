@@ -387,8 +387,6 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                                     newEndpoint,
                                   );
 
-                                  setState(() => _endpoints.add(newEndpoint));
-
                                   if (sheetCtx.mounted) {
                                     Navigator.pop(sheetCtx);
                                   }
@@ -424,6 +422,66 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
         );
       },
     );
+  }
+
+  Future<void> _deleteEndpoint(Map<String, dynamic> ep) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar endpoint'),
+        content: Text('¿Eliminar el endpoint "${ep['path']}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final apiName = _apiData['api_name'] as String;
+    final functionName = ep['function_name'] as String? ?? '';
+    try {
+      await ApiService().deleteEndpoint(apiName, functionName);
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final docRef = FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(uid)
+            .collection('apis')
+            .doc(apiName);
+        final doc = await docRef.get();
+        if (doc.exists) {
+          final current = (doc.data()!['endpoints'] as List<dynamic>?)
+                  ?.map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList() ??
+              [];
+          final updated =
+              current.where((e) => e['function_name'] != functionName).toList();
+          await docRef.update({'endpoints': updated});
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Endpoint eliminado · Reconstruyendo...')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -796,6 +854,15 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
                               ),
                             ],
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.red, size: 20),
+                          tooltip: 'Eliminar endpoint',
+                          onPressed: () => _deleteEndpoint(ep),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                              minWidth: 32, minHeight: 32),
                         ),
                       ],
                     ),

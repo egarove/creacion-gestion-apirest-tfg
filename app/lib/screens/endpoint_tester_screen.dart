@@ -8,6 +8,14 @@ import 'package:tfg_2dama_gestion_apirest/theme/app_theme.dart';
 const _bodyMethods = {'POST', 'PUT'};
 const _paramMethods = {'GET', 'DELETE'};
 
+class _ExtraField {
+  final TextEditingController keyCtrl;
+  final TextEditingController valCtrl;
+  _ExtraField()
+      : keyCtrl = TextEditingController(),
+        valCtrl = TextEditingController();
+}
+
 class _FilterRow {
   String col;
   final TextEditingController ctrl;
@@ -43,6 +51,7 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
 
   bool _executing = false;
   Map<String, dynamic>? _result;
+  final List<_ExtraField> _extraFields = [];
 
   Map<String, dynamic>? get _selectedApi =>
       (_selectedApiIdx != null && _selectedApiIdx! < _apis.length)
@@ -208,6 +217,23 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
     _bodyCtrls.clear();
     for (final f in _filterRows) f.ctrl.dispose();
     _filterRows.clear();
+    for (final f in _extraFields) {
+      f.keyCtrl.dispose();
+      f.valCtrl.dispose();
+    }
+    _extraFields.clear();
+  }
+
+  void _addExtraField() {
+    setState(() => _extraFields.add(_ExtraField()));
+  }
+
+  void _removeExtraField(int i) {
+    setState(() {
+      _extraFields[i].keyCtrl.dispose();
+      _extraFields[i].valCtrl.dispose();
+      _extraFields.removeAt(i);
+    });
   }
 
   void _addFilter() {
@@ -253,6 +279,9 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
       body = {
         for (final e in _bodyCtrls.entries)
           if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
+        for (final f in _extraFields)
+          if (f.keyCtrl.text.trim().isNotEmpty)
+            f.keyCtrl.text.trim(): f.valCtrl.text.trim(),
       };
     } else if (method == 'DELETE' && _bodyCtrls.isNotEmpty) {
       // DELETE por id: enviamos como query param (el template lo lee)
@@ -635,44 +664,105 @@ class _EndpointTesterScreenState extends State<EndpointTesterScreen> {
                     if (needsBody) ...[
                       _SectionHeader('$inputSectionNum. Body (JSON)'),
                       const SizedBox(height: 8),
-                      _bodyCtrls.isEmpty
-                          ? _emptyFieldsCard('Sin columnas configuradas para el body')
-                          : Card(
-                              elevation: 0,
-                              color: AppTheme.surfaceColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                    color: AppTheme.secondaryColor
-                                        .withOpacity(0.2)),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  children: _bodyCtrls.entries
-                                      .map((e) => Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 10),
-                                            child: TextFormField(
-                                              controller: e.value,
-                                              keyboardType: e.key == 'id'
-                                                  ? TextInputType.number
-                                                  : TextInputType.text,
-                                              decoration: InputDecoration(
-                                                labelText: e.key == 'id'
-                                                    ? 'id (para identificar el registro)'
-                                                    : e.key,
-                                                hintText: 'Valor de ${e.key}',
-                                                prefixIcon: e.key == 'id'
-                                                    ? const Icon(Icons.tag, size: 18)
-                                                    : null,
-                                              ),
-                                            ),
-                                          ))
-                                      .toList(),
+                      Card(
+                        elevation: 0,
+                        color: AppTheme.surfaceColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                              color: AppTheme.secondaryColor.withOpacity(0.2)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_bodyCtrls.isEmpty && _extraFields.isEmpty)
+                                Text(
+                                  'Sin columnas configuradas. Añade campos manualmente.',
+                                  style: const TextStyle(
+                                      color: AppTheme.secondaryColor,
+                                      fontSize: 13),
+                                ),
+                              ..._bodyCtrls.entries.map((e) => Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 10),
+                                    child: TextFormField(
+                                      controller: e.value,
+                                      keyboardType: e.key == 'id'
+                                          ? TextInputType.number
+                                          : TextInputType.text,
+                                      decoration: InputDecoration(
+                                        labelText: e.key == 'id'
+                                            ? 'id (para identificar el registro)'
+                                            : e.key,
+                                        hintText: 'Valor de ${e.key}',
+                                        prefixIcon: e.key == 'id'
+                                            ? const Icon(Icons.tag, size: 18)
+                                            : null,
+                                      ),
+                                    ),
+                                  )),
+                              // Campos extra añadidos manualmente
+                              ..._extraFields.asMap().entries.map((entry) {
+                                final i = entry.key;
+                                final f = entry.value;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: TextFormField(
+                                          controller: f.keyCtrl,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Campo',
+                                            hintText: 'nombre_col',
+                                            isDense: true,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 3,
+                                        child: TextFormField(
+                                          controller: f.valCtrl,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Valor',
+                                            isDense: true,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                            color: Colors.red,
+                                            size: 20),
+                                        onPressed: () =>
+                                            _removeExtraField(i),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                            minWidth: 32, minHeight: 32),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                              TextButton.icon(
+                                onPressed: _addExtraField,
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Añadir campo',
+                                    style: TextStyle(fontSize: 13)),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppTheme.primaryColor,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                 ),
                               ),
-                            ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
 
                     // ── DELETE por id ──

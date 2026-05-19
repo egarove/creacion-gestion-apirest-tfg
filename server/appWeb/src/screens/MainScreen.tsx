@@ -34,7 +34,7 @@ export default function MainScreen() {
   const showLoading = (msg: string) => setLoadingMsg(msg);
   const hideLoading = () => setLoadingMsg(null);
 
-  const fetchApis = async (manual = false) => {
+  const fetchApis = async (manual = false): Promise<Api[]> => {
     try {
       const data = await ApiService.getAllApis();
       let myApis: Api[];
@@ -47,11 +47,13 @@ export default function MainScreen() {
       }
       context.setUserApis(myApis);
       if (manual) showToast("APIs actualizadas", "success");
+      return myApis;
     } catch (err) {
       showToast(
         "Error al cargar APIs: " + (err instanceof Error ? err.message : String(err)),
         "error",
       );
+      return [];
     } finally {
       setApisLoading(false);
     }
@@ -180,7 +182,13 @@ export default function MainScreen() {
           toggleApi={async () => { }}
           restoreApi={async () => { }}
           showToast={showToast}
-          reload={async () => { await fetchApis(true) }}
+          reload={async () => {
+            const fresh = await fetchApis();
+            if (panelApi) {
+              const freshApi = fresh.find(a => a.api_name === panelApi.api_name);
+              if (freshApi) setPanelApi(freshApi);
+            }
+          }}
         />
       )}
 

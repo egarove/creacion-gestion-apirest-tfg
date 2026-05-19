@@ -54,7 +54,15 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
       name: t.table,
       columns: t.columns.map(c => ({ name: c.name, type: c.type })),
     }));
-    await firebaseServiceUser.update(apiName, { tables: firestoreTables });
+    const mainTableName = `data_${apiName}`;
+    const mainTable = (updatedSchema?.tables ?? []).find(t => t.table === mainTableName);
+    const payload: Record<string, unknown> = { tables: firestoreTables };
+    if (mainTable) {
+      payload.columns = mainTable.columns
+        .filter(c => !c.pk && c.name !== "id")
+        .map(c => `${c.name} ${c.type}`);
+    }
+    await firebaseServiceUser.update(apiName, payload);
   };
 
   useEffect(() => { fetchSchema(); }, [apiName]);
@@ -110,7 +118,8 @@ export default function SchemaTab({ apiName, dbType, showToast }: SchemaTabProps
       await ApiService.addColumn(apiName, tableName, { name: colName, type: colType });
       showToast(`Columna '${colName}' añadida a '${tableName}'`, "success");
       setAddColFor(null); setColName(""); setColType("VARCHAR(255)");
-      await fetchSchema();
+      const newSchema = await fetchSchema(false);
+      try { await syncTablesToFirestore(newSchema); } catch { /* sync no crítico */ }
     } catch (e) {
       showToast("Error: " + (e instanceof Error ? e.message : String(e)), "error");
     }

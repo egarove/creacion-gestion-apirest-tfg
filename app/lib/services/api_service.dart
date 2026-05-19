@@ -89,6 +89,37 @@ class ApiService {
     }
   }
 
+  Future<void> deleteEndpoint(String apiName, String functionName) async {
+    final uri = Uri.parse(
+        '$_baseUrl/$apiName/endpoint?function_name=${Uri.encodeComponent(functionName)}');
+    final token = await _getToken();
+    try {
+      final response = await http.delete(
+        uri,
+        headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) return;
+      String mensaje;
+      try {
+        final decoded = jsonDecode(response.body);
+        mensaje = decoded is Map && decoded.containsKey('detail')
+            ? decoded['detail'].toString()
+            : response.body.isNotEmpty
+                ? response.body
+                : 'Error del servidor (${response.statusCode})';
+      } catch (_) {
+        mensaje = response.body.isNotEmpty
+            ? response.body
+            : 'Error del servidor (${response.statusCode})';
+      }
+      throw Exception(mensaje);
+    } on http.ClientException catch (e) {
+      throw Exception('No se pudo conectar al servidor: ${e.message}');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> getStatus(String apiName) async {
     final uri = Uri.parse('$_baseUrl/$apiName/status');
     final token = await _getToken();

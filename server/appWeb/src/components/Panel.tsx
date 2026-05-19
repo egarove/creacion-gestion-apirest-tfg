@@ -40,8 +40,14 @@ export default function Panel({
   });
   const [savingEp, setSavingEp] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [localEps, setLocalEps] = useState<Endpoint[]>(api.endpoints || []);
 
-  const eps = api.endpoints || [];
+  // Sync when parent refreshes panelApi after reload
+  useEffect(() => {
+    setLocalEps(api.endpoints || []);
+  }, [api]);
+
+  const eps = localEps;
 
   const handleClose = () => {
     setIsClosing(true);
@@ -82,6 +88,7 @@ export default function Panel({
           table: ep.table ?? null,
           is_public: ep.is_public,
         }));
+      setLocalEps(updatedEndpoints as Endpoint[]);
       await firebaseServiceUser.update(api.api_name, { endpoints: updatedEndpoints });
       showToast("Endpoint eliminado · Reconstruyendo contenedor...", "success");
       setTimeout(reload, 5000);
@@ -111,6 +118,7 @@ export default function Panel({
         table: newEp.table ?? null,
         is_public: newEp.is_public,
       }];
+      setLocalEps(updatedEndpoints as Endpoint[]);
       await firebaseServiceUser.update(api.api_name, { endpoints: updatedEndpoints });
       showToast("Endpoint añadido · Reconstruyendo contenedor...", "success");
       setAddingEp(false);
