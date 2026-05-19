@@ -12,7 +12,7 @@ import { useContextStore } from "../contextZustand";
 import { firebaseServiceUser } from "../services/FireStoreService";
 import DashBoardContainer from "../components/DashBoardContainer";
 import AdminPanel from "../components/AdminPanel";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, reload } from "firebase/auth";
 import { auth } from "../FirebaseConfig";
 
 export default function MainScreen() {
@@ -133,6 +133,7 @@ export default function MainScreen() {
       );
     }
     hideLoading();
+    await fetchApis();
   };
 
   if (!user) return null;
