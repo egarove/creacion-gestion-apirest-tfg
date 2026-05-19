@@ -168,12 +168,6 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
     bool isLoading = false;
     String? errorMsg;
 
-    final extraTables = (_apiData['tables'] as List<dynamic>?)
-            ?.map((t) => (t as Map)['name'] as String? ?? '')
-            .where((n) => n.isNotEmpty)
-            .toList() ??
-        [];
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -301,20 +295,14 @@ class _ApiDetailScreenState extends State<ApiDetailScreen> {
 
                     const SizedBox(height: 14),
 
-                    DropdownButtonFormField<String?>(
-                      value: selectedTable,
-                      decoration: const InputDecoration(labelText: 'Tabla'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Tabla principal (predeterminada)'),
-                        ),
-                        ...extraTables.map((n) => DropdownMenuItem<String?>(
-                              value: n,
-                              child: Text(n),
-                            )),
-                      ],
-                      onChanged: (v) => setSheetState(() => selectedTable = v),
+                    TextFormField(
+                      initialValue: selectedTable ?? '',
+                      decoration: const InputDecoration(
+                        labelText: 'Tabla (opcional)',
+                        hintText: 'tabla_por_defecto',
+                      ),
+                      onChanged: (v) => setSheetState(
+                          () => selectedTable = v.trim().isEmpty ? null : v.trim()),
                     ),
 
                     const SizedBox(height: 12),
